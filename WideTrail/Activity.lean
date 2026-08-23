@@ -31,7 +31,21 @@ def PreserveSupport (gamma : (Idx -> K) -> (Idx -> K)) : Prop :=
   ∀ a, activePattern (gamma a) = activePattern a
 
 @[simp] theorem mem_activePattern {s : Idx -> K} {i : Idx} :
-    i ∈ activePattern s <-> s i ≠ 0 :=
+    i ∈ activePattern s <-> s i ≠ 0 := by
+  simp [activePattern]
 
-@[simp]
-theorem colWeight_id : colWeight id s = weight s
+@[simp] theorem activePattern_eq_empty {s : Idx -> K} :
+    activePattern s = ø <-> s = 0 := by
+  simp [Finset.eq_empty_iff_forall_notMem, funext_iff]
+
+@[simp] theorem colWeight_id [DecidableEq Idx] {s : Idx -> K} :
+    colWeight id s = weight s := by
+  simp [colWeight, weight]
+
+theorem weight_eq_of_preservesSupport {gamma : (Idx -> K) -> (Idx -> K)}
+    (h : PreservesSupport gamma) (a : Idx -> K) : weight (gamma a) = weight a := by
+  simp [weight, h a]
+
+theorem ne_zero_of_preservesSupport {gamma : (Idx -> K) -> (Idx -> K)}
+    (h : PreservesSupport gamma) {a : Idx -> K} (ha : a≠ 0) : gamma a ≠0 := by
+  sorry
