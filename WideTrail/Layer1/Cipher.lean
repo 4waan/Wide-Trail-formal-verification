@@ -3,7 +3,7 @@ Copyright (c) 2026 Awaan Siddiqui. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Awaan Siddiqui
 -/
-import WideTrail.FourRound
+import WideTrail.Layer1.FourRound
 
 /-!
 # Bundled wide-trail specifications and multi-round bounds

@@ -1,9 +1,15 @@
-import WideTrail.Activity
-import WideTrail.Columns
-import WideTrail.Dispersion
-import WideTrail.FourRound
-import WideTrail.Cipher
-import WideTrail.AES
-import WideTrail.«sanity-check».Verification
-import WideTrail.«sanity-check».Tightness
-import WideTrail.«sanity-check».Axioms
+-- Layer 1: the abstract wide-trail propagation theory (parametric in the cipher shape).
+import WideTrail.Layer1.Activity
+import WideTrail.Layer1.Columns
+import WideTrail.Layer1.Dispersion
+import WideTrail.Layer1.FourRound
+import WideTrail.Layer1.Cipher
+import WideTrail.Layer1.AES
+import WideTrail.Layer1.«sanity-check».Verification
+import WideTrail.Layer1.«sanity-check».Tightness
+import WideTrail.Layer1.«sanity-check».Axioms
+
+-- Layer 2: the concrete discharge of AES's MixColumns branch-number hypothesis.
+import WideTrail.Layer2.GF256
+import WideTrail.Layer2.MDS
+import WideTrail.Layer2.AESMix

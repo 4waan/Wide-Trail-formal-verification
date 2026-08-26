@@ -6,6 +6,37 @@ Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://www.resear
 
 ---
 
+## Two layers
+
+The project is split into two layers, in two directories, because they're two different
+kinds of work.
+
+**Layer 1** (`WideTrail/Layer1/`) is the abstract propagation theory: an S-box layer, a
+shuffle, and a mixing layer, related only by the structural properties a wide-trail cipher
+needs (support-preservation, diffusion optimality, a branch number). It's parametric — the
+branch number, state size, and field are all just parameters — so it proves a bound for an
+entire *family* of cipher shapes at once, AES included. Instantiated at the AES shape, it
+gives `aes_four_round`/`aes128_ten_round` as an **implication**: *given* that MixColumns has
+branch number `5`, four rounds force `25` active S-boxes and ten rounds force `50`. The
+`hmix`/`hnd` hypotheses in `Layer1/AES.lean` are exactly that "given."
+
+**Layer 2** (`WideTrail/Layer2/`) discharges that hypothesis. It builds `GF(2⁸)` from scratch
+(Mathlib's `GaloisField` is `noncomputable`, unusable for the enumeration this needs), proves
+the general "MDS matrix ⟹ optimal branch number" theorem — vocabulary Mathlib doesn't have at
+all — and instantiates both against the real `4×4` AES `MixColumns` matrix. The output is
+`Layer2/AESMix.lean`'s `aes_four_round_concrete`/`aes128_ten_round_concrete`: the same two
+bounds, now with *no* remaining hypothesis except the free fact that the S-box layer is a
+bijective bricklayer (true for any invertible S-box, AES's included).
+
+Every theorem in both layers is checked by `#print axioms` to depend on nothing beyond the
+standard `propext, Classical.choice, Quot.sound` baseline — no `sorry`, no `native_decide`, no
+`bv_decide` fallback axiom, anywhere. See
+[`WideTrail/Layer2/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Layer2/MDS_HYPOTHESIS_BUILD.md) for the
+build log of Layer 2 (what was tried, what failed, why) and
+[`MECHANICS_L2.md`](MECHANICS_L2.md) for how Layer 2 actually works, mechanically.
+
+---
+
 ## What's in each file
 
 The files import each other in this order, each one building on the last.
@@ -13,26 +44,45 @@ The files import each other in this order, each one building on the last.
 ### [`WideTrail.lean`](WideTrail.lean)
 The entry point. It just imports every file below, so the whole library is one `import WideTrail` away.
 
-### [`WideTrail/Activity.lean`](WideTrail/Activity.lean)
+### Layer 1: the abstract theory
+
+#### [`WideTrail/Layer1/Activity.lean`](WideTrail/Layer1/Activity.lean)
 The foundation. Defines what it means for a position in the cipher's state to be "active" (its difference is nonzero), counts how many positions are active (the *weight*), and proves the basic two-round bound: across any two rounds, the number of active positions is at least the branch number of the mixing layer.
 
-### [`WideTrail/Columns.lean`](WideTrail/Columns.lean)
+#### [`WideTrail/Layer1/Columns.lean`](WideTrail/Layer1/Columns.lean)
 Groups the state into columns, the way AES groups bytes into 4-byte columns, and proves that if the mixing layer guarantees a minimum spread within each column, that spread adds up: any set of active columns forces that many times more active bytes overall (**Lemma 1**).
 
-### [`WideTrail/Dispersion.lean`](WideTrail/Dispersion.lean)
+#### [`WideTrail/Layer1/Dispersion.lean`](WideTrail/Layer1/Dispersion.lean)
 Models the shuffle step (like ShiftRows) that scrambles which column each byte belongs to between rounds. Proves that if this shuffle is "diffusion optimal", meaning no two bytes from the same column ever end up sharing a column again, then a column-level guarantee can be upgraded into a stronger bundle-level one (**Lemma 2**).
 
-### [`WideTrail/FourRound.lean`](WideTrail/FourRound.lean)
+#### [`WideTrail/Layer1/FourRound.lean`](WideTrail/Layer1/FourRound.lean)
 Combines Lemma 1 and Lemma 2 into the paper's two headline theorems: any four consecutive rounds of a wide-trail cipher force at least `B²` active S-boxes, where `B` is the branch number of the mixing layer. It's proved for both of the paper's cipher shapes, to show they agree.
 
-### [`WideTrail/Cipher.lean`](WideTrail/Cipher.lean)
+#### [`WideTrail/Layer1/Cipher.lean`](WideTrail/Layer1/Cipher.lean)
 Packages a whole cipher design (its column layout, S-box, shuffle, mixing layer, and the proof obligations they must satisfy) into a single structure, `WideTrailSpec`. Also extends the four-round theorem to any number of rounds by chaining four-round blocks together.
 
-### [`WideTrail/AES.lean`](WideTrail/AES.lean)
-Plugs the real AES shape into `WideTrailSpec`: a 4×4 grid, ShiftRows as the shuffle, and a MixColumns with branch number 5 (a property of AES that's taken as a given here, rather than re-derived from finite-field arithmetic). Out comes the actual numbers: at least 25 active S-boxes over any four rounds, and 50 over all ten rounds of AES-128.
+#### [`WideTrail/Layer1/AES.lean`](WideTrail/Layer1/AES.lean)
+Plugs the real AES shape into `WideTrailSpec`: a 4×4 grid, ShiftRows as the shuffle, and a MixColumns with branch number 5 (a property of AES that's taken as a hypothesis here — `hmix`/`hnd` — rather than re-derived from finite-field arithmetic; Layer 2 is what discharges it). Out comes the actual numbers: at least 25 active S-boxes over any four rounds, and 50 over all ten rounds of AES-128.
 
-### [`WideTrail/Verification.lean`](WideTrail/Verification.lean)
-A sanity-check file, not a source of new results. It builds a toy cipher to show the theorems' assumptions can all hold at once (so nothing here is vacuously true), builds a second toy cipher that is missing only the "diffusion optimal" shuffle property to show the bound genuinely breaks without it, and re-derives the AES bound through the alternate proof route to confirm both routes agree.
+#### [`WideTrail/Layer1/sanity-check/Verification.lean`](WideTrail/Layer1/sanity-check/Verification.lean)
+A sanity-check file, not a source of new results. It builds a toy cipher to show the theorems' assumptions can all hold at once (so nothing here is vacuously true), and builds a second toy cipher that is missing only the "diffusion optimal" shuffle property to show the bound genuinely breaks without it.
+
+#### [`WideTrail/Layer1/sanity-check/Tightness.lean`](WideTrail/Layer1/sanity-check/Tightness.lean)
+Measures how much slack is in the bounds on the one cipher small enough to search exhaustively (`toySpec`, a `2×2` state over `GF(2)`): the two-round bound turns out exactly tight, the four-round bound looser.
+
+#### [`WideTrail/Layer1/sanity-check/Axioms.lean`](WideTrail/Layer1/sanity-check/Axioms.lean)
+Audits the axiom footprint of the toy-cipher checks: confirms every finite check in the project runs through kernel `decide`, never `native_decide`, so nothing here quietly moved trust out of the kernel.
+
+### Layer 2: discharging MixColumns
+
+#### [`WideTrail/Layer2/GF256.lean`](WideTrail/Layer2/GF256.lean)
+`GF(2⁸)` built from scratch as `BitVec 8` under xor and shift-and-reduce multiplication, proved a genuine `Field` — commutativity and associativity by bilinear extension from a 64/512-case basis check (not brute force, which hits a kernel recursion-depth wall well before it could finish), inverses by an unrolled Fermat exponentiation.
+
+#### [`WideTrail/Layer2/MDS.lean`](WideTrail/Layer2/MDS.lean)
+The general theorem: if every square submatrix of a matrix `M` is nonsingular (the MDS property), then `{(x, Mx)}` has the optimal branch number `n+1` — vocabulary Mathlib has none of (no MDS matrices, no minimum distance, no Singleton bound anywhere in the library).
+
+#### [`WideTrail/Layer2/AESMix.lean`](WideTrail/Layer2/AESMix.lean)
+The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Layer 1's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete`.
 
 ---
 
@@ -65,7 +115,10 @@ flowchart TD
     T1["Theorem 1 (Activity.lean)\n2 rounds >= B active bytes"]
     T4["Theorems 2 & 3 (FourRound.lean)\n4 rounds >= B^2 active bytes"]
     SPEC["WideTrailSpec (Cipher.lean)\nn rounds >= floor(n/4) * B^2"]
-    AES["AES.lean\nconcrete numbers: 25 per 4 rounds, 50 over AES-128"]
+    AES["AES.lean\nconditional on hmix: B=5 -> 25 per 4 rounds, 50 over AES-128"]
+    GFMDS["Layer 2: GF256.lean + MDS.lean\nbuild GF(2^8), prove MDS -> branch B"]
+    AESMIX["Layer 2: AESMix.lean\nthe real MixColumns matrix is MDS"]
+    CONCRETE["AESMix.lean\nunconditional: 25 per 4 rounds, 50 over AES-128"]
 
     L1 --> T1
     L1 --> T4
@@ -73,9 +126,12 @@ flowchart TD
     T1 --> T4
     T4 --> SPEC
     SPEC --> AES
+    GFMDS --> AESMIX
+    AES --> CONCRETE
+    AESMIX --> CONCRETE
 ```
 
-`Verification.lean` sits off to the side of this chain: it doesn't add a new theorem, it stress-tests the ones above by trying to break them with small hand-built examples.
+[`WideTrail/Layer1/sanity-check/`](WideTrail/Layer1/sanity-check/) sits off to the side of this chain: it doesn't add a new theorem, it stress-tests the ones above by trying to break them with small hand-built examples, measures how tight the bounds are, and audits that everything really is kernel-checked.
 
 ### Why this is useful
 
