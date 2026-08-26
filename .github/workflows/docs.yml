@@ -60,12 +60,19 @@ jobs:
         with:
           use-mathlib-cache: true
 
+      # The `v1` ref is a maintained branch, not a tag, and it declares exactly
+      # five inputs: api_docs, blueprint, homepage, build_args and
+      # lake_package_directory. There is no `deploy` input on this line, so its
+      # final step reads `if: github.event_name == 'push'` and publishes to Pages
+      # unconditionally. A `deploy:` here would be an undeclared input, silently
+      # dropped, gating nothing. (`main` does have `deploy`, which is what makes
+      # this easy to get wrong.)
+      #
+      # So the guard lives here instead. When Pages is off the deploy 404s, and
+      # continue-on-error lets the docs still build and the run still pass. The
+      # step is marked failed either way, which is the honest report.
       - uses: leanprover-community/docgen-action@v1
-        with:
-          # Everything else stays at its default. The only thing that ever
-          # failed here was the deploy, and there is no docs/ folder holding a
-          # Jekyll homepage, so the action already skips its Ruby steps.
-          deploy: ${{ steps.pages.outputs.enabled }}
+        continue-on-error: ${{ steps.pages.outputs.enabled != 'true' }}
       # Note: actions/deploy-pages runs inside docgen-action and exposes no
       # outputs here, so this job declares no `environment:`. The deploy works
       # without one. Add `environment: github-pages` if you want the deployment
