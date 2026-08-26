@@ -1,3 +1,7 @@
 import WideTrail.Activity
-import Mathlib.LinearAlgebra.Matrix.Defs
-import Mathlib.Algebra.Group.Support
+import WideTrail.Columns
+import WideTrail.Dispersion
+import WideTrail.FourRound
+import WideTrail.Cipher
+import WideTrail.AES
+import WideTrail.Verification
