@@ -1,0 +1,9 @@
+The paper was loose at one point, so here is what i did instead:
+
+The paper proves Theorem 3 by rewriting four γπθ rounds as ρᵃ ∘ ρᵇ ∘ ρᵃ ∘ ρᵇ, using γπ = πγ, then citing Theorem 2.
+
+The rewriting is correct. Only two adjacent symbol swaps are needed and both are the commutation. But the result reads, input to output, as ρᵇ, ρᵃ, ρᵇ, ρᵃ, and Theorem 2 is stated for a trail that starts with ρᵃ. Theorem 2's proof consumes rounds 1, 2, 3 in the pattern θ, Θ, θ. In the regrouped composition the pattern from round 1 is Θ, θ, Θ, θ. It does not line up without shifting a round.
+
+So Theorem 3 is proved directly. The cost is one extra generalization: instead of demanding π a i = a (p i) literally, SupportPerm demands only that π relabels the support along p. That property is closed under composing with γ, so π ∘ γ is a support transposition too, and the commutation step is never needed. Θ = π ∘ θ ∘ π still appears, but only inside lemma_two, applied across rounds 2 and 3.
+
+The paper's claim that the two constructions reach the same constant is then checked separately as thetaTheta_bound_matches.
