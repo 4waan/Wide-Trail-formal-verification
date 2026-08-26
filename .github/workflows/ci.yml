@@ -1,0 +1,44 @@
+name: CI
+
+# The correctness gate. This workflow answers exactly one question: do the proofs
+# still check? Nothing in it talks to GitHub Pages, so a documentation hosting
+# problem can never turn this red.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Commits often land in bursts. Superseding runs on the same ref keeps the queue
+# short and stops a 20 minute build from being spent on a commit already replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, test and audit axioms
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: leanprover/lean-action@v1
+        with:
+          # Pull prebuilt Mathlib olean files instead of compiling Mathlib from
+          # source. Detection is automatic, but this project always needs it, so
+          # say it outright rather than depending on the heuristic.
+          use-mathlib-cache: true
+
+          # Fail the build if any declaration under the WideTrail namespace
+          # transitively depends on an axiom outside the allowlist. This catches
+          # `sorry` and `admit` (which surface as `sorryAx`), `native_decide`
+          # (which surfaces as `Lean.ofReduceBool` and moves the evidence out of
+          # the kernel), and any home-rolled axiom, including ones arriving
+          # through imports. WideTrail/sanity-check/Axioms.lean pins the same
+          # property for fifteen named theorems; this covers everything else.
+          axiom-audit: true
+          axiom-audit-allow: propext,Classical.choice,Quot.sound

@@ -8,10 +8,19 @@ on:
     paths:
       - 'lean-toolchain'
 
+permissions:
+  contents: read
+
 jobs:
   lean-release-tag:
     name: Add Lean release tag
     runs-on: ubuntu-latest
+    # lean-release-tag diffs `github.event.before` against `github.event.after`
+    # to see which toolchain the project moved from. On the push that first
+    # creates the branch, `before` is forty zeros, no such commit exists, and the
+    # diff exits 128. Skip that one push. Every later toolchain bump has a real
+    # predecessor and still runs.
+    if: github.event.before != '0000000000000000000000000000000000000000'
     permissions:
       contents: write
     steps:

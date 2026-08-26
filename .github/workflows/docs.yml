@@ -1,0 +1,72 @@
+name: Docs
+
+# Builds the API documentation and publishes it to GitHub Pages.
+#
+# This used to be the last two steps of the build job, which meant a Pages
+# misconfiguration marked the whole run red after the proofs had already checked
+# out fine. It is a separate workflow now, and it degrades to a dry run rather
+# than failing when Pages is switched off.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write      # deploy the site, and read the Pages config in the probe below
+  id-token: write   # actions/deploy-pages authenticates to Pages over OIDC
+
+# Pages accepts one deployment at a time. Queue them instead of cancelling, so a
+# run that is midway through publishing is allowed to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  docs:
+    name: Build and publish documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # actions/deploy-pages POSTs to the Pages API, which answers 404 when the
+      # repository has no Pages site configured. That 404 is indistinguishable
+      # from a real error once it reaches the action, so ask first.
+      - name: Detect whether GitHub Pages is enabled
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is enabled. Documentation will be published." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Pages is not enabled::Documentation was built but not published."
+            {
+              echo "### Documentation built, not published"
+              echo ""
+              echo "This repository has no GitHub Pages site, so the deploy step was skipped."
+              echo "To publish: Settings, then Pages, then set Source to GitHub Actions."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # docgen-action expects the toolchain to already be installed and the
+      # project already built. It does not run lean-action itself.
+      - uses: leanprover/lean-action@v1
+        with:
+          use-mathlib-cache: true
+
+      - uses: leanprover-community/docgen-action@v1
+        with:
+          # Everything else stays at its default. The only thing that ever
+          # failed here was the deploy, and there is no docs/ folder holding a
+          # Jekyll homepage, so the action already skips its Ruby steps.
+          deploy: ${{ steps.pages.outputs.enabled }}
+      # Note: actions/deploy-pages runs inside docgen-action and exposes no
+      # outputs here, so this job declares no `environment:`. The deploy works
+      # without one. Add `environment: github-pages` if you want the deployment
+      # to appear under the repository's Environments tab.
