@@ -4,4 +4,6 @@ import WideTrail.Dispersion
 import WideTrail.FourRound
 import WideTrail.Cipher
 import WideTrail.AES
-import WideTrail.Verification
+import WideTrail.«sanity-check».Verification
+import WideTrail.«sanity-check».Tightness
+import WideTrail.«sanity-check».Axioms
