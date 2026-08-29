@@ -6,10 +6,10 @@ Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://www.resear
 
 ---
 
-## Two layers
+## Three layers
 
-The project is split into two layers, in two directories, because they're two different
-kinds of work.
+The project is split into three layers, in three directories, because they're three
+different kinds of work.
 
 **Layer 1** (`WideTrail/Layer1/`) is the abstract propagation theory: an S-box layer, a
 shuffle, and a mixing layer, related only by the structural properties a wide-trail cipher
@@ -32,12 +32,37 @@ all — and instantiates both against the real `4×4` AES `MixColumns` matrix. T
 bounds, now with *no* remaining hypothesis except the free fact that the S-box layer is a
 bijective bricklayer (true for any invertible S-box, AES's included).
 
-Every theorem in both layers is checked by `#print axioms` to depend on nothing beyond the
-standard `propext, Classical.choice, Quot.sound` baseline — no `sorry`, no `native_decide`, no
-`bv_decide` fallback axiom, anywhere. See
+**Layer 3** (`WideTrail/Layer3/`) turns the count into a probability. A differential's
+probability is kept as a `Nat` numerator over a fixed denominator, never a rational, so
+every statement stays exact and stays decidable on a small cipher. Three steps: a
+bricklayer's differential count factors over bundles, and the number of factors that are not
+free is exactly Layer 1's `weight`; the rounds multiply; and `4 · 2⁶ = 256` turns each active
+AES S-box into a factor of `2⁻⁶`. Out comes `2⁻¹⁵⁰` over four rounds and `2⁻³³⁰` over the ten
+rounds of AES-128.
+
+The multiplication step is the one that needs an assumption, and Layer 3 does not assume the
+product formula. It counts pairs of an input and a **round-key vector**, so independent round
+keys are visible in what is being counted, and then *proves* the product. That is not a
+stylistic preference: assuming the product formula at a fixed key is inconsistent for
+ten-round AES, and `Layer3/sanity-check/Toy.lean` exhibits a cipher, a trail and a key where
+the key-averaged count is positive and the fixed-key count is zero. Layer 3 also proves,
+unconditionally, that a differential is a *sum* over trails and exhibits a two-round
+differential worth twice its best trail, which is the hull effect that caveats every
+wide-trail figure in the literature.
+
+Layer 3 also demotes one of Layer 1's hypotheses to a theorem. `PreserveSupport` was a claim
+about a function on differences, and a real S-box layer has no such function; what it really
+guarantees is that any output difference it *can* produce has the same support as the input.
+Layer 3 proves that from injectivity alone, and Layer 1's four-round theorems were generalised
+to consume it, with the old function-shaped statements surviving unchanged as corollaries.
+
+Every theorem in all three layers is checked by `#print axioms` to depend on nothing beyond
+the standard `propext, Classical.choice, Quot.sound` baseline: no `sorry`, no
+`native_decide`, no `bv_decide` fallback axiom, anywhere. See
 [`WideTrail/Layer2/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Layer2/MDS_HYPOTHESIS_BUILD.md) for the
-build log of Layer 2 (what was tried, what failed, why) and
-[`MECHANICS_L2.md`](MECHANICS_L2.md) for how Layer 2 actually works, mechanically.
+build log of Layer 2 (what was tried, what failed, why),
+[`MECHANICS_L2.md`](MECHANICS_L2.md) for how Layer 2 actually works, mechanically, and
+[`MECHANICS_L3.md`](MECHANICS_L3.md) for the same on Layer 3.
 
 ---
 
@@ -94,6 +119,29 @@ The general theorem: if every square submatrix of a matrix `M` is nonsingular (t
 #### [`WideTrail/Layer2/AESMix.lean`](WideTrail/Layer2/AESMix.lean)
 The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Layer 1's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete` (25 and 55), plus the same for AES-192 and AES-256 (75 and 80).
 
+### Layer 3: from active S-boxes to a probability
+
+#### [`WideTrail/Layer3/Differential.lean`](WideTrail/Layer3/Differential.lean)
+What a differential probability is, without measure theory: `diffCount F a b` counts the inputs realising the differential, and `DP ≤ 2⁻ᵈ` is written `diffCount * 2 ^ d ≤ |X|`, exact in `ℕ` and decidable. Proves that a row of the difference distribution table sums to `|X|`, that round keys and invertible linear layers change no count, and the hull identity: the differential of a composition is a *sum* over intermediate differences, unconditionally.
+
+#### [`WideTrail/Layer3/Bricklayer.lean`](WideTrail/Layer3/Bricklayer.lean)
+The join between the two halves of the project. A bricklayer's differential count factors over bundles, and splitting that product over the support gives `u ^ weight a * |K| ^ (|Idx| - weight a)`: Layer 1's `weight` appears as an exponent with no translation step. Also proves the support-preservation that Layer 1 had to assume, from injectivity of the S-boxes alone.
+
+#### [`WideTrail/Layer3/Markov.lean`](WideTrail/Layer3/Markov.lean)
+The Markov cipher model, with the assumption in the shape of what is counted rather than in a hypothesis: the count ranges over round-key vectors, so independent round keys are explicit, and the product formula is then a theorem. Proved by peeling one round at a time, which is the change of variables `yₙ = xₙ + kₙ` in disguise.
+
+#### [`WideTrail/Layer3/TrailProb.lean`](WideTrail/Layer3/TrailProb.lean)
+The arithmetic, once: `trailKeyCount · 2 ^ (d·W) ≤ |X| ^ r`. Plus the bridge that lets Layer 1 count a real differential trail, since a trail with a nonzero count satisfies `WideTrailSpec.IsTrail`.
+
+#### [`WideTrail/Layer3/AESProb.lean`](WideTrail/Layer3/AESProb.lean)
+The numbers. `|K| = 256`, `|Idx| = 16`, S-box uniformity `4`, and `4 · 2⁶ = 256`, so each active S-box costs `2⁻⁶`: `2⁻¹⁵⁰` over four rounds, `2⁻³³⁰` over ten, `2⁻⁴⁵⁰` over twelve, `2⁻⁴⁸⁰` over fourteen. The S-box's differential uniformity is the one hypothesis Layer 3 does not discharge, and the file says why.
+
+#### [`WideTrail/Layer3/sanity-check/Toy.lean`](WideTrail/Layer3/sanity-check/Toy.lean)
+A sixteen-state cipher the kernel enumerates in full. Recomputes the bundle product and the Markov product by brute force, shows the S-box uniformity constant is exactly attained, exhibits a fixed key under which the product formula is false, and exhibits a two-round differential worth twice its best trail.
+
+#### [`WideTrail/Layer3/sanity-check/Axioms.lean`](WideTrail/Layer3/sanity-check/Axioms.lean)
+The same axiom audit as Layer 1, applied to the probability layer: twenty-six results, all on the standard baseline, none through `native_decide`.
+
 ---
 
 ## How this works as a program, and why it's useful
@@ -131,6 +179,11 @@ flowchart TD
     GFMDS["Layer 2: GF256.lean + MDS.lean\nbuild GF(2^8), prove MDS -> branch B"]
     AESMIX["Layer 2: AESMix.lean\nthe real MixColumns matrix is MDS"]
     CONCRETE["AESMix.lean\nunconditional: 25 per 4 rounds, 55 over AES-128"]
+    DIFF["Layer 3: Differential.lean\nDP as a Nat count; hull identity"]
+    BRICK["Layer 3: Bricklayer.lean\nDP factors over bundles; exponent = weight"]
+    MARKOV["Layer 3: Markov.lean\ncount round-key vectors -> rounds multiply"]
+    TPROB["Layer 3: TrailProb.lean\ncount * 2^(d*W) <= |X|^r"]
+    AESPROB["Layer 3: AESProb.lean\n2^-150 per 4 rounds, 2^-330 over AES-128"]
 
     L1 --> T1
     L1 --> T4
@@ -143,9 +196,17 @@ flowchart TD
     GFMDS --> AESMIX
     AES --> CONCRETE
     AESMIX --> CONCRETE
+    DIFF --> BRICK
+    DIFF --> MARKOV
+    BRICK --> TPROB
+    MARKOV --> TPROB
+    SPEC --> TPROB
+    TPROB --> AESPROB
+    CONCRETE --> AESPROB
 ```
 
-[`WideTrail/Layer1/sanity-check/`](WideTrail/Layer1/sanity-check/) sits off to the side of this chain: it doesn't add a new theorem, it stress-tests the ones above by trying to break them with small hand-built examples, measures how tight the bounds are, and audits that everything really is kernel-checked.
+[`WideTrail/Layer1/sanity-check/`](WideTrail/Layer1/sanity-check/) and
+[`WideTrail/Layer3/sanity-check/`](WideTrail/Layer3/sanity-check/) sit off to the side of this chain: it doesn't add a new theorem, it stress-tests the ones above by trying to break them with small hand-built examples, measures how tight the bounds are, and audits that everything really is kernel-checked.
 
 ### Why this is useful
 

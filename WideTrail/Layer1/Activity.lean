@@ -74,6 +74,24 @@ def PreserveSupport (γ : (Idx → K) → (Idx → K)) : Prop :=
     colWeight id s = weight s := by
   simp [colWeight, activeCols, weight]
 
+/-! ### Patterns with the same support
+
+Nothing in the counting looks at anything but the support, so two patterns sharing a
+support are interchangeable everywhere. This is stated separately from
+`PreserveSupport` because a real S-box layer does not determine its output difference,
+only its support: the honest hypothesis relates two *patterns*, not a pattern and its
+image under a function. -/
+
+theorem weight_congr {a b : Idx → K} (h : activePattern a = activePattern b) :
+    weight a = weight b := by rw [weight, weight, h]
+
+theorem colWeight_congr (col : Idx → Col) {a b : Idx → K}
+    (h : activePattern a = activePattern b) : colWeight col a = colWeight col b := by
+  rw [colWeight, colWeight, activeCols, activeCols, h]
+
+theorem ne_zero_congr {a b : Idx → K} (h : activePattern a = activePattern b) (hb : b ≠ 0) :
+    a ≠ 0 := fun ha => hb (activePattern_eq_empty.mp (by rw [← h, ha]; simp))
+
 theorem weight_eq_of_preservesSupport {γ : (Idx → K) → (Idx → K)}
     (h : PreserveSupport γ) (a : Idx → K) : weight (γ a) = weight a := by
   simp [weight, h a]

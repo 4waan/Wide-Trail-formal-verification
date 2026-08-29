@@ -161,6 +161,15 @@ theorem aesMixColumns_isColBranchBound : IsColBranchBound (sqCol 4) aesMixColumn
   rw [heq] at hpos ⊢
   exact isMDS_branch_bound aesMatrix_isMDS (fun r => a (r, ξ)) hpos
 
+/-- `MixColumns` is additive: it is matrix multiplication, applied columnwise. Layer 3 needs
+this to know that a round's differential counts are the S-box layer's. -/
+theorem aesMixColumns_add (x y : SquareIdx 4 → GF256) :
+    aesMixColumns (x + y) = aesMixColumns x + aesMixColumns y := by
+  funext i
+  change aesMatrix.mulVec ((fun r => x (r, i.2)) + (fun r => y (r, i.2))) i.1 = _
+  rw [Matrix.mulVec_add]
+  rfl
+
 theorem aesMixColumns_nondegenerate : NonDegenerate aesMixColumns := by
   intro a ha
   funext ⟨r, c⟩

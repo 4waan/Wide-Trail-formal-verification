@@ -47,6 +47,29 @@ list changes and this file stops compiling.
 #guard_msgs in
 #print axioms lemma_two
 
+/-! ### Lemma 2 and Theorems 1 and 3, on patterns
+
+The forms Layer 3 actually uses: the S-box step given by the support it preserves rather
+than by a function of the difference. The functional statements above are corollaries. -/
+
+/-- info: 'lemma_two_pattern' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms lemma_two_pattern
+
+/-- info: 'two_round_pattern' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms two_round_pattern
+
+/-- info: 'four_round_pattern' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms four_round_pattern
+
+/--
+info: 'WideTrailSpec.IsTrail.bound_rounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms WideTrailSpec.IsTrail.bound_rounds
+
 /-! ### Theorems 2 and 3 -/
 
 /-- info: 'four_round_thetaTheta' depends on axioms: [propext, Classical.choice, Quot.sound] -/

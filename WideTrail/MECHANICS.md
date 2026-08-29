@@ -169,3 +169,45 @@ and the constraint is invisible. Widening `Fin m × Fin m` to `Fin rows × Fin c
 new theory, since `WideTrailSpec` and everything above it were already parametric in the
 index type and the column map. What it cost was noticing that `SquareIdx` was the only
 thing standing between the development and a question it could answer.
+
+## The S-box layer is not a function, and the theorems now say so
+
+`WideTrailSpec` asks for `PreserveSupport sbox`: a function `γ` on difference patterns that
+moves no activity. No real cipher has such a function. Given an input difference `a`, an
+S-box layer does not determine its output difference; it determines only the *support* of
+whatever output difference occurs, and which one occurs depends on the input. Writing `γ a`
+was a convenient fiction, and the fiction becomes load-bearing the moment a genuine
+differential trail has to be counted.
+
+The fix is to quantify over the intermediate pattern instead of computing it. Where
+`four_round_identical` had
+
+```lean
+(hγ : PreserveSupport γ) (h₂ : a₂ = θ (π (γ a₁)))
+```
+
+`four_round_pattern` has
+
+```lean
+(hs₁ : activePattern b₁ = activePattern a₁) (e₂ : a₂ = θ (π b₁))
+```
+
+and the same for `lemma_two_pattern` and `two_round_pattern`. This is a strict
+generalisation and it costs nothing, because the proofs never read anything but supports in
+the first place: `hγ` was only ever used through its instances `hγ a₁, hγ a₂, hγ a₃`, which
+is exactly what the new hypotheses supply. The old statements survive verbatim as one-line
+corollaries, so there is one proof of each fact, not two.
+
+At the multi-round level the same move gives `WideTrailSpec.IsTrail`:
+
+```lean
+IsTrail S T r  =  ∀ n < r, ∃ b, activePattern b = activePattern (T n) ∧ T (n+1) = S.lin b
+```
+
+a sequence of patterns whose steps this cipher can take. `S.trail a` is one such sequence
+(`isTrail_trail`, with `b = S.sbox (T n)`), so `trailWeight_bound_rounds` and every concrete
+round count below it are instances of `IsTrail.bound_rounds` rather than a separate
+development. And a real differential trail with a nonzero count is another such sequence,
+which is what lets Layer 3 hand a genuine trail to Layer 1's count. The support constraint
+that `IsTrail` asks for is, on the Layer 3 side, a theorem about injective S-boxes rather
+than a hypothesis about a function that does not exist.

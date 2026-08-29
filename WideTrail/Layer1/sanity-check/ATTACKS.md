@@ -16,6 +16,11 @@ in `Grid.lean` and `Rijndael.lean` one directory up, and it is the only attack a
 claim about a real cipher rather than at the formalisation itself. All of it is checked by
 the kernel, none of it by `native_decide`.
 
+Layer 3 has its own pass, in
+[`../../Layer3/sanity-check/ATTACKS.md`](../../Layer3/sanity-check/ATTACKS.md). It attacks
+the probability side, where the hypotheses are the S-box's differential uniformity and the
+independence of round keys, and where the gap between a trail and a differential lives.
+
 ---
 
 ## Attack 1: the theorems are vacuous
@@ -202,10 +207,10 @@ into the compiler plus whichever machine happened to run it. The second is a liv
 here, because this development leans on `decide` for the AES ShiftRows check and for
 every toy cipher, and `native_decide` is the usual reflex when `decide` is slow.
 
-**What was run.** `#print axioms` on all thirty-one headline results, including every
+**What was run.** `#print axioms` on all thirty-five headline results, including every
 `decide`-backed one, each wrapped in `#guard_msgs`.
 
-**Result.** All thirty-one report exactly `[propext, Classical.choice, Quot.sound]` (Definition
+**Result.** All thirty-five report exactly `[propext, Classical.choice, Quot.sound]` (Definition
 5's reduction to injectivity of the offsets needs only `[propext, Quot.sound]`). No
 `sorryAx`, no `Lean.ofReduceBool`. Wrapping them in `#guard_msgs` converts the audit from
 a claim into a regression test: if a later edit introduces a `sorry` or swaps a `decide`

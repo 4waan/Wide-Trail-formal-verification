@@ -118,8 +118,42 @@ theorem card_fiber_le_card_col [Fintype Col] (hp : DiffusionOptimal col p) (ξ :
   le_trans (card_filter_le_colWeight_image hp (fun i _ => Finset.mem_univ (p i)) ξ)
     (Finset.card_le_univ _)
 
-/-- **Lemma 2.** If `π` is a diffusion-optimal bundle transposition then the *column*
-branch number of `π ∘ φ ∘ π` is at least the *bundle* branch number of `φ`.
+/-- **Lemma 2, on patterns.** If `π` is a diffusion-optimal bundle transposition then the
+*column* branch number of `π ∘ φ ∘ π` is at least the *bundle* branch number of `φ`.
+
+The three patterns are the input `a`, the state `b` just after the first transposition,
+and the state `c` after `φ` and the second transposition. They are quantified separately
+rather than presented as `π₁ a` and `π₂ (φ (π₁ a))` because a real cipher's S-box layer is
+not a function of the difference: it fixes the support of `b` and nothing else. Only the
+supports are ever read, so the hypotheses say exactly that `b` and `c` carry the supports a
+transposition along `p` would have produced. -/
+theorem lemma_two_pattern [Fintype Col] (hp : DiffusionOptimal col p)
+    {φ : (Idx → K) → (Idx → K)} (hφ : IsColBranchBound col φ B) {a b c : Idx → K}
+    (hb : activePattern b = (activePattern a).image p.symm)
+    (hc : activePattern c = (activePattern (φ b)).image p.symm)
+    (hbne : b ≠ 0) :
+    B ≤ colWeight col a + colWeight col c := by
+  -- Pick any column `ξ` that is active in `b`.
+  obtain ⟨ξ, hξ⟩ : (activeCols col b).Nonempty := by
+    rw [activeCols, Finset.image_nonempty, Finset.nonempty_iff_ne_empty]
+    exact fun h => hbne (activePattern_eq_empty.mp h)
+  have hpos : 0 < localWeight col ξ b := mem_activeCols.mp hξ
+  -- Within that column, `φ` alone already forces `B` active bundles.
+  have hlocal : B ≤ localWeight col ξ b + localWeight col ξ (φ b) := hφ b ξ (by omega)
+  -- `p⁻¹` spreads the active bundles of column `ξ` of `b` over distinct columns of `a`.
+  have hA : localWeight col ξ b ≤ colWeight col a := by
+    refine card_filter_le_colWeight_image hp (fun i hi => ?_) ξ
+    rw [hb, Finset.mem_image] at hi
+    obtain ⟨j, hj, rfl⟩ := hi
+    rwa [p.apply_symm_apply]
+  -- `p` spreads the active bundles of column `ξ` of `φ b` over distinct columns of `c`.
+  have hB : localWeight col ξ (φ b) ≤ colWeight col c := by
+    refine card_filter_le_colWeight_image hp.symm (fun i hi => ?_) ξ
+    rw [hc]
+    exact Finset.mem_image_of_mem _ hi
+  omega
+
+/-- **Lemma 2.** The functional form: `b` and `c` are produced by fixed maps `π₁`, `π₂`.
 
 Stated for two possibly different support-transpositions `π₁`, `π₂` along the same
 permutation, so that an S-box layer may be folded into either of them. -/
@@ -128,28 +162,8 @@ theorem lemma_two [Fintype Col] (hp : DiffusionOptimal col p)
     (h₁ : SupportPerm p π₁) (h₂ : SupportPerm p π₂)
     (hφ : IsColBranchBound col φ B)
     {a : Idx → K} (ha : π₁ a ≠ 0) :
-    B ≤ colWeight col a + colWeight col (π₂ (φ (π₁ a))) := by
-  -- `b` is the state just after the first transposition, `c` after `φ`, `d` after the
-  -- second transposition.  Pick any column `ξ` that is active in `b`.
-  obtain ⟨ξ, hξ⟩ : (activeCols col (π₁ a)).Nonempty := by
-    rw [activeCols, Finset.image_nonempty, Finset.nonempty_iff_ne_empty]
-    exact fun h => ha (activePattern_eq_empty.mp h)
-  have hpos : 0 < localWeight col ξ (π₁ a) := mem_activeCols.mp hξ
-  -- Within that column, `φ` alone already forces `B` active bundles.
-  have hlocal : B ≤ localWeight col ξ (π₁ a) + localWeight col ξ (φ (π₁ a)) :=
-    hφ (π₁ a) ξ (by omega)
-  -- `π₁⁻¹` spreads the active bundles of column `ξ` of `b` over distinct columns of `a`.
-  have hA : localWeight col ξ (π₁ a) ≤ colWeight col a := by
-    refine card_filter_le_colWeight_image hp (fun i hi => ?_) ξ
-    rw [h₁ a, Finset.mem_image] at hi
-    obtain ⟨j, hj, rfl⟩ := hi
-    rwa [p.apply_symm_apply]
-  -- `π₂` spreads the active bundles of column `ξ` of `c` over distinct columns of `d`.
-  have hB : localWeight col ξ (φ (π₁ a)) ≤ colWeight col (π₂ (φ (π₁ a))) := by
-    refine card_filter_le_colWeight_image hp.symm (fun i hi => ?_) ξ
-    rw [h₂ (φ (π₁ a))]
-    exact Finset.mem_image_of_mem _ hi
-  omega
+    B ≤ colWeight col a + colWeight col (π₂ (φ (π₁ a))) :=
+  lemma_two_pattern hp hφ (h₁ a) (h₂ (φ (π₁ a))) ha
 
 /-- **Lemma 2, in the paper's own words.** The *column* branch number of `Θ = π ∘ φ ∘ π`
 is at least the *bundle* branch number of `φ`, as a statement about `isBranchBound`
