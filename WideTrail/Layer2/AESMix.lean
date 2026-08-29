@@ -187,10 +187,30 @@ theorem aes_four_round_concrete (sbox : (SquareIdx 4 → GF256) → (SquareIdx 4
   aes_four_round sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
     aesMixColumns_nondegenerate ha n
 
-/-- **50 active S-boxes over the ten rounds of AES-128, unconditionally.** -/
+/-- **55 active S-boxes over the ten rounds of AES-128, unconditionally.**
+
+Two four-round blocks give `50`, and rounds 8 and 9 are a two-round block on top of them,
+worth `5` more. See the round-count table in `Layer1/AES.lean` for why the usual quoted
+figure is the smaller one. -/
 theorem aes128_ten_round_concrete (sbox : (SquareIdx 4 → GF256) → (SquareIdx 4 → GF256))
     (hsbox : PreserveSupport sbox) {a : SquareIdx 4 → GF256} (ha : a ≠ 0) :
-    50 ≤ (aesSpec sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
+    55 ≤ (aesSpec sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
       aesMixColumns_nondegenerate).trailWeight a 10 :=
   aes128_ten_round sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
+    aesMixColumns_nondegenerate ha
+
+/-- **75 active S-boxes over the twelve rounds of AES-192, unconditionally.** -/
+theorem aes192_twelve_round_concrete (sbox : (SquareIdx 4 → GF256) → (SquareIdx 4 → GF256))
+    (hsbox : PreserveSupport sbox) {a : SquareIdx 4 → GF256} (ha : a ≠ 0) :
+    75 ≤ (aesSpec sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
+      aesMixColumns_nondegenerate).trailWeight a 12 :=
+  aes192_twelve_round sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
+    aesMixColumns_nondegenerate ha
+
+/-- **80 active S-boxes over the fourteen rounds of AES-256, unconditionally.** -/
+theorem aes256_fourteen_round_concrete (sbox : (SquareIdx 4 → GF256) → (SquareIdx 4 → GF256))
+    (hsbox : PreserveSupport sbox) {a : SquareIdx 4 → GF256} (ha : a ≠ 0) :
+    80 ≤ (aesSpec sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
+      aesMixColumns_nondegenerate).trailWeight a 14 :=
+  aes256_fourteen_round sbox aesMixColumns hsbox aesMixColumns_isColBranchBound
     aesMixColumns_nondegenerate ha

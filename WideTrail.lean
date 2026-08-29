@@ -4,7 +4,9 @@ import WideTrail.Layer1.Columns
 import WideTrail.Layer1.Dispersion
 import WideTrail.Layer1.FourRound
 import WideTrail.Layer1.Cipher
+import WideTrail.Layer1.Grid
 import WideTrail.Layer1.AES
+import WideTrail.Layer1.Rijndael
 import WideTrail.Layer1.«sanity-check».Verification
 import WideTrail.Layer1.«sanity-check».Tightness
 import WideTrail.Layer1.«sanity-check».Axioms

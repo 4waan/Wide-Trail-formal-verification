@@ -17,8 +17,12 @@ needs (support-preservation, diffusion optimality, a branch number). It's parame
 branch number, state size, and field are all just parameters — so it proves a bound for an
 entire *family* of cipher shapes at once, AES included. Instantiated at the AES shape, it
 gives `aes_four_round`/`aes128_ten_round` as an **implication**: *given* that MixColumns has
-branch number `5`, four rounds force `25` active S-boxes and ten rounds force `50`. The
-`hmix`/`hnd` hypotheses in `Layer1/AES.lean` are exactly that "given."
+branch number `5`, four rounds force `25` active S-boxes and the ten rounds of AES-128 force
+`55`. The `hmix`/`hnd` hypotheses in `Layer1/AES.lean` are exactly that "given."
+
+The state is rectangular, `Fin rows × Fin cols`, not square, so the whole Rijndael family is
+in range: `Layer1/Rijndael.lean` covers the 192- and 256-bit block sizes as well, and uses
+them to test what the theory actually decides about a real design choice.
 
 **Layer 2** (`WideTrail/Layer2/`) discharges that hypothesis. It builds `GF(2⁸)` from scratch
 (Mathlib's `GaloisField` is `noncomputable`, unusable for the enumeration this needs), proves
@@ -61,8 +65,14 @@ Combines Lemma 1 and Lemma 2 into the paper's two headline theorems: any four co
 #### [`WideTrail/Layer1/Cipher.lean`](WideTrail/Layer1/Cipher.lean)
 Packages a whole cipher design (its column layout, S-box, shuffle, mixing layer, and the proof obligations they must satisfy) into a single structure, `WideTrailSpec`. Also extends the four-round theorem to any number of rounds by chaining four-round blocks together.
 
+#### [`WideTrail/Layer1/Grid.lean`](WideTrail/Layer1/Grid.lean)
+Instantiates the abstract theory on a rectangular `rows × cols` state with ShiftRows at an arbitrary offset vector. The whole file turns on one equivalence: the paper's geometric "diffusion optimal" condition on a permutation of `rows · cols` positions is *exactly* injectivity of the offset vector. That collapses a design criterion into something the kernel can decide for any concrete candidate, count in closed form, and refute. It also proves, for every possible shuffle and not just rotations, that a state with more rows than columns admits no diffusion-optimal shuffle at all.
+
 #### [`WideTrail/Layer1/AES.lean`](WideTrail/Layer1/AES.lean)
-Plugs the real AES shape into `WideTrailSpec`: a 4×4 grid, ShiftRows as the shuffle, and a MixColumns with branch number 5 (a property of AES that's taken as a hypothesis here — `hmix`/`hnd` — rather than re-derived from finite-field arithmetic; Layer 2 is what discharges it). Out comes the actual numbers: at least 25 active S-boxes over any four rounds, and 50 over all ten rounds of AES-128.
+Plugs the real AES shape into `WideTrailSpec`: the square case of the grid, ShiftRows as the shuffle, and a MixColumns with branch number 5 (a property of AES that's taken as a hypothesis here — `hmix`/`hnd` — rather than re-derived from finite-field arithmetic; Layer 2 is what discharges it). Out comes the actual numbers: at least 25 active S-boxes over any four rounds, 55 over the ten rounds of AES-128, 75 over the twelve of AES-192, and 80 over the fourteen of AES-256.
+
+#### [`WideTrail/Layer1/Rijndael.lean`](WideTrail/Layer1/Rijndael.lean)
+Rijndael at all three block sizes, and the place where the formalization is asked to rule on a real design decision. Rijndael shifts its rows by `0,1,2,3` at 128- and 192-bit blocks but by `0,1,3,4` at 256 bits. The kernel's verdict on the natural explanation is *no*: `0,1,2,3` is diffusion-optimal on the wide state too, along with 1678 other offset vectors, so the wide-trail criterion is not what rejected it. The criterion is not vacuous either — the 256-bit offsets are illegal on the AES state, and a 4×3 state admits no diffusion-optimal shuffle whatsoever.
 
 #### [`WideTrail/Layer1/sanity-check/Verification.lean`](WideTrail/Layer1/sanity-check/Verification.lean)
 A sanity-check file, not a source of new results. It builds a toy cipher to show the theorems' assumptions can all hold at once (so nothing here is vacuously true), and builds a second toy cipher that is missing only the "diffusion optimal" shuffle property to show the bound genuinely breaks without it.
@@ -82,7 +92,7 @@ Audits the axiom footprint of the toy-cipher checks: confirms every finite check
 The general theorem: if every square submatrix of a matrix `M` is nonsingular (the MDS property), then `{(x, Mx)}` has the optimal branch number `n+1` — vocabulary Mathlib has none of (no MDS matrices, no minimum distance, no Singleton bound anywhere in the library).
 
 #### [`WideTrail/Layer2/AESMix.lean`](WideTrail/Layer2/AESMix.lean)
-The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Layer 1's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete`.
+The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Layer 1's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete` (25 and 55), plus the same for AES-192 and AES-256 (75 and 80).
 
 ---
 
@@ -114,18 +124,22 @@ flowchart TD
     L2["Lemma 2 (Dispersion.lean)\nbyte-level guarantee -> column-level guarantee, via a good shuffle"]
     T1["Theorem 1 (Activity.lean)\n2 rounds >= B active bytes"]
     T4["Theorems 2 & 3 (FourRound.lean)\n4 rounds >= B^2 active bytes"]
-    SPEC["WideTrailSpec (Cipher.lean)\nn rounds >= floor(n/4) * B^2"]
-    AES["AES.lean\nconditional on hmix: B=5 -> 25 per 4 rounds, 50 over AES-128"]
+    SPEC["WideTrailSpec (Cipher.lean)\nn rounds >= floor(n/4) * B^2 + B if 2 rounds left over"]
+    GRID["Grid.lean\nrows x cols state; diffusion optimal <-> offsets injective"]
+    AES["AES.lean\nconditional on hmix: B=5 -> 25 per 4 rounds, 55 over AES-128"]
+    RIJ["Rijndael.lean\nNb = 4, 6, 8; what Definition 5 does and does not decide"]
     GFMDS["Layer 2: GF256.lean + MDS.lean\nbuild GF(2^8), prove MDS -> branch B"]
     AESMIX["Layer 2: AESMix.lean\nthe real MixColumns matrix is MDS"]
-    CONCRETE["AESMix.lean\nunconditional: 25 per 4 rounds, 50 over AES-128"]
+    CONCRETE["AESMix.lean\nunconditional: 25 per 4 rounds, 55 over AES-128"]
 
     L1 --> T1
     L1 --> T4
     L2 --> T4
     T1 --> T4
     T4 --> SPEC
-    SPEC --> AES
+    SPEC --> GRID
+    GRID --> AES
+    GRID --> RIJ
     GFMDS --> AESMIX
     AES --> CONCRETE
     AESMIX --> CONCRETE

@@ -72,6 +72,13 @@ pairwise distinct columns (Definition 5). -/
 def DiffusionOptimal (col : Idx → Col) (p : Equiv.Perm Idx) : Prop :=
   ∀ i j, i ≠ j → col i = col j → col (p i) ≠ col (p j)
 
+/-- Diffusion optimality is a bounded quantifier over a finite index type, so the kernel
+can settle it for any concrete state shape. This is what lets a candidate dispersion layer
+be *refuted* rather than merely left unproved. -/
+instance decidableDiffusionOptimal (col : Idx → Col) (p : Equiv.Perm Idx) :
+    Decidable (DiffusionOptimal col p) :=
+  inferInstanceAs (Decidable (∀ i j, i ≠ j → col i = col j → col (p i) ≠ col (p j)))
+
 omit [Fintype Idx] [DecidableEq Idx] [DecidableEq Col] in
 /-- The paper's "it is easy to see that this implies the same condition for `π⁻¹`". -/
 theorem DiffusionOptimal.symm (h : DiffusionOptimal col p) :
@@ -97,6 +104,19 @@ theorem card_filter_le_colWeight_image (hp : DiffusionOptimal col p)
     simp only [Finset.coe_filter, Set.mem_ofPred_eq] at hi hj
     by_contra hne
     exact hp i j hne (hi.2.trans hj.2.symm) hEq
+
+omit [DecidableEq Idx] in
+/-- **A diffusion-optimal dispersion caps the size of a column.** Definition 5 asks that
+`p` send the bundles of one column to pairwise distinct columns; there are only
+`Fintype.card Col` columns to send them to, so no column may hold more bundles than that.
+
+This is the abstract shape constraint behind "a wide state needs wide rows": it is proved
+once here, for every `col` and every `p`, and the grid instantiation only has to compute
+the size of a fiber. -/
+theorem card_fiber_le_card_col [Fintype Col] (hp : DiffusionOptimal col p) (ξ : Col) :
+    (Finset.univ.filter (fun i => col i = ξ)).card ≤ Fintype.card Col :=
+  le_trans (card_filter_le_colWeight_image hp (fun i _ => Finset.mem_univ (p i)) ξ)
+    (Finset.card_le_univ _)
 
 /-- **Lemma 2.** If `π` is a diffusion-optimal bundle transposition then the *column*
 branch number of `π ∘ φ ∘ π` is at least the *bundle* branch number of `φ`.

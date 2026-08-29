@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Awaan Siddiqui
 -/
 import WideTrail.Layer1.«sanity-check».Verification
+import WideTrail.Layer1.Rijndael
 
 /-!
 # Axiom audit
@@ -72,6 +73,23 @@ info: 'WideTrailSpec.trailWeight_bound' depends on axioms: [propext, Classical.c
 #guard_msgs in
 #print axioms aes128_ten_round
 
+/--
+info: 'WideTrailSpec.trailWeight_bound_add_two' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms WideTrailSpec.trailWeight_bound_add_two
+
+/--
+info: 'WideTrailSpec.trailWeight_bound_rounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms WideTrailSpec.trailWeight_bound_rounds
+
+/-- info: 'aes256_fourteen_round' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms aes256_fourteen_round
+
+
 /-! ### The finite checks
 
 These are the results proved by `decide`. Their axiom lists are the interesting ones,
@@ -102,3 +120,91 @@ info: 'four_round_fails_without_dispersion' depends on axioms: [propext, Classic
 /-- info: 'thetaTheta_bound_matches' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms thetaTheta_bound_matches
+
+/-! ### The rectangular generalisation
+
+`Grid.lean` widens the state from `Fin m × Fin m` to `Fin rows × Fin cols`. Nothing above
+it changed, so a `sorry` slipped into the widening would be invisible from the AES side.
+The two loads it carries are the reduction of Definition 5 to injectivity of the offset
+vector, and the shape constraint `rows ≤ cols` inherited from `card_fiber_le_card_col`. -/
+
+/-- info: 'card_fiber_le_card_col' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms card_fiber_le_card_col
+
+/-- info: 'diffusionOptimal_shiftRowsPerm_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms diffusionOptimal_shiftRowsPerm_iff
+
+/--
+info: 'rows_le_cols_of_diffusionOptimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms rows_le_cols_of_diffusionOptimal
+
+/--
+info: 'card_diffusionOptimal_offsets' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms card_diffusionOptimal_offsets
+
+/-! ### The Rijndael offsets
+
+These are the decisions the formalisation makes about a real design choice, so they are the
+ones where a `native_decide` would be most tempting and least acceptable. All of them are
+kernel `decide`. In particular `shiftOff256naive_diffusionOptimal` is a *negative* result
+about the wide-trail strategy, and a negative result resting on an unchecked compiler
+would be worth nothing. -/
+
+/--
+info: 'shiftOff256_diffusionOptimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shiftOff256_diffusionOptimal
+
+/--
+info: 'shiftOff256naive_diffusionOptimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shiftOff256naive_diffusionOptimal
+
+/--
+info: 'shiftOff256_not_diffusionOptimal_on_128' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shiftOff256_not_diffusionOptimal_on_128
+
+/--
+info: 'card_diffusionOptimal_offsets_256' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms card_diffusionOptimal_offsets_256
+
+/--
+info: 'card_diffusionOptimal_offsets_128_enumerated' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms card_diffusionOptimal_offsets_128_enumerated
+
+/--
+info: 'no_diffusionOptimal_four_by_three' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms no_diffusionOptimal_four_by_three
+
+/--
+info: 'shiftOff256_sq_not_diffusionOptimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shiftOff256_sq_not_diffusionOptimal
+
+/--
+info: 'shiftOff256naive_sq_diffusionOptimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shiftOff256naive_sq_diffusionOptimal
+
+/-- info: 'rijndael256_fourteen_round' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms rijndael256_fourteen_round
+

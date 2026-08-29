@@ -16,8 +16,14 @@ the number is `B²`, and the proof obligation is discharged once, here.
 
 `trailWeight_bound` then extends the paper, which only remarks that "any `2n`-round trail
 can be decomposed in `n` 2-round trails". The same decomposition at width four gives
-`n · B²` active S-boxes over `4n` rounds, which is the form an implementer actually wants
-(AES-128 has 10 rounds, so two disjoint four-round blocks, hence `2 · 25 = 50`).
+`n · B²` active S-boxes over `4n` rounds.
+
+`trailWeight_bound_add_two` then recovers the rounds that tiling throws away. A `4n + k`
+round trail is `n` four-round blocks plus a tail of `k < 4` rounds, and if `k ≥ 2` that
+tail still contains a two-round block, which Theorem 1 charges `B` for. The blocks and
+the tail occupy disjoint rounds, so the counts add: `n · B² + B`. AES-128 has 10 rounds,
+which is two four-round blocks *and* a two-round tail, hence `2 · 25 + 5 = 55` rather
+than the `50` that discarding the tail gives.
 -/
 
 set_option autoImplicit false
@@ -114,6 +120,15 @@ theorem trailWeight_add_four (a : Idx → K) (n : Nat) :
       = S.trailWeight a n + weight (S.trail a n) := Finset.sum_range_succ _ _
   omega
 
+theorem trailWeight_add_two (a : Idx → K) (n : Nat) :
+    S.trailWeight a (n + 2) = S.trailWeight a n
+      + (weight (S.trail a n) + weight (S.trail a (n + 1))) := by
+  have e1 : S.trailWeight a (n + 2)
+      = S.trailWeight a (n + 1) + weight (S.trail a (n + 1)) := Finset.sum_range_succ _ _
+  have e0 : S.trailWeight a (n + 1)
+      = S.trailWeight a n + weight (S.trail a n) := Finset.sum_range_succ _ _
+  omega
+
 theorem trailWeight_mono (a : Idx → K) {r r' : Nat} (h : r ≤ r') :
     S.trailWeight a r ≤ S.trailWeight a r' :=
   Finset.sum_le_sum_of_subset (Finset.range_subset_range.mpr h)
@@ -131,5 +146,38 @@ theorem trailWeight_bound {a : Idx → K} (ha : a ≠ 0) (n : Nat) :
     have hmul : (n + 1) * S.fourRoundBound
         = n * S.fourRoundBound + S.fourRoundBound := Nat.succ_mul n S.fourRoundBound
     omega
+
+/-! ### The leftover rounds
+
+`trailWeight_bound` tiles a trail with disjoint four-round blocks and abandons whatever
+does not fit. Up to three rounds can be abandoned, and the last two of them are still a
+two-round block, so Theorem 1 still charges `branch` for them. The blocks and the tail
+sit on disjoint round ranges, so the two bounds simply add.
+
+This is the whole content of the sharpening. It is stated at the level of
+`WideTrailSpec`, so every instantiation downstream inherits it. -/
+
+/-- Over `4n + 2` rounds the count is at least `n · B² + B`: `n` four-round blocks, plus
+one two-round block on the two rounds the block tiling leaves over. -/
+theorem trailWeight_bound_add_two {a : Idx → K} (ha : a ≠ 0) (n : Nat) :
+    n * S.fourRoundBound + S.branch ≤ S.trailWeight a (4 * n + 2) := by
+  have hblocks := S.trailWeight_bound ha n
+  have htail := S.two_round ha (4 * n)
+  rw [S.trailWeight_add_two]
+  omega
+
+/-- **The bound for an arbitrary number of rounds.** `r / 4` four-round blocks, plus one
+two-round block whenever at least two rounds are left over. Every concrete round count in
+this development is this theorem evaluated at a numeral. -/
+theorem trailWeight_bound_rounds {a : Idx → K} (ha : a ≠ 0) (r : Nat) :
+    r / 4 * S.fourRoundBound + (if 2 ≤ r % 4 then S.branch else 0)
+      ≤ S.trailWeight a r := by
+  split
+  · next h =>
+      exact le_trans (S.trailWeight_bound_add_two ha (r / 4))
+        (S.trailWeight_mono a (by omega))
+  · next h =>
+      rw [Nat.add_zero]
+      exact le_trans (S.trailWeight_bound ha (r / 4)) (S.trailWeight_mono a (by omega))
 
 end WideTrailSpec
