@@ -9,10 +9,11 @@ Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://www.resear
 ## Named proof layers
 
 The directories identify the kind of mathematics they contain: `Propagation`,
-`Algebra`, `Differential`, and `Hades`. The original numbered directories have been
+`Algebra`, `Differential`, `Hades`, and `Poseidon2`. The original numbered directories have been
 renamed; import paths now use these names. Import a complete layer with
 `import WideTrail.Propagation`, `import WideTrail.Algebra`,
-`import WideTrail.Differential`, or `import WideTrail.Hades`.
+`import WideTrail.Differential`, `import WideTrail.Hades`, or
+`import WideTrail.Poseidon2`.
 
 **Propagation layer** (`WideTrail/Propagation/`) is the abstract propagation theory: an S-box layer, a
 shuffle, and a mixing layer, related only by the structural properties a wide-trail cipher
@@ -64,9 +65,16 @@ additions and round-specific invertible linear maps. It counts active coordinate
 only where an S-box is actually applied. For `r` full rounds, `m` partial rounds,
 and `s` full rounds, its execution theorem gives
 `(r / 2 + s / 2) * B + r % 2 + s % 2` active S-boxes from the outer blocks.
-Whole-state MDS mixing supplies `B = t + 1`. The result applies to actual pairs of
-distinct inputs; it makes no probability or algebraic-attack resistance claim.
+Whole-state MDS mixing supplies `B = t + 1`. The activity result applies to actual pairs of
+distinct inputs. `Counting.lean` and `Probability.lean` now connect masked activity
+to exact differential trail counts in the explicitly independent-key model.
 See [the HADES mechanics](MECHANICS_HADES.md) and [the implementation plan](HADES_PLAN.md).
+
+**Poseidon2 layer** (`WideTrail/Poseidon2/`) certifies the pinned reference BN254
+width-three instance: field primality, the actual fifth-power S-box, both linear
+inverses, external MDS mixing, permutation bijectivity, and outer-round activity.
+Its checked execution trace matches the pinned upstream known-answer vector.
+See [the concrete certificate and its scope](PRODUCTION_CERTIFICATE.md).
 
 Named theorem footprints are pinned by `#print axioms`. The complete module audit
 in `scripts/AuditAxioms.lean` checks every project declaration, including names in
@@ -149,7 +157,7 @@ The Markov cipher model, with the assumption in the shape of what is counted rat
 The arithmetic, once: `trailKeyCount · 2 ^ (d·W) ≤ |X| ^ r`. Plus the bridge that lets Propagation layer count a real differential trail, since a trail with a nonzero count satisfies `WideTrailSpec.IsTrail`.
 
 #### [`WideTrail/Differential/AESProb.lean`](WideTrail/Differential/AESProb.lean)
-The numbers. `|K| = 256`, `|Idx| = 16`, S-box uniformity `4`, and `4 · 2⁶ = 256`, so each active S-box costs `2⁻⁶`: `2⁻¹⁵⁰` over four rounds, `2⁻³³⁰` over ten, `2⁻⁴⁵⁰` over twelve, `2⁻⁴⁸⁰` over fourteen. The S-box's differential uniformity is the one hypothesis Differential layer does not discharge, and the file says why.
+The numbers. `|K| = 256`, `|Idx| = 16`, S-box uniformity `4`, and `4 · 2⁶ = 256`, so each active S-box costs `2⁻⁶`: `2⁻¹⁵⁰` over four rounds, `2⁻³³⁰` over ten, `2⁻⁴⁵⁰` over twelve, `2⁻⁴⁸⁰` over fourteen. The generic theorem retains explicit S-box hypotheses. `AESConcrete.lean` now discharges them for the actual AES S-box, using its proved inverse and a structural differential-uniformity proof.
 
 #### [`WideTrail/Differential/Checks/Toy.lean`](WideTrail/Differential/Checks/Toy.lean)
 A sixteen-state cipher the kernel enumerates in full. Recomputes the bundle product and the Markov product by brute force, shows the S-box uniformity constant is exactly attained, exhibits a fixed key under which the product formula is false, and exhibits a two-round differential worth twice its best trail.
@@ -259,8 +267,8 @@ Two things make that bound trustworthy:
 The activity bounds supply exponents for individual trail bounds when the required
 S-box uniformity and probability model are available. The differential layer proves
 this bridge for independent round keys. A differential sums multiple trails, and
-fixed public constants do not provide independent keys. The HADES theorem currently
-establishes the activity count only.
+fixed public constants do not provide independent keys. HADES now has both the
+activity theorem and its separate independent-key counting connection.
 
 ---
 

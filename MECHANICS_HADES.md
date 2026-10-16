@@ -63,7 +63,11 @@ that an unmasked count would incorrectly charge. Replacing mixing with the
 identity gives only four; collapsing the middle makes the suffix difference
 zero. The counterexamples make both assumptions observable.
 
-The probability extension is a later job. In particular, fixed round additions
-are not independent random round keys, and a trail bound would still concern
-one summand of a differential hull. Polynomial degree, subspace trails, sponge
+The probability extension is implemented in `Counting.lean`, `Probability.lean`,
+and `Differential/Scheduled.lean`. It counts an additional independent uniform
+key per round. Fixed round additions are not independent random round keys,
+and a trail bound still concerns one summand of a differential hull. Polynomial degree, subspace trails, sponge
 security, and implementation equivalence need separate statements.
+
+The pinned BN254 width-three Poseidon2 certificate uses these results. See
+[the certificate](PRODUCTION_CERTIFICATE.md) for its exact scope and source pin.

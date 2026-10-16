@@ -8,6 +8,9 @@ import WideTrail.Differential.Bricklayer
 import WideTrail.Differential.Markov
 import WideTrail.Differential.TrailProb
 import WideTrail.Differential.AESProb
+import WideTrail.Differential.Polynomial
+import WideTrail.Differential.AESConcrete
+import WideTrail.Differential.Scheduled
 import WideTrail.Differential.Checks.Toy
 import WideTrail.Differential.Checks.Axioms
 

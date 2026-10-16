@@ -6,7 +6,10 @@ Authors: Awaan Siddiqui
 import WideTrail.Hades.Masked
 import WideTrail.Hades.Schedule
 import WideTrail.Hades.Bounds
+import WideTrail.Hades.Counting
+import WideTrail.Hades.Probability
 import WideTrail.Hades.Checks.Toy
+import WideTrail.Hades.Checks.Counting
 import WideTrail.Hades.Checks.Axioms
 
 /-! Scheduled masked rounds and activity bounds for full outer blocks. -/

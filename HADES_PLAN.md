@@ -262,34 +262,21 @@ comments and normalizing only the renamed imports. It is unchanged. The default
 build imports each named layer and its checks, and CI now runs the complete
 module-based audit in `scripts/AuditAxioms.lean`.
 
-## Follow-on jobs, outside this implementation
+## Follow-on implementation status
 
-After this milestone, generalize `Markov.lean` to round-indexed linear and masked
-nonlinear layers. Prove the product formula in the explicitly independent-key
-model and derive the masked count inequality using natural-number numerators.
-Recover the current uniform/full-round theorem as a specialization. Keep this
-separate from claims about fixed public constants.
+The masked count, round-indexed independent-key product formula, and HADES
+probability bridge are now implemented in `Counting.lean`, `Probability.lean`,
+and `Differential/Scheduled.lean`. The concrete AES S-box obligations are closed
+in `Algebra/AESSbox.lean` and `Differential/AESConcrete.lean`.
 
-A power-S-box job can discharge invertibility under the correct coprimality
-condition and bound differential counts through polynomial root counting. An
-upper bound on polynomial degree is not a lower bound on attack complexity.
-Exact degree growth, cancellation, density, and solving-degree assumptions need
-their own statements and evidence.
+A pinned reference BN254 width-three Poseidon2 instance is certified in
+`WideTrail/Poseidon2/`. It includes initial mixing, distinct external/internal
+layers, and all round constants. See [the certificate](PRODUCTION_CERTIFICATE.md)
+for the exact source revision, proved properties, and limitations.
 
-A matrix job should first finish checking the revised HADES source and the
-referenced subspace-trail work. Its theorem must name the precise class of
-subspace trails it excludes; MDS alone is only the branch-bound input used here.
-The relevant follow-on primary source is
+Subspace-trail exclusion remains a separate job, informed by
 [Proving Resistance Against Infinitely Long Subspace Trails](https://doi.org/10.46586/tosc.v2021.i2.314-352).
-
-Then study and pin the exact
-[Poseidon2 specification](https://eprint.iacr.org/2023/323), including its initial
-linear transformation and distinct external/internal layers, before selecting
-production parameters. A later implementation-equivalence proof can target a
-pinned Rust permutation or its constraints. The generic API permits varying
-linear layers; it does not certify a Poseidon2 matrix in advance.
-
-Sponge indifferentiability remains a separate roadmap branch. The existing AES
-S-box uniformity gap also remains recorded in Differential layer and is not a dependency of
-this activity theorem. This job makes no fixed-key probability, differential
-hull, algebraic-attack resistance, sponge-security, or zkVM-soundness claim.
+Sponge indifferentiability and universal implementation or AIR equivalence remain
+separate roadmap branches. No fixed-key probability, differential-hull bound,
+algebraic-attack resistance, sponge-security, or zkVM-soundness claim follows
+from this certificate.

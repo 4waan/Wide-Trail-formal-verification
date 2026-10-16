@@ -6,5 +6,7 @@ Authors: Awaan Siddiqui
 import WideTrail.Algebra.GF256
 import WideTrail.Algebra.MDS
 import WideTrail.Algebra.AESMix
+import WideTrail.Algebra.AESSbox
+import WideTrail.Algebra.PowerSbox
 
 /-! Concrete finite-field arithmetic and MDS branch bounds. -/

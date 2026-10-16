@@ -164,12 +164,12 @@ trailKeyCount aesLin (bricklayer s) 10 T x * 2 ^ 330 ≤ |X| ^ 10 = 2 ^ 1280
 
 ## 6. What is still assumed, and what is still open
 
-**Assumed: the S-box's differential uniformity.** `IsDiffUniform s 4` is a hypothesis, the way
-`IsColBranchBound` was a hypothesis in Propagation layer. Unlike that one it is not discharged here.
-Checking it by kernel `decide` is `256 · 256` differentials each scanning `256` inputs, about
-`16.7` million field operations, and `Algebra/GF256.lean` already measured that enumerations of
-that size do not finish in the kernel. Closing it needs a structural argument about inversion
-in `GF(2⁸)`, in the same spirit as that file's bilinear-extension trick for associativity.
+**Discharged for AES: the concrete S-box obligations.** The generic `AESProb.lean`
+API retains its explicit hypotheses. `Algebra/AESSbox.lean` defines the actual AES
+byte substitution and its inverse. `Differential/Polynomial.lean` bounds inversion
+by a quadratic root count plus two exceptional inputs. `AESConcrete.lean` moves
+that bound through the additive affine equivalence and proves that four is attained.
+Its concrete probability wrappers require no S-box hypotheses.
 
 **Assumed: independent round keys.** Discussed above. Real AES has a key schedule.
 
