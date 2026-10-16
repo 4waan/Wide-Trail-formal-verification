@@ -28,15 +28,12 @@ is the size of the round-key space, so it reads directly as `DP ≤ 2⁻ᵉ` wit
 `aesMixColumns_isColBranchBound` is proved: Algebra layer computes the MDS property of the real
 matrix over the real field. The branch number `5` is a theorem here.
 
-`IsDiffUniform s 4` is **not** proved. It is the differential uniformity of the AES S-box,
-and it enters exactly the way `IsColBranchBound` entered Propagation layer: as a named hypothesis,
-so
-that the reader can see what the `2⁻¹⁵⁰` rests on. It is not left open for lack of
-interest. Checking it by kernel `decide` means `256 · 256` differentials each scanning
-`256` inputs, about `16.7` million field operations, and `Algebra/GF256.lean` records that
-enumerations of exactly that size do not finish in the kernel. Closing it needs the same
-kind of structural argument that file used for associativity, applied to inversion in
-`GF(2⁸)`, and that is a separate piece of work.
+`IsDiffUniform s 4` and injectivity remain explicit hypotheses of this generic
+API, so callers using a different S-box must supply their own proofs.
+`AESConcrete.lean` now discharges both for the actual AES byte substitution.
+Its uniformity proof uses a structural quadratic root bound for inversion,
+transported through the proved affine equivalence. It does not enumerate the
+entire AES difference distribution table inside the kernel.
 
 ## The S-box field of the specification
 
