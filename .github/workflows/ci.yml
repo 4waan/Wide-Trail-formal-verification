@@ -33,12 +33,14 @@ jobs:
           # say it outright rather than depending on the heuristic.
           use-mathlib-cache: true
 
-          # Fail the build if any declaration under the WideTrail namespace
-          # transitively depends on an axiom outside the allowlist. This catches
+          # Retain the action's namespace audit alongside the complete module
+          # audit below. Unexpected transitive axioms include
           # `sorry` and `admit` (which surface as `sorryAx`), `native_decide`
           # (which surfaces as `Lean.ofReduceBool` and moves the evidence out of
           # the kernel), and any home-rolled axiom, including ones arriving
-          # through imports. WideTrail/sanity-check/Axioms.lean pins the same
-          # property for fifteen named theorems; this covers everything else.
+          # through imports. Each layer also pins named theorem footprints.
           axiom-audit: true
           axiom-audit-allow: propext,Classical.choice,Quot.sound
+
+      - name: Audit every project declaration by defining module
+        run: lake env lean scripts/AuditAxioms.lean

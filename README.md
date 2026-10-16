@@ -1,15 +1,18 @@
 # WideTrail
 
-*a parametric Lean 4 formalization of the wide trail propagation theorems, producing kernel-checked active-S-box bounds for AES-like designs*
+*Kernel-checked wide-trail and HADES activity bounds, concrete AES algebra, and exact differential trail counts in Lean 4.*
 
 Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://www.researchgate.net/publication/225704500_The_Wide_Trail_Design_Strategy).
 
 ---
 
-## Three layers
+## Named proof layers
 
-The project is split into three layers, in three directories, because they're three
-different kinds of work.
+The directories identify the kind of mathematics they contain: `Propagation`,
+`Algebra`, `Differential`, and `Hades`. The original numbered directories have been
+renamed; import paths now use these names. Import a complete layer with
+`import WideTrail.Propagation`, `import WideTrail.Algebra`,
+`import WideTrail.Differential`, or `import WideTrail.Hades`.
 
 **Propagation layer** (`WideTrail/Propagation/`) is the abstract propagation theory: an S-box layer, a
 shuffle, and a mixing layer, related only by the structural properties a wide-trail cipher
@@ -56,12 +59,24 @@ guarantees is that any output difference it *can* produce has the same support a
 Differential layer proves that from injectivity alone, and Propagation layer's four-round theorems were generalised
 to consume it, with the old function-shaped statements surviving unchanged as corollaries.
 
-Every theorem in all three layers is checked by `#print axioms` to depend on nothing beyond
+**Hades layer** (`WideTrail/Hades/`) models full and partial S-box rounds with fixed
+additions and round-specific invertible linear maps. It counts active coordinates
+only where an S-box is actually applied. For `r` full rounds, `m` partial rounds,
+and `s` full rounds, its execution theorem gives
+`(r / 2 + s / 2) * B + r % 2 + s % 2` active S-boxes from the outer blocks.
+Whole-state MDS mixing supplies `B = t + 1`. The result applies to actual pairs of
+distinct inputs; it makes no probability or algebraic-attack resistance claim.
+See [the HADES mechanics](MECHANICS_HADES.md) and [the implementation plan](HADES_PLAN.md).
+
+Named theorem footprints are pinned by `#print axioms`. The complete module audit
+in `scripts/AuditAxioms.lean` checks every project declaration, including names in
+the root namespace. Both allow nothing beyond
 the standard `propext, Classical.choice, Quot.sound` baseline: no `sorry`, no
 `native_decide`, no `bv_decide` fallback axiom, anywhere. See
 [`WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md) for the
 build log of Algebra layer (what was tried, what failed, why),
-[`MECHANICS_ALGEBRA.md`](MECHANICS_ALGEBRA.md) for how Algebra layer actually works, mechanically, and
+[`MECHANICS_ALGEBRA.md`](MECHANICS_ALGEBRA.md) for how the algebra works,
+[`MECHANICS_PROPAGATION.md`](MECHANICS_PROPAGATION.md) for the support argument, and
 [`MECHANICS_DIFFERENTIAL.md`](MECHANICS_DIFFERENTIAL.md) for the same on Differential layer.
 
 ---
@@ -144,6 +159,30 @@ The same axiom audit as Propagation layer, applied to the probability layer: twe
 
 ---
 
+### Hades layer: scheduled full and partial rounds
+
+#### [`Masked.lean`](WideTrail/Hades/Masked.lean)
+Defines masked coordinate S-boxes and `sboxWeight`, the charged activity. Proves
+bijectivity, support preservation for actual input pairs, and exact propagation
+through identity coordinates.
+
+#### [`Schedule.lean`](WideTrail/Hades/Schedule.lean)
+Defines executable pre-addition rounds, their inverses, finite executions, and
+actual difference traces. A full/partial/full schedule has explicit lengths and
+proved boundaries. Round additions remain deterministic parameters.
+
+#### [`Bounds.lean`](WideTrail/Hades/Bounds.lean)
+Proves shifted full-window bounds and `outerRound_bound`. Pairs of full rounds
+cost a branch bound; an odd remaining full round costs one. The two outer blocks
+are counted separately. `hades_mds_bound` supplies the whole-state MDS corollary.
+
+#### [`Checks`](WideTrail/Hades/Checks/Toy.lean)
+A 25-state cipher over `ZMod 5` checks the count, exhibits a tight witness, and
+shows why identity coordinates must be excluded. Weak mixing and a collapsing
+middle map refute bounds stated without their required assumptions.
+
+---
+
 ## How this works as a program, and why it's useful
 
 At its core, this project turns a cipher's design into a small set of numbers, and a machine-checked proof that those numbers can't be beaten.
@@ -217,7 +256,11 @@ Two things make that bound trustworthy:
 - **It's kernel-checked.** Lean's kernel is a small, independently trusted piece of software. If the project compiles, every theorem in it is guaranteed correct by that kernel, not by a human re-reading the proof or a test suite that might miss a case.
 - **It's parametric.** The branch number, the state size, and the mixing layer are all just parameters. Swap in a different design with the same shape, and the same machinery hands you a new certified bound for free, instead of redoing the argument by hand.
 
-The payoff of the bound itself: each active S-box cuts down an attacker's odds of guessing right, so a guaranteed minimum count of active S-boxes over every four rounds puts a hard ceiling on how good a differential or linear attack can ever get against the full cipher, no matter how many rounds are chained together.
+The activity bounds supply exponents for individual trail bounds when the required
+S-box uniformity and probability model are available. The differential layer proves
+this bridge for independent round keys. A differential sums multiple trails, and
+fixed public constants do not provide independent keys. The HADES theorem currently
+establishes the activity count only.
 
 ---
 

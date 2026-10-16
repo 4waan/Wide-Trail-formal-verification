@@ -1,6 +1,11 @@
-# Next job: scheduled HADES rounds and an outer-round activity bound
+# HADES milestone: scheduled rounds and an outer-round activity bound
 
-Prepared 2026-10-16 after landing Differential layer at `42df69c`.
+Prepared 2026-10-16 after landing the differential layer at `42df69c`.
+
+Implemented in `WideTrail/Hades/`. The original numbered layers are now
+`Propagation`, `Algebra`, and `Differential`. This document retains the milestone
+contract and the explicitly deferred follow-on jobs. The main results are
+`Hades.outerRound_bound`, `Hades.hades_bound`, and `Hades.hades_mds_bound`.
 
 ## Deliverable
 
@@ -115,8 +120,8 @@ That abstraction must preserve the explicit execution boundary between blocks.
 
 ## Proposed files and interfaces
 
-Create `WideTrail/Hades/` rather than renaming existing layers. The names below
-are proposed interfaces, not declarations already implemented.
+The implementation lives in `WideTrail/Hades/` alongside the newly named proof
+layers. The file responsibilities below describe the implemented interfaces.
 
 ### `Masked.lean`
 
@@ -239,9 +244,23 @@ co-author trailers.
 - Actual distinct-input executions satisfy the theorem's trace assumptions.
 - The two toy counting witnesses match the independent reference, and the
   missing-assumption counterexamples compile.
-- Existing Propagation layer to Differential layer results retain their statements and behavior.
+- Existing propagation, algebra, and differential results retain their statements and behavior.
 - Documentation names the result as an active-S-box bound and states exactly
   which branch and bijectivity assumptions it consumes.
+
+## Verification completed
+
+The implementation kernel-checks all 625 ordered pairs of the 25-state toy,
+including the diagonal, and pins 26 new theorem footprints. The minimum over
+600 distinct ordered pairs is six. Separate integer-arithmetic Python code
+matched all 625 pairs' charged and ordinary counts, all 25 output states, and
+the weak-mixing and singular-middle variants. That comparison checks execution
+conventions independently of the Lean definitions and bound proofs.
+
+The pre-existing proof code in all 21 modules was compared after removing
+comments and normalizing only the renamed imports. It is unchanged. The default
+build imports each named layer and its checks, and CI now runs the complete
+module-based audit in `scripts/AuditAxioms.lean`.
 
 ## Follow-on jobs, outside this implementation
 
