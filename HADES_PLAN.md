@@ -1,6 +1,6 @@
 # Next job: scheduled HADES rounds and an outer-round activity bound
 
-Prepared 2026-10-16 after landing Layer 3 at `42df69c`.
+Prepared 2026-10-16 after landing Differential layer at `42df69c`.
 
 ## Deliverable
 
@@ -58,7 +58,7 @@ scheduledWeight masks T R = sum over n < R of sboxWeight (masks n) (T n)
 For a full mask, `sboxWeight` must reduce to `weight`. For an empty mask it must
 be zero. For a singleton mask it must be either zero or one.
 
-This distinction also matters to Layer 3. Feeding an identity map into
+This distinction also matters to Differential layer. Feeding an identity map into
 `diffCount_bricklayer_le` with the nonlinear S-box's uniformity constant is
 invalid: its nonzero-input differential can have the entire field as its count.
 A future probability proof must charge only active coordinates in the mask.
@@ -138,7 +138,7 @@ field cardinalities should enter only where a theorem actually needs them.
   linear map, and an additive round value. Use a `LinearEquiv` for the linear map
   in the field-based execution model.
 - Choose and document one execution convention, preferably
-  `round n x = lin n (maskedBricklayer n (x + c n))`, matching Layer 3.
+  `round n x = lin n (maskedBricklayer n (x + c n))`, matching Differential layer.
 - Define finite execution, actual two-input difference traces, and total charged
   activity. Fix indexing so the count charges S-box inputs at rounds `0` through
   `R - 1`; the final output difference is available at index `R`.
@@ -178,7 +178,7 @@ identity-coordinate propagation. Prove that actual executions satisfy the
 relation before using it for the headline result. Do not define a nonlinear
 S-box as a deterministic function on input differences.
 
-### `sanity-check/Toy.lean` and `sanity-check/Axioms.lean`
+### `Checks/Toy.lean` and `Checks/Axioms.lean`
 
 Use a tiny prime-field instance to exhibit actual executions and challenge the
 assumptions. The toy is a proof test, not a proposed cryptographic parameter set.
@@ -239,7 +239,7 @@ co-author trailers.
 - Actual distinct-input executions satisfy the theorem's trace assumptions.
 - The two toy counting witnesses match the independent reference, and the
   missing-assumption counterexamples compile.
-- Existing Layer 1 to Layer 3 results retain their statements and behavior.
+- Existing Propagation layer to Differential layer results retain their statements and behavior.
 - Documentation names the result as an active-S-box bound and states exactly
   which branch and bijectivity assumptions it consumes.
 
@@ -271,6 +271,6 @@ pinned Rust permutation or its constraints. The generic API permits varying
 linear layers; it does not certify a Poseidon2 matrix in advance.
 
 Sponge indifferentiability remains a separate roadmap branch. The existing AES
-S-box uniformity gap also remains recorded in Layer 3 and is not a dependency of
+S-box uniformity gap also remains recorded in Differential layer and is not a dependency of
 this activity theorem. This job makes no fixed-key probability, differential
 hull, algebraic-attack resistance, sponge-security, or zkVM-soundness claim.

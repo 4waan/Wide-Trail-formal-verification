@@ -11,58 +11,58 @@ Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://www.resear
 The project is split into three layers, in three directories, because they're three
 different kinds of work.
 
-**Layer 1** (`WideTrail/Layer1/`) is the abstract propagation theory: an S-box layer, a
+**Propagation layer** (`WideTrail/Propagation/`) is the abstract propagation theory: an S-box layer, a
 shuffle, and a mixing layer, related only by the structural properties a wide-trail cipher
-needs (support-preservation, diffusion optimality, a branch number). It's parametric — the
-branch number, state size, and field are all just parameters — so it proves a bound for an
+needs (support-preservation, diffusion optimality, a branch number). It's parametric, the
+branch number, state size, and field are all just parameters, so it proves a bound for an
 entire *family* of cipher shapes at once, AES included. Instantiated at the AES shape, it
 gives `aes_four_round`/`aes128_ten_round` as an **implication**: *given* that MixColumns has
 branch number `5`, four rounds force `25` active S-boxes and the ten rounds of AES-128 force
-`55`. The `hmix`/`hnd` hypotheses in `Layer1/AES.lean` are exactly that "given."
+`55`. The `hmix`/`hnd` hypotheses in `Propagation/AES.lean` are exactly that "given."
 
 The state is rectangular, `Fin rows × Fin cols`, not square, so the whole Rijndael family is
-in range: `Layer1/Rijndael.lean` covers the 192- and 256-bit block sizes as well, and uses
+in range: `Propagation/Rijndael.lean` covers the 192- and 256-bit block sizes as well, and uses
 them to test what the theory actually decides about a real design choice.
 
-**Layer 2** (`WideTrail/Layer2/`) discharges that hypothesis. It builds `GF(2⁸)` from scratch
+**Algebra layer** (`WideTrail/Algebra/`) discharges that hypothesis. It builds `GF(2⁸)` from scratch
 (Mathlib's `GaloisField` is `noncomputable`, unusable for the enumeration this needs), proves
-the general "MDS matrix ⟹ optimal branch number" theorem — vocabulary Mathlib doesn't have at
-all — and instantiates both against the real `4×4` AES `MixColumns` matrix. The output is
-`Layer2/AESMix.lean`'s `aes_four_round_concrete`/`aes128_ten_round_concrete`: the same two
+the general "MDS matrix ⟹ optimal branch number" theorem, vocabulary Mathlib doesn't have at
+all, and instantiates both against the real `4×4` AES `MixColumns` matrix. The output is
+`Algebra/AESMix.lean`'s `aes_four_round_concrete`/`aes128_ten_round_concrete`: the same two
 bounds, now with *no* remaining hypothesis except the free fact that the S-box layer is a
 bijective bricklayer (true for any invertible S-box, AES's included).
 
-**Layer 3** (`WideTrail/Layer3/`) turns the count into a probability. A differential's
+**Differential layer** (`WideTrail/Differential/`) turns the count into a probability. A differential's
 probability is kept as a `Nat` numerator over a fixed denominator, never a rational, so
 every statement stays exact and stays decidable on a small cipher. Three steps: a
 bricklayer's differential count factors over bundles, and the number of factors that are not
-free is exactly Layer 1's `weight`; the rounds multiply; and `4 · 2⁶ = 256` turns each active
+free is exactly Propagation layer's `weight`; the rounds multiply; and `4 · 2⁶ = 256` turns each active
 AES S-box into a factor of `2⁻⁶`. Out comes `2⁻¹⁵⁰` over four rounds and `2⁻³³⁰` over the ten
 rounds of AES-128.
 
-The multiplication step is the one that needs an assumption, and Layer 3 does not assume the
+The multiplication step is the one that needs an assumption, and Differential layer does not assume the
 product formula. It counts pairs of an input and a **round-key vector**, so independent round
 keys are visible in what is being counted, and then *proves* the product. That is not a
 stylistic preference: assuming the product formula at a fixed key is inconsistent for
-ten-round AES, and `Layer3/sanity-check/Toy.lean` exhibits a cipher, a trail and a key where
-the key-averaged count is positive and the fixed-key count is zero. Layer 3 also proves,
+ten-round AES, and `Differential/Checks/Toy.lean` exhibits a cipher, a trail and a key where
+the key-averaged count is positive and the fixed-key count is zero. Differential layer also proves,
 unconditionally, that a differential is a *sum* over trails and exhibits a two-round
 differential worth twice its best trail, which is the hull effect that caveats every
 wide-trail figure in the literature.
 
-Layer 3 also demotes one of Layer 1's hypotheses to a theorem. `PreserveSupport` was a claim
+Differential layer also demotes one of Propagation layer's hypotheses to a theorem. `PreserveSupport` was a claim
 about a function on differences, and a real S-box layer has no such function; what it really
 guarantees is that any output difference it *can* produce has the same support as the input.
-Layer 3 proves that from injectivity alone, and Layer 1's four-round theorems were generalised
+Differential layer proves that from injectivity alone, and Propagation layer's four-round theorems were generalised
 to consume it, with the old function-shaped statements surviving unchanged as corollaries.
 
 Every theorem in all three layers is checked by `#print axioms` to depend on nothing beyond
 the standard `propext, Classical.choice, Quot.sound` baseline: no `sorry`, no
 `native_decide`, no `bv_decide` fallback axiom, anywhere. See
-[`WideTrail/Layer2/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Layer2/MDS_HYPOTHESIS_BUILD.md) for the
-build log of Layer 2 (what was tried, what failed, why),
-[`MECHANICS_L2.md`](MECHANICS_L2.md) for how Layer 2 actually works, mechanically, and
-[`MECHANICS_L3.md`](MECHANICS_L3.md) for the same on Layer 3.
+[`WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md) for the
+build log of Algebra layer (what was tried, what failed, why),
+[`MECHANICS_ALGEBRA.md`](MECHANICS_ALGEBRA.md) for how Algebra layer actually works, mechanically, and
+[`MECHANICS_DIFFERENTIAL.md`](MECHANICS_DIFFERENTIAL.md) for the same on Differential layer.
 
 ---
 
@@ -73,74 +73,74 @@ The files import each other in this order, each one building on the last.
 ### [`WideTrail.lean`](WideTrail.lean)
 The entry point. It just imports every file below, so the whole library is one `import WideTrail` away.
 
-### Layer 1: the abstract theory
+### Propagation layer: the abstract theory
 
-#### [`WideTrail/Layer1/Activity.lean`](WideTrail/Layer1/Activity.lean)
+#### [`WideTrail/Propagation/Activity.lean`](WideTrail/Propagation/Activity.lean)
 The foundation. Defines what it means for a position in the cipher's state to be "active" (its difference is nonzero), counts how many positions are active (the *weight*), and proves the basic two-round bound: across any two rounds, the number of active positions is at least the branch number of the mixing layer.
 
-#### [`WideTrail/Layer1/Columns.lean`](WideTrail/Layer1/Columns.lean)
+#### [`WideTrail/Propagation/Columns.lean`](WideTrail/Propagation/Columns.lean)
 Groups the state into columns, the way AES groups bytes into 4-byte columns, and proves that if the mixing layer guarantees a minimum spread within each column, that spread adds up: any set of active columns forces that many times more active bytes overall (**Lemma 1**).
 
-#### [`WideTrail/Layer1/Dispersion.lean`](WideTrail/Layer1/Dispersion.lean)
+#### [`WideTrail/Propagation/Dispersion.lean`](WideTrail/Propagation/Dispersion.lean)
 Models the shuffle step (like ShiftRows) that scrambles which column each byte belongs to between rounds. Proves that if this shuffle is "diffusion optimal", meaning no two bytes from the same column ever end up sharing a column again, then a column-level guarantee can be upgraded into a stronger bundle-level one (**Lemma 2**).
 
-#### [`WideTrail/Layer1/FourRound.lean`](WideTrail/Layer1/FourRound.lean)
+#### [`WideTrail/Propagation/FourRound.lean`](WideTrail/Propagation/FourRound.lean)
 Combines Lemma 1 and Lemma 2 into the paper's two headline theorems: any four consecutive rounds of a wide-trail cipher force at least `B²` active S-boxes, where `B` is the branch number of the mixing layer. It's proved for both of the paper's cipher shapes, to show they agree.
 
-#### [`WideTrail/Layer1/Cipher.lean`](WideTrail/Layer1/Cipher.lean)
+#### [`WideTrail/Propagation/Cipher.lean`](WideTrail/Propagation/Cipher.lean)
 Packages a whole cipher design (its column layout, S-box, shuffle, mixing layer, and the proof obligations they must satisfy) into a single structure, `WideTrailSpec`. Also extends the four-round theorem to any number of rounds by chaining four-round blocks together.
 
-#### [`WideTrail/Layer1/Grid.lean`](WideTrail/Layer1/Grid.lean)
+#### [`WideTrail/Propagation/Grid.lean`](WideTrail/Propagation/Grid.lean)
 Instantiates the abstract theory on a rectangular `rows × cols` state with ShiftRows at an arbitrary offset vector. The whole file turns on one equivalence: the paper's geometric "diffusion optimal" condition on a permutation of `rows · cols` positions is *exactly* injectivity of the offset vector. That collapses a design criterion into something the kernel can decide for any concrete candidate, count in closed form, and refute. It also proves, for every possible shuffle and not just rotations, that a state with more rows than columns admits no diffusion-optimal shuffle at all.
 
-#### [`WideTrail/Layer1/AES.lean`](WideTrail/Layer1/AES.lean)
-Plugs the real AES shape into `WideTrailSpec`: the square case of the grid, ShiftRows as the shuffle, and a MixColumns with branch number 5 (a property of AES that's taken as a hypothesis here — `hmix`/`hnd` — rather than re-derived from finite-field arithmetic; Layer 2 is what discharges it). Out comes the actual numbers: at least 25 active S-boxes over any four rounds, 55 over the ten rounds of AES-128, 75 over the twelve of AES-192, and 80 over the fourteen of AES-256.
+#### [`WideTrail/Propagation/AES.lean`](WideTrail/Propagation/AES.lean)
+Plugs the real AES shape into `WideTrailSpec`: the square case of the grid, ShiftRows as the shuffle, and a MixColumns with branch number 5 (a property of AES that's taken as a hypothesis here, `hmix`/`hnd`, rather than re-derived from finite-field arithmetic; Algebra layer is what discharges it). Out comes the actual numbers: at least 25 active S-boxes over any four rounds, 55 over the ten rounds of AES-128, 75 over the twelve of AES-192, and 80 over the fourteen of AES-256.
 
-#### [`WideTrail/Layer1/Rijndael.lean`](WideTrail/Layer1/Rijndael.lean)
-Rijndael at all three block sizes, and the place where the formalization is asked to rule on a real design decision. Rijndael shifts its rows by `0,1,2,3` at 128- and 192-bit blocks but by `0,1,3,4` at 256 bits. The kernel's verdict on the natural explanation is *no*: `0,1,2,3` is diffusion-optimal on the wide state too, along with 1678 other offset vectors, so the wide-trail criterion is not what rejected it. The criterion is not vacuous either — the 256-bit offsets are illegal on the AES state, and a 4×3 state admits no diffusion-optimal shuffle whatsoever.
+#### [`WideTrail/Propagation/Rijndael.lean`](WideTrail/Propagation/Rijndael.lean)
+Rijndael at all three block sizes, and the place where the formalization is asked to rule on a real design decision. Rijndael shifts its rows by `0,1,2,3` at 128- and 192-bit blocks but by `0,1,3,4` at 256 bits. The kernel's verdict on the natural explanation is *no*: `0,1,2,3` is diffusion-optimal on the wide state too, along with 1678 other offset vectors, so the wide-trail criterion is not what rejected it. The criterion is not vacuous either, the 256-bit offsets are illegal on the AES state, and a 4×3 state admits no diffusion-optimal shuffle whatsoever.
 
-#### [`WideTrail/Layer1/sanity-check/Verification.lean`](WideTrail/Layer1/sanity-check/Verification.lean)
+#### [`WideTrail/Propagation/Checks/Verification.lean`](WideTrail/Propagation/Checks/Verification.lean)
 A sanity-check file, not a source of new results. It builds a toy cipher to show the theorems' assumptions can all hold at once (so nothing here is vacuously true), and builds a second toy cipher that is missing only the "diffusion optimal" shuffle property to show the bound genuinely breaks without it.
 
-#### [`WideTrail/Layer1/sanity-check/Tightness.lean`](WideTrail/Layer1/sanity-check/Tightness.lean)
+#### [`WideTrail/Propagation/Checks/Tightness.lean`](WideTrail/Propagation/Checks/Tightness.lean)
 Measures how much slack is in the bounds on the one cipher small enough to search exhaustively (`toySpec`, a `2×2` state over `GF(2)`): the two-round bound turns out exactly tight, the four-round bound looser.
 
-#### [`WideTrail/Layer1/sanity-check/Axioms.lean`](WideTrail/Layer1/sanity-check/Axioms.lean)
+#### [`WideTrail/Propagation/Checks/Axioms.lean`](WideTrail/Propagation/Checks/Axioms.lean)
 Audits the axiom footprint of the toy-cipher checks: confirms every finite check in the project runs through kernel `decide`, never `native_decide`, so nothing here quietly moved trust out of the kernel.
 
-### Layer 2: discharging MixColumns
+### Algebra layer: discharging MixColumns
 
-#### [`WideTrail/Layer2/GF256.lean`](WideTrail/Layer2/GF256.lean)
-`GF(2⁸)` built from scratch as `BitVec 8` under xor and shift-and-reduce multiplication, proved a genuine `Field` — commutativity and associativity by bilinear extension from a 64/512-case basis check (not brute force, which hits a kernel recursion-depth wall well before it could finish), inverses by an unrolled Fermat exponentiation.
+#### [`WideTrail/Algebra/GF256.lean`](WideTrail/Algebra/GF256.lean)
+`GF(2⁸)` built from scratch as `BitVec 8` under xor and shift-and-reduce multiplication, proved a genuine `Field`, commutativity and associativity by bilinear extension from a 64/512-case basis check (not brute force, which hits a kernel recursion-depth wall well before it could finish), inverses by an unrolled Fermat exponentiation.
 
-#### [`WideTrail/Layer2/MDS.lean`](WideTrail/Layer2/MDS.lean)
-The general theorem: if every square submatrix of a matrix `M` is nonsingular (the MDS property), then `{(x, Mx)}` has the optimal branch number `n+1` — vocabulary Mathlib has none of (no MDS matrices, no minimum distance, no Singleton bound anywhere in the library).
+#### [`WideTrail/Algebra/MDS.lean`](WideTrail/Algebra/MDS.lean)
+The general theorem: if every square submatrix of a matrix `M` is nonsingular (the MDS property), then `{(x, Mx)}` has the optimal branch number `n+1`, vocabulary Mathlib has none of (no MDS matrices, no minimum distance, no Singleton bound anywhere in the library).
 
-#### [`WideTrail/Layer2/AESMix.lean`](WideTrail/Layer2/AESMix.lean)
-The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Layer 1's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete` (25 and 55), plus the same for AES-192 and AES-256 (75 and 80).
+#### [`WideTrail/Algebra/AESMix.lean`](WideTrail/Algebra/AESMix.lean)
+The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Propagation layer's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete` (25 and 55), plus the same for AES-192 and AES-256 (75 and 80).
 
-### Layer 3: from active S-boxes to a probability
+### Differential layer: from active S-boxes to a probability
 
-#### [`WideTrail/Layer3/Differential.lean`](WideTrail/Layer3/Differential.lean)
+#### [`WideTrail/Differential/Counts.lean`](WideTrail/Differential/Counts.lean)
 What a differential probability is, without measure theory: `diffCount F a b` counts the inputs realising the differential, and `DP ≤ 2⁻ᵈ` is written `diffCount * 2 ^ d ≤ |X|`, exact in `ℕ` and decidable. Proves that a row of the difference distribution table sums to `|X|`, that round keys and invertible linear layers change no count, and the hull identity: the differential of a composition is a *sum* over intermediate differences, unconditionally.
 
-#### [`WideTrail/Layer3/Bricklayer.lean`](WideTrail/Layer3/Bricklayer.lean)
-The join between the two halves of the project. A bricklayer's differential count factors over bundles, and splitting that product over the support gives `u ^ weight a * |K| ^ (|Idx| - weight a)`: Layer 1's `weight` appears as an exponent with no translation step. Also proves the support-preservation that Layer 1 had to assume, from injectivity of the S-boxes alone.
+#### [`WideTrail/Differential/Bricklayer.lean`](WideTrail/Differential/Bricklayer.lean)
+The join between the two halves of the project. A bricklayer's differential count factors over bundles, and splitting that product over the support gives `u ^ weight a * |K| ^ (|Idx| - weight a)`: Propagation layer's `weight` appears as an exponent with no translation step. Also proves the support-preservation that Propagation layer had to assume, from injectivity of the S-boxes alone.
 
-#### [`WideTrail/Layer3/Markov.lean`](WideTrail/Layer3/Markov.lean)
+#### [`WideTrail/Differential/Markov.lean`](WideTrail/Differential/Markov.lean)
 The Markov cipher model, with the assumption in the shape of what is counted rather than in a hypothesis: the count ranges over round-key vectors, so independent round keys are explicit, and the product formula is then a theorem. Proved by peeling one round at a time, which is the change of variables `yₙ = xₙ + kₙ` in disguise.
 
-#### [`WideTrail/Layer3/TrailProb.lean`](WideTrail/Layer3/TrailProb.lean)
-The arithmetic, once: `trailKeyCount · 2 ^ (d·W) ≤ |X| ^ r`. Plus the bridge that lets Layer 1 count a real differential trail, since a trail with a nonzero count satisfies `WideTrailSpec.IsTrail`.
+#### [`WideTrail/Differential/TrailProb.lean`](WideTrail/Differential/TrailProb.lean)
+The arithmetic, once: `trailKeyCount · 2 ^ (d·W) ≤ |X| ^ r`. Plus the bridge that lets Propagation layer count a real differential trail, since a trail with a nonzero count satisfies `WideTrailSpec.IsTrail`.
 
-#### [`WideTrail/Layer3/AESProb.lean`](WideTrail/Layer3/AESProb.lean)
-The numbers. `|K| = 256`, `|Idx| = 16`, S-box uniformity `4`, and `4 · 2⁶ = 256`, so each active S-box costs `2⁻⁶`: `2⁻¹⁵⁰` over four rounds, `2⁻³³⁰` over ten, `2⁻⁴⁵⁰` over twelve, `2⁻⁴⁸⁰` over fourteen. The S-box's differential uniformity is the one hypothesis Layer 3 does not discharge, and the file says why.
+#### [`WideTrail/Differential/AESProb.lean`](WideTrail/Differential/AESProb.lean)
+The numbers. `|K| = 256`, `|Idx| = 16`, S-box uniformity `4`, and `4 · 2⁶ = 256`, so each active S-box costs `2⁻⁶`: `2⁻¹⁵⁰` over four rounds, `2⁻³³⁰` over ten, `2⁻⁴⁵⁰` over twelve, `2⁻⁴⁸⁰` over fourteen. The S-box's differential uniformity is the one hypothesis Differential layer does not discharge, and the file says why.
 
-#### [`WideTrail/Layer3/sanity-check/Toy.lean`](WideTrail/Layer3/sanity-check/Toy.lean)
+#### [`WideTrail/Differential/Checks/Toy.lean`](WideTrail/Differential/Checks/Toy.lean)
 A sixteen-state cipher the kernel enumerates in full. Recomputes the bundle product and the Markov product by brute force, shows the S-box uniformity constant is exactly attained, exhibits a fixed key under which the product formula is false, and exhibits a two-round differential worth twice its best trail.
 
-#### [`WideTrail/Layer3/sanity-check/Axioms.lean`](WideTrail/Layer3/sanity-check/Axioms.lean)
-The same axiom audit as Layer 1, applied to the probability layer: twenty-six results, all on the standard baseline, none through `native_decide`.
+#### [`WideTrail/Differential/Checks/Axioms.lean`](WideTrail/Differential/Checks/Axioms.lean)
+The same axiom audit as Propagation layer, applied to the probability layer: twenty-six results, all on the standard baseline, none through `native_decide`.
 
 ---
 
@@ -176,14 +176,14 @@ flowchart TD
     GRID["Grid.lean\nrows x cols state; diffusion optimal <-> offsets injective"]
     AES["AES.lean\nconditional on hmix: B=5 -> 25 per 4 rounds, 55 over AES-128"]
     RIJ["Rijndael.lean\nNb = 4, 6, 8; what Definition 5 does and does not decide"]
-    GFMDS["Layer 2: GF256.lean + MDS.lean\nbuild GF(2^8), prove MDS -> branch B"]
-    AESMIX["Layer 2: AESMix.lean\nthe real MixColumns matrix is MDS"]
+    GFMDS["Algebra layer: GF256.lean + MDS.lean\nbuild GF(2^8), prove MDS -> branch B"]
+    AESMIX["Algebra layer: AESMix.lean\nthe real MixColumns matrix is MDS"]
     CONCRETE["AESMix.lean\nunconditional: 25 per 4 rounds, 55 over AES-128"]
-    DIFF["Layer 3: Differential.lean\nDP as a Nat count; hull identity"]
-    BRICK["Layer 3: Bricklayer.lean\nDP factors over bundles; exponent = weight"]
-    MARKOV["Layer 3: Markov.lean\ncount round-key vectors -> rounds multiply"]
-    TPROB["Layer 3: TrailProb.lean\ncount * 2^(d*W) <= |X|^r"]
-    AESPROB["Layer 3: AESProb.lean\n2^-150 per 4 rounds, 2^-330 over AES-128"]
+    DIFF["Differential layer: Differential.lean\nDP as a Nat count; hull identity"]
+    BRICK["Differential layer: Bricklayer.lean\nDP factors over bundles; exponent = weight"]
+    MARKOV["Differential layer: Markov.lean\ncount round-key vectors -> rounds multiply"]
+    TPROB["Differential layer: TrailProb.lean\ncount * 2^(d*W) <= |X|^r"]
+    AESPROB["Differential layer: AESProb.lean\n2^-150 per 4 rounds, 2^-330 over AES-128"]
 
     L1 --> T1
     L1 --> T4
@@ -205,8 +205,8 @@ flowchart TD
     CONCRETE --> AESPROB
 ```
 
-[`WideTrail/Layer1/sanity-check/`](WideTrail/Layer1/sanity-check/) and
-[`WideTrail/Layer3/sanity-check/`](WideTrail/Layer3/sanity-check/) sit off to the side of this chain: it doesn't add a new theorem, it stress-tests the ones above by trying to break them with small hand-built examples, measures how tight the bounds are, and audits that everything really is kernel-checked.
+[`WideTrail/Propagation/Checks/`](WideTrail/Propagation/Checks/) and
+[`WideTrail/Differential/Checks/`](WideTrail/Differential/Checks/) sit off to the side of this chain: it doesn't add a new theorem, it stress-tests the ones above by trying to break them with small hand-built examples, measures how tight the bounds are, and audits that everything really is kernel-checked.
 
 ### Why this is useful
 
