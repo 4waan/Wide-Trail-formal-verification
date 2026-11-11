@@ -242,4 +242,46 @@ theorem inactiveSpace_ne_bot (L : Module.End K (Idx → K)) (mask : Finset Idx) 
     Fintype.card_coe] at hrange
   omega
 
+/-- **Outer and middle rounds together.** The two full blocks are counted as in
+`IsTrail.outer_bound`; the `m` middle rounds, sharing one linear map and one mask,
+add `m / w` when no nonzero difference survives `w` inactive rounds.
+
+The three windows are disjoint, so the contributions add. No pair of full rounds
+is taken across the middle. -/
+theorem IsTrail.outer_middle_bound {rounds : Nat → RoundSpec Idx K} {T : Nat → Idx → K}
+    (r m s B w : Nat) (hT : IsTrail rounds T (r + m + s)) (h0 : T 0 ≠ 0)
+    (hp : ∀ j < r, (rounds j).mask = Finset.univ)
+    (hs : ∀ j < s, (rounds (r + m + j)).mask = Finset.univ)
+    (hbp : ∀ j, j + 1 < r → isBranchBound id (rounds j).lin B)
+    (hbs : ∀ j, j + 1 < s → isBranchBound id (rounds (r + m + j)).lin B)
+    (L : (Idx → K) ≃ₗ[K] (Idx → K)) (mask : Finset Idx)
+    (hlin : ∀ j < m, (rounds (r + j)).lin = L)
+    (hmask : ∀ j < m, (rounds (r + j)).mask = mask)
+    (htriv : inactiveSpace L.toLinearMap mask w = ⊥) :
+    (r / 2 + s / 2) * B + r % 2 + s % 2 + m / w ≤ scheduledWeight rounds T 0 (r + m + s) := by
+  have hp' := hT.window_bound h0 0 r B (by omega) (by simpa using hp) (by simpa using hbp)
+  have hs' := hT.window_bound h0 (r + m) s B (by omega) hs hbs
+  have hm' := hT.middle_bound h0 L mask r m w (by omega) hlin hmask htriv
+  have hsplit := scheduledWeight_add rounds T 0 (r + m) s
+  have hsplit' := scheduledWeight_add rounds T 0 r m
+  simp only [zero_add] at hsplit hsplit'
+  rw [Nat.add_mul]
+  omega
+
+/-- The same bound for two actual executions on distinct inputs. -/
+theorem outer_middle_bound (rounds : Nat → RoundSpec Idx K) {x y : Idx → K} (hxy : x ≠ y)
+    (r m s B w : Nat)
+    (hp : ∀ j < r, (rounds j).mask = Finset.univ)
+    (hs : ∀ j < s, (rounds (r + m + j)).mask = Finset.univ)
+    (hbp : ∀ j, j + 1 < r → isBranchBound id (rounds j).lin B)
+    (hbs : ∀ j, j + 1 < s → isBranchBound id (rounds (r + m + j)).lin B)
+    (L : (Idx → K) ≃ₗ[K] (Idx → K)) (mask : Finset Idx)
+    (hlin : ∀ j < m, (rounds (r + j)).lin = L)
+    (hmask : ∀ j < m, (rounds (r + j)).mask = mask)
+    (htriv : inactiveSpace L.toLinearMap mask w = ⊥) :
+    (r / 2 + s / 2) * B + r % 2 + s % 2 + m / w ≤
+      scheduledWeight rounds (differenceTrace rounds x y) 0 (r + m + s) :=
+  (differenceTrace_isTrail rounds x y (r + m + s)).outer_middle_bound r m s B w
+    (differenceTrace_ne_zero rounds hxy 0) hp hs hbp hbs L mask hlin hmask htriv
+
 end Hades
