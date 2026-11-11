@@ -1,5 +1,6 @@
 import WideTrail.Hades.Probability
 import Mathlib.Algebra.Module.LinearMap.End
+import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 
 /-!
 # Inactive propagation through partial rounds
@@ -203,5 +204,42 @@ theorem IsTrail.free_window {rounds : Nat → RoundSpec Idx K} {T : Nat → Idx 
   have hjr : j < r := Finset.mem_range.mp hj
   rw [hmask j hjr, sboxWeight_eq_zero_iff, hprop j (by omega)]
   exact fun i hi => hmem j hjr i hi
+
+/-- The `r * mask.card` linear conditions defining `inactiveSpace`, as one map. -/
+def inactiveConstraints (L : Module.End K (Idx → K)) (mask : Finset Idx) (r : Nat) :
+    (Idx → K) →ₗ[K] (Fin r × mask → K) where
+  toFun a p := (L ^ (p.1 : Nat)) a (p.2 : Idx)
+  map_add' a b := by
+    funext p
+    simp only [map_add, Pi.add_apply]
+  map_smul' c a := by
+    funext p
+    simp only [map_smul, Pi.smul_apply, RingHom.id_apply]
+
+omit [Fintype Idx] [DecidableEq Idx] [DecidableEq K] in
+theorem ker_inactiveConstraints_le (L : Module.End K (Idx → K)) (mask : Finset Idx)
+    (r : Nat) : LinearMap.ker (inactiveConstraints L mask r) ≤ inactiveSpace L mask r := by
+  intro a ha j hj i hi
+  have h := congrFun (LinearMap.mem_ker.mp ha) (⟨j, hj⟩, ⟨i, hi⟩)
+  simpa [inactiveConstraints] using h
+
+omit [DecidableEq Idx] [DecidableEq K] in
+/-- **Too few partial rounds leave a nonzero inactive difference.** `r` rounds
+impose `r * mask.card` linear conditions on a space of dimension `card Idx`; if
+there are fewer conditions than dimensions, some nonzero difference meets them all.
+
+The condition is sufficient, not necessary: a degenerate linear map can leave a
+nontrivial inactive space for every `r`. -/
+theorem inactiveSpace_ne_bot (L : Module.End K (Idx → K)) (mask : Finset Idx) (r : Nat)
+    (h : r * mask.card < Fintype.card Idx) : inactiveSpace L mask r ≠ ⊥ := by
+  intro hbot
+  have hker : LinearMap.ker (inactiveConstraints L mask r) = ⊥ :=
+    le_bot_iff.mp (hbot ▸ ker_inactiveConstraints_le L mask r)
+  have hsum := LinearMap.finrank_range_add_finrank_ker (inactiveConstraints L mask r)
+  have hrange := Submodule.finrank_le (LinearMap.range (inactiveConstraints L mask r))
+  rw [hker, finrank_bot, add_zero, Module.finrank_fintype_fun_eq_card] at hsum
+  rw [Module.finrank_fintype_fun_eq_card, Fintype.card_prod, Fintype.card_fin,
+    Fintype.card_coe] at hrange
+  omega
 
 end Hades
