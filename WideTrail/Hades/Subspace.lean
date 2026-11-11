@@ -284,4 +284,40 @@ theorem outer_middle_bound (rounds : Nat → RoundSpec Idx K) {x y : Idx → K} 
   (differenceTrace_isTrail rounds x y (r + m + s)).outer_middle_bound r m s B w
     (differenceTrace_ne_zero rounds hxy 0) hp hs hbp hbs L mask hlin hmask htriv
 
+variable [Fintype K]
+
+/-- **The trail count, with the middle rounds charged.** `hades_probability` bounds
+an independent-key trail count using the outer blocks alone. When the middle rounds
+share a linear map that leaves no nonzero difference inactive for `w` rounds, the
+exponent gains `m / w`.
+
+The sample space is unchanged: an additional independent uniform key per round.
+Nothing is claimed about the fixed public constants alone, nor about a differential
+as opposed to one trail. -/
+theorem hades_probability_with_middle (r m s B w : Nat) (mask : Finset Idx)
+    (boxes : Nat → Idx → K ≃ K) (linear : Nat → (Idx → K) ≃ₗ[K] (Idx → K))
+    (values : Nat → Idx → K) {u d : Nat}
+    (hu : ∀ n < r + m + s, ∀ i, IsDiffUniform (boxes n i) u)
+    (hd : u * 2 ^ d ≤ Fintype.card K)
+    (hbp : ∀ j, j + 1 < r → isBranchBound id (linear j) B)
+    (hbs : ∀ j, j + 1 < s → isBranchBound id (linear (r + m + j)) B)
+    (L : (Idx → K) ≃ₗ[K] (Idx → K)) (hmid : ∀ j < m, linear (r + j) = L)
+    (htriv : inactiveSpace L.toLinearMap mask w = ⊥)
+    {T : Nat → Idx → K} (h0 : T 0 ≠ 0) (x : Idx → K) :
+    keyCount (hadesSchedule r m s mask boxes linear values) (r + m + s) T x
+      * 2 ^ (d * ((r / 2 + s / 2) * B + r % 2 + s % 2 + m / w))
+      ≤ Fintype.card (Idx → K) ^ (r + m + s) := by
+  let rounds := hadesSchedule r m s mask boxes linear values
+  by_cases hz : keyCount rounds (r + m + s) T x = 0
+  · change keyCount rounds _ _ _ * _ ≤ _
+    simp [hz]
+  · have hactivity := (isTrail_of_keyCount_ne_zero hz).outer_middle_bound r m s B w h0
+      (fun j hj => hadesMask_prefix r m s mask hj)
+      (fun j hj => hadesMask_suffix r m s mask hj) hbp hbs L mask
+      (fun j hj => hmid j hj)
+      (fun j hj => hadesMask_middle r m s mask hj) htriv
+    exact le_trans (Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by norm_num)
+      (Nat.mul_le_mul_left d hactivity)))
+      (keyCount_weight_bound rounds _ (fun n hn i _ => hu n hn i) hd T x)
+
 end Hades
