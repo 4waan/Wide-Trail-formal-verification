@@ -10,8 +10,10 @@ The internal matrix leaves no nonzero difference inactive for three consecutive
 rounds, so every window of three internal rounds applies the S-box to a nonzero
 difference at least once. Fifty-six rounds hold eighteen disjoint windows.
 
-This is an activity statement only. The independent-key probability theorem in
-`BN254.lean` is not strengthened here. -/
+The same count is carried into the independently keyed trail bound. As in
+`BN254.lean`, that bound concerns one trail and an additional independent uniform
+key per round. It says nothing about the fixed public constants alone, nor about
+a differential. -/
 
 set_option autoImplicit false
 
@@ -71,5 +73,28 @@ theorem activity_with_partial {x y : State} (hxy : x ≠ y) :
     (fun j hj => by simpa [rounds, Hades.hadesSchedule] using full_suffix j hj)
     internal {0} middle_linear middle_mask internal_inactive_trivial
   exact h
+
+theorem linear_middle (j : Nat) (hj : j < 56) : linear (4 + j) = internal := by
+  simp [linear, show ¬(4 + j < 4) by omega, show ¬(60 ≤ 4 + j) by omega]
+
+/-- Exact trail bound for the additional-independent-key model only, with the
+internal rounds charged. The exponent keeps its round-count arithmetic, as in
+`independent_key_probability`; `probability_exponent_with_partial` evaluates it. -/
+theorem independent_key_probability_with_partial {T : Nat → State} (h0 : T 0 ≠ 0)
+    (x : State) :
+    Hades.keyCount (Hades.hadesSchedule 4 56 4 {0} (fun _ _ => sbox) linear values)
+        (4 + 56 + 4) T x * 2 ^ (251 * ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3))
+      ≤ Fintype.card (Fin 3 → F) ^ (4 + 56 + 4) := by
+  have hd : 4 * 2 ^ 251 ≤ Fintype.card F := by rw [ZMod.card]; decide
+  exact
+    Hades.hades_probability_with_middle (Idx := Fin 3) (K := F) (u := 4) (d := 251)
+      4 56 4 4 3 {0} (fun _ _ => sbox) linear values
+      (fun _ _ _ => sbox_uniform) hd full_prefix full_suffix
+      internal linear_middle internal_inactive_trivial h0 x
+
+/-- The displayed bound's concrete exponent. -/
+theorem probability_exponent_with_partial :
+    251 * ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3) = 8534 := by
+  decide
 
 end Poseidon2.BN254
