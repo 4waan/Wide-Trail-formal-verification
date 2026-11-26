@@ -326,3 +326,29 @@ theorem hades_probability_with_middle (r m s B w : Nat) (mask : Finset Idx)
       (keyCount_weight_bound rounds _ (fun n hn i _ => hu n hn i) hd T x)
 
 end Hades
+
+/-! ### A dimension count -/
+
+namespace Hades
+
+variable {Idx K : Type*} [Fintype Idx] [Field K]
+
+/-- **At least `card Idx - r * mask.card` dimensions survive `r` inactive rounds.** The
+`r * mask.card` conditions of `inactiveConstraints` cut out a subspace of dimension at least
+`card Idx - r * mask.card` (rank–nullity), and that subspace lies in `inactiveSpace`. This
+generalises `inactiveSpace_ne_bot`, which is the case where the bound is positive.
+
+It is a lower bound only: it says nothing about whether the actual dimension is larger, which
+depends on `L`. Natural-number subtraction makes it vacuous once
+`card Idx ≤ r * mask.card`. -/
+theorem card_sub_le_finrank_inactiveSpace (L : Module.End K (Idx → K)) (mask : Finset Idx)
+    (r : Nat) : Fintype.card Idx - r * mask.card ≤ Module.finrank K (inactiveSpace L mask r) := by
+  have hsum := LinearMap.finrank_range_add_finrank_ker (inactiveConstraints L mask r)
+  have hrange := Submodule.finrank_le (LinearMap.range (inactiveConstraints L mask r))
+  have hmono := Submodule.finrank_mono (ker_inactiveConstraints_le L mask r)
+  rw [Module.finrank_fintype_fun_eq_card] at hsum
+  rw [Module.finrank_fintype_fun_eq_card, Fintype.card_prod, Fintype.card_fin,
+    Fintype.card_coe] at hrange
+  omega
+
+end Hades

@@ -436,3 +436,25 @@ theorem m4Equiv_isBranchBound (h : ∀ p ∈ m4Primes, (p : K) ≠ 0) (h35 : (35
 end Field
 
 end Poseidon2
+
+/-! ### The integers `1, …, 5` -/
+
+namespace Poseidon2
+
+/-- **The integers `1, …, 5` are nonzero wherever `m4Primes` is.** `2`, `3` and `5` are in
+the list and `4 = 2 * 2`. This is the hypothesis `BlockCirculant.isBranchBound_blockMix_fin_four`
+places on four blocks, so the `m4Primes` hypothesis alone yields the width-sixteen external
+branch bound. -/
+theorem m4_natCast_ne_zero_of_le_five {K : Type*} [Field K]
+    (h : ∀ p ∈ m4Primes, (p : K) ≠ 0) : ∀ n : ℕ, 1 ≤ n → n ≤ 5 → (n : K) ≠ 0 := by
+  have h2 : ((2 : ℕ) : K) ≠ 0 := h 2 (by decide)
+  intro n h1 h5
+  interval_cases n
+  · simp
+  · exact h2
+  · exact h 3 (by decide)
+  · rw [show ((4 : ℕ) : K) = (2 : ℕ) * (2 : ℕ) by norm_num]
+    exact mul_ne_zero h2 h2
+  · exact h 5 (by decide)
+
+end Poseidon2

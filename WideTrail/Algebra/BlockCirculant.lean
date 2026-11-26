@@ -449,3 +449,39 @@ theorem isBranchBound_blockMix_sixteen {K : Type*} [Field K] [DecidableEq K]
     (isBranchBound_blockMix_fin_four hN hchar)
 
 end BlockCirculant
+
+/-! ### The evaluation order of the Plonky3 code
+
+Plonky3's `mds_light_permutation` (`p3-poseidon2` `0.4.3-succinct`, `src/matrix.rs:110-139`)
+does not form `xᵢ + ∑ⱼ xⱼ`. It applies the block map to every block first and then adds,
+at each position, the sum of those images over all blocks. By linearity of `N` this is
+the same map. -/
+
+namespace BlockCirculant
+
+variable {B P K : Type*} [Fintype B] [Field K]
+
+/-- A finite sum of functions, evaluated at one point. -/
+theorem sum_fun_apply (f : B → P → K) (c : P) : (∑ j, f j) c = ∑ j, f j c :=
+  map_sum (Pi.evalAddMonoidHom (fun _ : P => K) c) f Finset.univ
+
+/-- The block sum as a sum of blocks, as functions. -/
+theorem blockSum_eq_sum (x : B × P → K) : blockSum x = ∑ j, block x j := by
+  funext c
+  rw [sum_fun_apply]
+  rfl
+
+/-- **Map each block, then add the sum of the images.** Block `i` of `blockMix N x` is
+`N xᵢ + ∑ⱼ N xⱼ`. -/
+theorem block_blockMix_eq_add_sum (N : (P → K) →ₗ[K] (P → K)) (x : B × P → K) (i : B) :
+    block (blockMix N x) i = N (block x i) + ∑ j, N (block x j) := by
+  rw [block_blockMix, map_add, blockSum_eq_sum, map_sum]
+
+/-- `block_blockMix_eq_add_sum`, one coordinate at a time. -/
+theorem blockMix_apply_eq_add_sum (N : (P → K) →ₗ[K] (P → K)) (x : B × P → K) (i : B)
+    (c : P) : blockMix N x (i, c) = N (block x i) c + ∑ j, N (block x j) c := by
+  have h := congrFun (block_blockMix_eq_add_sum N x i) c
+  rw [Pi.add_apply, sum_fun_apply] at h
+  exact h
+
+end BlockCirculant

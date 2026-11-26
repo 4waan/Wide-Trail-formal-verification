@@ -7,5 +7,7 @@ import WideTrail.Poseidon2.BN254
 import WideTrail.Poseidon2.BN254Middle
 import WideTrail.Poseidon2.BN254Execution
 import WideTrail.Poseidon2.BN254Checks
+import WideTrail.Poseidon2.Plonky3
+import WideTrail.Poseidon2.Checks.Plonky3
 
 /-! Pinned concrete Poseidon2 parameter certificates. -/
