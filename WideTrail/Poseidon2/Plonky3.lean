@@ -7,6 +7,7 @@ import WideTrail.Algebra.BlockCirculant
 import WideTrail.Algebra.MDS4
 import WideTrail.Hades.Krylov
 import WideTrail.Hades.Dimension
+import WideTrail.Hades.Hull
 import Mathlib.Tactic.FinCases
 
 /-!
@@ -774,6 +775,38 @@ theorem finrank_inactiveSpace_internal_eq (c : K) (hc : c ≠ 0) (h2 : (2 : K) �
     (by rw [Fintype.card_fin]; exact hr)
   rw [Fintype.card_fin] at h
   rw [internal_toLinearMap]
+  exact h
+
+end Poseidon2.Plonky3
+
+/-! ### The independent-key differential bound
+
+The trail bounds above concern one trail. The result below bounds a differential: the sum over
+all trails from a nonzero input difference `a` to an output difference `b`, in the same model with
+an additional independent uniform key per round (`Hades.hades_differential_bound`). It charges the
+first two full rounds only: the external layer of round `0` has branch number at least `8`
+(`external_isBranchBound`), so the ratio is `(u / |K|)^7`. The partial rounds and the other full
+rounds are not charged. -/
+
+namespace Poseidon2.Plonky3
+
+variable {K : Type*} [Field K] [DecidableEq K] [Fintype K] {c : K}
+
+/-- **Differential bound, as an exact ratio.** If `sbox` has differential uniformity at most `u`,
+then for every nonzero input difference `a`, every output difference `b` and every input `x`, the
+number of key sequences under which `(x, x + a)` has output difference `b` after the `8 + rP`
+rounds, in the model with an additional independent uniform key per round, times `|K|^7`, is at
+most `u^7` times the number of all key sequences. No relation between `u` and `|K|` is assumed.
+This concerns the key-averaged differential only: not the permutation with its fixed constants,
+and not any one key. -/
+theorem independent_key_differential_exact (hK : Conditions c)
+    (hprimes : ∀ p ∈ m4Primes, (p : K) ≠ 0) (rP : ℕ) (sbox : K ≃ K) (values : ℕ → Fin 16 → K)
+    {u : ℕ} (hu : IsDiffUniform sbox u) {a : Fin 16 → K} (ha : a ≠ 0) (b x : Fin 16 → K) :
+    Hades.diffKeyCount (rounds hK rP sbox values) (8 + rP) a b x * Fintype.card K ^ 7
+      ≤ u ^ 7 * Fintype.card (Fin 16 → K) ^ (8 + rP) := by
+  have h := Hades.hades_differential_bound 4 rP 4 8 (by norm_num) {0} (fun _ _ => sbox)
+    (linear hK rP) values (fun _ _ _ => hu) (full_prefix hK hprimes rP 0 (by norm_num)) ha b x
+  rw [show 4 + rP + 4 = 8 + rP by omega] at h
   exact h
 
 end Poseidon2.Plonky3

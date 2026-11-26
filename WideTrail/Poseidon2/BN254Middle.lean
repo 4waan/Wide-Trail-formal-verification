@@ -6,6 +6,7 @@ Authors: Awaan Siddiqui
 import WideTrail.Poseidon2.BN254
 import WideTrail.Hades.Subspace
 import WideTrail.Hades.Dimension
+import WideTrail.Hades.Hull
 
 /-! Partial-round activity for the pinned BN254 width-three permutation.
 
@@ -222,5 +223,56 @@ theorem finrank_internal_inactive {r : ℕ} (hr : r ≤ 3) :
   rw [Fintype.card_fin] at h
   rw [internal_toLinearMap_eq]
   exact h
+
+end Poseidon2.BN254
+
+/-! ### The independent-key differential bound
+
+The trail bounds above concern one trail. `independent_key_differential_exact` bounds a
+differential, the sum over all trails from a nonzero input difference `a` to an output difference
+`b`, in the same model with an additional independent uniform key per round
+(`Hades.hades_differential_bound`). It charges `3` S-boxes of the first two external rounds, one
+fewer than the branch number `4` of the external matrix (`external_branch`), at the ratio `p / 4`
+each; the other rounds are not charged. Since `3 * log2 (p / 4) ≈ 754.8`, the sharp exponent is
+`754` (`independent_key_differential_sharp`). Nothing here concerns the permutation with its
+fixed constants. -/
+
+namespace Poseidon2.BN254
+
+/-- **Differential bound as an exact ratio**, for the additional-independent-key model only: for
+every nonzero input difference `a`, every output difference `b` and every input `x`, the number of
+key sequences under which `(x, x + a)` has output difference `b` after the `64` rounds, times
+`p^3` (`p = modulus`), is at most `4^3` times the number of all key sequences. Here `u = 4`
+(`sbox_uniform`) and the branch number is `4` (`external_branch`). This concerns the
+key-averaged differential only: not the permutation with its fixed constants, and not any one
+key. -/
+theorem independent_key_differential_exact {a : State} (ha : a ≠ 0) (b x : State) :
+    Hades.diffKeyCount (Hades.hadesSchedule 4 56 4 {0} (fun _ _ => sbox) linear values)
+        (4 + 56 + 4) a b x * modulus ^ 3
+      ≤ 4 ^ 3 * Fintype.card (Fin 3 → F) ^ (4 + 56 + 4) := by
+  have h := Hades.hades_differential_bound (Idx := Fin 3) (K := F) (u := 4) 4 56 4 4
+    (by norm_num) {0} (fun _ _ => sbox) linear values (fun _ _ _ => sbox_uniform)
+    (full_prefix 0 (by norm_num)) ha b x
+  rw [field_card, show (4 : ℕ) - 1 = 3 from rfl] at h
+  exact h
+
+set_option exponentiation.threshold 1000 in
+/-- `2^754 * 4^3 ≤ p^3`, by `decide`. `BN254Checks.lean` shows that `2^755 * 4^3 ≤ p^3` fails,
+so `754` is the largest such exponent. -/
+theorem differential_sharp_exponent_bound : 2 ^ 754 * 4 ^ 3 ≤ modulus ^ 3 := by
+  decide
+
+/-- **Differential bound with the sharp exponent**, in the same model: for every nonzero input
+difference `a`, the key count of the differential `(a, b)`, times `2^754`, is at most the number
+of all key sequences. It follows from `independent_key_differential_exact` and
+`differential_sharp_exponent_bound`, and `754` is the largest exponent that this arithmetic
+gives. This concerns the key-averaged differential only: not the permutation with its fixed
+constants, and not any one key. -/
+theorem independent_key_differential_sharp {a : State} (ha : a ≠ 0) (b x : State) :
+    Hades.diffKeyCount (Hades.hadesSchedule 4 56 4 {0} (fun _ _ => sbox) linear values)
+        (4 + 56 + 4) a b x * 2 ^ 754
+      ≤ Fintype.card (Fin 3 → F) ^ (4 + 56 + 4) :=
+  Hades.mul_le_of_ratio (independent_key_differential_exact ha b x)
+    differential_sharp_exponent_bound (pow_pos (by norm_num) _)
 
 end Poseidon2.BN254

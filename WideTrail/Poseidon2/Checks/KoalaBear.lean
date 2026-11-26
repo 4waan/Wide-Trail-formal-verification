@@ -667,3 +667,46 @@ info: 'Poseidon2.KoalaBear.independent_key_probability_sharp_general' depends on
 /-- info: 'Poseidon2.KoalaBear.finrank_inactive_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.KoalaBear.finrank_inactive_eq
+
+/-! ### The sharp exponent of the differential bound -/
+
+namespace Poseidon2.KoalaBear.Checks
+
+/-- **`209` is the largest exponent the differential ratio gives.** `2^210 * 2^7 ≤ p^7` fails;
+with `differential_sharp_exponent_bound`, `209` is the largest `E` with `2^E * 2^7 ≤ p^7`. -/
+theorem differential_sharp_exponent_succ_fails : ¬ 2 ^ 210 * 2 ^ 7 ≤ modulus ^ 7 := by
+  decide
+
+end Poseidon2.KoalaBear.Checks
+
+/--
+info: 'Poseidon2.KoalaBear.independent_key_differential_exact_general' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_differential_exact_general
+
+/-- info: 'Poseidon2.KoalaBear.independent_key_differential_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_differential_exact
+
+/-- info: 'Poseidon2.KoalaBear.differential_sharp_exponent_bound' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.differential_sharp_exponent_bound
+
+/--
+info: 'Poseidon2.KoalaBear.independent_key_differential_sharp_general' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_differential_sharp_general
+
+/-- info: 'Poseidon2.KoalaBear.independent_key_differential_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_differential_sharp
+
+/-- info: 'Poseidon2.KoalaBear.Checks.differential_sharp_exponent_succ_fails' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.Checks.differential_sharp_exponent_succ_fails

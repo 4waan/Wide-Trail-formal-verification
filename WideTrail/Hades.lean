@@ -9,6 +9,7 @@ import WideTrail.Hades.Bounds
 import WideTrail.Hades.Counting
 import WideTrail.Hades.Probability
 import WideTrail.Hades.Subspace
+import WideTrail.Hades.Hull
 import WideTrail.Hades.Krylov
 import WideTrail.Hades.Dimension
 import WideTrail.Hades.Checks.Toy

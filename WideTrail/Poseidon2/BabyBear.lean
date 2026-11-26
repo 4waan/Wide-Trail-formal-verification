@@ -545,3 +545,69 @@ theorem finrank_partial_inactive :
   finrank_inactive_eq (by norm_num)
 
 end Poseidon2.BabyBear
+
+/-! ### The independent-key differential bound
+
+The trail bounds above concern one trail. `independent_key_differential_exact` bounds a
+differential, the sum over all trails from a nonzero input difference `a` to an output difference
+`b`, in the same model with an additional independent uniform key per round
+(`Plonky3.independent_key_differential_exact`). It charges `7` S-boxes of the first two full
+rounds, one fewer than the branch number `8`, at the ratio `p / 6` each; the other rounds are not
+charged. Since `7 * log2 (p / 6) ≈ 198.3`, the sharp exponent is `198`
+(`independent_key_differential_sharp`). The `_general` forms state the same for every
+round-constant table. Nothing here concerns the permutation with its fixed constants. -/
+
+namespace Poseidon2.BabyBear
+
+/-- **Differential bound as an exact ratio, for every round-constant table**, in the model with
+an additional independent uniform key per round: for every nonzero input difference `a`, every
+output difference `b` and every input `x`, the number of key sequences under which `(x, x + a)`
+has output difference `b` after the `21` rounds, times `p^7` (`p = modulus`), is at most `6^7`
+times the number of all key sequences. Here `u = 6` (`sbox_uniform`). This concerns the
+key-averaged differential only: not the permutation with its fixed constants, and not any one
+key. -/
+theorem independent_key_differential_exact_general (v : ℕ → Fin 16 → F) {a : State} (ha : a ≠ 0)
+    (b x : State) :
+    Hades.diffKeyCount (Plonky3.rounds conditions 13 sbox v) (8 + 13) a b x * modulus ^ 7
+      ≤ 6 ^ 7 * Fintype.card (Fin 16 → F) ^ (8 + 13) := by
+  have h := Plonky3.independent_key_differential_exact conditions m4Primes_ne_zero 13 sbox v
+    sbox_uniform ha b x
+  rw [field_card] at h
+  exact h
+
+/-- **Differential bound as an exact ratio** for the pinned constants, in the same model: for
+every nonzero input difference `a`, the key count of the differential `(a, b)` times `p^7` is at
+most `6^7` times the number of all key sequences. This concerns the key-averaged differential
+only: not the permutation with its fixed constants, and not any one key. -/
+theorem independent_key_differential_exact {a : State} (ha : a ≠ 0) (b x : State) :
+    Hades.diffKeyCount rounds (8 + 13) a b x * modulus ^ 7
+      ≤ 6 ^ 7 * Fintype.card (Fin 16 → F) ^ (8 + 13) :=
+  independent_key_differential_exact_general values ha b x
+
+/-- `2^198 * 6^7 ≤ p^7`, by `decide`. `Checks/BabyBear.lean` shows that `2^199 * 6^7 ≤ p^7`
+fails, so `198` is the largest such exponent. -/
+theorem differential_sharp_exponent_bound : 2 ^ 198 * 6 ^ 7 ≤ modulus ^ 7 := by
+  decide
+
+/-- **Differential bound with the sharp exponent, for every round-constant table**, in the same
+model: for every nonzero input difference `a`, the key count of the differential `(a, b)`, times
+`2^198`, is at most the number of all key sequences. It follows from
+`independent_key_differential_exact_general` and `differential_sharp_exponent_bound`, and `198` is
+the largest exponent that this arithmetic gives. This concerns the key-averaged differential
+only: not the permutation with its fixed constants, and not any one key. -/
+theorem independent_key_differential_sharp_general (v : ℕ → Fin 16 → F) {a : State} (ha : a ≠ 0)
+    (b x : State) :
+    Hades.diffKeyCount (Plonky3.rounds conditions 13 sbox v) (8 + 13) a b x * 2 ^ 198
+      ≤ Fintype.card (Fin 16 → F) ^ (8 + 13) :=
+  Hades.mul_le_of_ratio (independent_key_differential_exact_general v ha b x)
+    differential_sharp_exponent_bound (pow_pos (by norm_num) _)
+
+/-- **Differential bound with the sharp exponent** for the pinned constants, in the same model:
+for every nonzero input difference `a`, the key count of the differential `(a, b)`, times
+`2^198`, is at most the number of all key sequences. This concerns the key-averaged differential
+only: not the permutation with its fixed constants, and not any one key. -/
+theorem independent_key_differential_sharp {a : State} (ha : a ≠ 0) (b x : State) :
+    Hades.diffKeyCount rounds (8 + 13) a b x * 2 ^ 198 ≤ Fintype.card (Fin 16 → F) ^ (8 + 13) :=
+  independent_key_differential_sharp_general values ha b x
+
+end Poseidon2.BabyBear

@@ -631,3 +631,43 @@ info: 'Poseidon2.Plonky3.Checks.twentyThree_inactive_ne_bot_by_criterion' depend
 -/
 #guard_msgs in
 #print axioms Poseidon2.Plonky3.Checks.twentyThree_inactive_ne_bot_by_criterion
+
+/-! ### The differential bound over `ZMod 29` -/
+
+namespace Poseidon2.Plonky3.Checks
+
+/-- The differential bound over `ZMod 29`, for every round-constant table: `u = 2` and branch
+number `8`, so for `a ≠ 0`, `diffKeyCount * 29^7 ≤ 2^7 * |F^16|^28`. -/
+theorem toy_differential_exact (values : ℕ → Fin 16 → F) {a : Fin 16 → F} (ha : a ≠ 0)
+    (b x : Fin 16 → F) :
+    Hades.diffKeyCount (rounds toy_conditions 20 toySbox values) (8 + 20) a b x
+        * Fintype.card F ^ 7
+      ≤ 2 ^ 7 * Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  independent_key_differential_exact toy_conditions toy_primes 20 toySbox values toySbox_uniform
+    ha b x
+
+end Poseidon2.Plonky3.Checks
+
+/-- info: 'Hades.roundGamma_bijective' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.roundGamma_bijective
+
+/-- info: 'Hades.diffCount_roundGamma_of_full' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.diffCount_roundGamma_of_full
+
+/-- info: 'Hades.diffKeyCount_bound_of_two_full_rounds' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.diffKeyCount_bound_of_two_full_rounds
+
+/-- info: 'Hades.hades_differential_bound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.hades_differential_bound
+
+/-- info: 'Poseidon2.Plonky3.independent_key_differential_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.independent_key_differential_exact
+
+/-- info: 'Poseidon2.Plonky3.Checks.toy_differential_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toy_differential_exact

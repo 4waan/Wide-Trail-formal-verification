@@ -118,3 +118,17 @@ end Poseidon2.AxiomChecks
 /-- info: 'Poseidon2.BN254.independent_key_probability_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.BN254.independent_key_probability_sharp
+
+/-! ### BN254: the independent-key differential bound -/
+
+/-- info: 'Poseidon2.BN254.independent_key_differential_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.independent_key_differential_exact
+
+/-- info: 'Poseidon2.BN254.differential_sharp_exponent_bound' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.differential_sharp_exponent_bound
+
+/-- info: 'Poseidon2.BN254.independent_key_differential_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.independent_key_differential_sharp
