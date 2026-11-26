@@ -76,6 +76,12 @@ every hypothesis of its theorems by `decide`.
   trail `T`, `keyCount * 2^(29 * (32 + 20 / 16)) ≤ |F^16|^(8 + 20)`, and
   `probability_exponent` evaluates the exponent to `957`. Here `u = 2` (`sbox_uniform`) and
   `29` is the largest `dd` with `2 * 2^dd ≤ p` (`Checks/KoalaBear.lean` shows `30` fails).
+* `independent_key_probability_exact`, `independent_key_probability_sharp`, and their
+  `_general` forms for every round-constant table: in the same model, for every nonzero trail
+  `T`, `keyCount * p^33 ≤ 2^33 * |F^16|^(8 + 20)`, with `33 = 32 + 20 / 16` (the ratio `p / 2`
+  kept exact for each charged S-box), and `keyCount * 2^989 ≤ |F^16|^(8 + 20)`. `989` is the
+  largest exponent this arithmetic gives (`sharp_exponent_bound`; `Checks/KoalaBear.lean` shows
+  `990` fails).
 * `independent_key_differential_exact`, `independent_key_differential_sharp`, and their
   `_general` forms for every round-constant table: in the same model, for every nonzero input
   difference `a`, every output difference `b` and every input `x`, the key count of the

@@ -66,8 +66,10 @@ zero. The counterexamples make both assumptions observable.
 The probability extension is implemented in `Counting.lean`, `Probability.lean`,
 and `Differential/Scheduled.lean`. It counts an additional independent uniform
 key per round. Fixed round additions are not independent random round keys,
-and a trail bound still concerns one summand of a differential hull. Polynomial degree, subspace trails, sponge
-security, and implementation equivalence need separate statements.
+and a trail bound still concerns one summand of a differential hull; the last section
+below bounds the whole sum over two full rounds, in the same model. Polynomial degree,
+subspace trails, sponge security, and implementation equivalence need separate
+statements.
 
 ## Partial rounds
 
@@ -102,5 +104,130 @@ is at least as long as the width.
 `hades_probability_with_middle` carries the extra `m / w` into the
 independent-key trail count. The sample space and its caveats are unchanged.
 
-The pinned BN254 width-three Poseidon2 certificate uses these results. See
-[the certificate](PRODUCTION_CERTIFICATE.md) for its exact scope and source pin.
+## Exact ratios
+
+`hades_probability` charges a whole number `d` of bits per charged S-box, from
+`u * 2^d <= card K`. Rounding `card K / u` down to a power of two loses up to one bit
+per S-box. The trail count is a product of per-round masked counts
+(`keyCount_eq_prod`). Each charged coordinate contributes at most `u` and every other
+coordinate at most `card K`, so with `W = scheduledWeight rounds T 0 R`
+(`keyCount_weight_bound_exact`):
+
+```text
+keyCount * card K ^ W <= u ^ W * card (Idx -> K) ^ R
+```
+
+The activity theorems give only a lower bound `A <= W`.
+`keyCount_weight_bound_exact_of_le` replaces `W` by `A`: if `u <= card K`, each surplus
+charged S-box multiplies the left side by `card K` and the right side by at most that;
+otherwise the trail count is at most the number of key sequences
+(`keyCount_le_card_pow`). `hades_probability_exact` and
+`hades_probability_with_middle_exact` are the outer and the outer-plus-middle counts in
+this form. No relation between `u` and `card K` is assumed.
+
+A power of two is recovered at the end. `mul_le_of_ratio` turns `n * q <= v * N` and
+`e * v <= q` into `n * e <= N`. With `q = p ^ A`, `v = u ^ A` and `e = 2 ^ E`, what remains
+is the closed inequality `2 ^ E * u ^ A <= p ^ A`, which the kernel decides. For the pinned
+instances the largest such `E` is 989 for KoalaBear (`A = 33`, `u = 2`), 906 for BabyBear
+(`A = 32`, `u = 6`) and 8554 for BN254 (`A = 34`, `u = 4`); each certificate's checks show
+that `E + 1` fails. The whole-bit route gives 957, 896 and 8534. These are still bounds on
+one trail with an additional independent uniform key per round.
+
+## Exact dimensions, and a criterion for `diag d + J`
+
+Rank-nullity says that `r` partial rounds with one S-box coordinate leave at least
+`width - r` dimensions of inactive differences. `Dimension.lean` shows when that is exact.
+
+The spaces form a decreasing chain with the recurrence
+
+```text
+inactiveSpace L mask (r + 1) = inactiveSpace L mask 1 ⊓ comap L (inactiveSpace L mask r)
+```
+
+(`inactiveSpace_succ`): a difference stays inactive through `r + 1` consecutive partial
+rounds exactly when it is inactive in the first and its image under `L` stays inactive
+through the next `r`. Once two consecutive spaces agree, every later one agrees
+(`inactiveSpace_eq_of_succ_eq`). Each strict step lowers the dimension by at least one, so
+the chain is constant from `width` rounds on (`inactiveSpace_eq_card`). That last space
+`V` is invariant under `L` and contains every `L`-invariant subspace of differences that
+are inactive in one round (`le_inactiveSpace_of_invariant`). Membership in `V` is
+inactivity for every number of rounds, so `V = ⊥` exactly when no nonzero difference
+stays inactive forever (`no_infinite_inactive_trail`).
+
+In the other direction, one more round adds the `mask.card` conditions
+`(L ^ r) a i = 0`, so it removes at most `mask.card` dimensions
+(`finrank_inactiveSpace_sub_succ_le`). With one S-box coordinate and `V = ⊥`, the lower
+bound `width - r` and the upper bound from the `width - r` further rounds that reach `⊥`
+meet: the dimension is exactly `width - r` for `r <= width`
+(`finrank_inactiveSpace_singleton`). With a larger mask one round can remove more than one
+dimension; `Checks/Dimension.lean` shows it on a four-coordinate swap.
+
+For the Poseidon2 internal layer `c • (diag d + J)` with `c ≠ 0`, whether `V = ⊥` at
+coordinate `i0` depends only on the diagonal (`inactiveSpace_diagPlusOnes_card_eq_bot_iff`):
+it holds exactly when the entries `d i`, `i ≠ i0`, are pairwise distinct. If
+`d i = d j` for distinct `i, j ≠ i0`, the difference `e_i - e_j` has coordinate sum zero,
+so the layer only scales it, and it never reaches `i0`. Conversely, on `V` the coordinate
+sum vanishes, so the layer acts there as `c • diag d`, and multiplying by the factors
+`d k - d l` for `l ≠ i0, k` isolates coordinate `k`. The entry `d i0` plays no role, and
+no entry needs to be nonzero. Under the criterion the dimensions are exactly `width - r`
+(`finrank_inactiveSpace_diagPlusOnes`).
+
+This replaces a Krylov table by a handful of inequalities between diagonal entries. Over
+the KoalaBear and BabyBear fields the entries `1, 2, 4, …, 2^13, 2^15` are pairwise
+distinct (`diag_injOn`, by `decide`), so exactly `16 - r` dimensions stay inactive through
+`r <= 16` consecutive partial rounds (`finrank_inactive_eq`), and BabyBear's thirteen
+partial rounds leave exactly three (`finrank_partial_inactive`). BN254's internal matrix
+is `diag (1, 1, 2) + J`, which gives `3 - r` (`finrank_internal_inactive`). Over
+`ZMod 23`, `2^11 = 1` makes two entries coincide, and the criterion leaves a nonzero
+inactive difference for every window
+(`Plonky3.Checks.twentyThree_inactive_ne_bot_by_criterion`). These statements concern
+the differences that avoid the partial-round S-boxes only, not subspace trails in general.
+
+## The differential over two full rounds
+
+A trail bound charges one summand of a differential. `Differential/Hull.lean` and
+`Hull.lean` bound the sum, in the same additional-independent-key model.
+
+Round `n` maps `z` to `lin n (γ n (z + k n))`, and `diffKeyCount` counts the key vectors
+under which `(x, x + a)` ends at the difference `b`. Peeling the first key shows that the
+count does not depend on `x` (`Scheduled.diffKeyCount_const`), and it composes as a sum
+over the difference in between (`Scheduled.diffKeyCount_add`). Over two rounds, with
+`β = (lin 1)⁻¹ b`:
+
+```text
+diffKeyCount 2 a b = Σ c, diffCount (γ 0) a c * diffCount (γ 1) (lin 0 c) β
+```
+
+For bricklayer rounds each factor is a product over coordinates. A nonzero term needs
+`supp c = supp a` and `supp (lin 0 c) = supp β`, so `(c, lin 0 c)` is a nonzero codeword
+of weight at least `B` supported on the `weight a + weight β` positions `S` of those two
+supports. Fix `B - 1` positions `D` of `S`. Two such `c` that agree on `S \ D` differ by a
+codeword supported on `D`, of weight below `B`, so they are equal. The factors on `D` are
+at most `u` each. The factors on `S \ D` are summed over all values, by row sums on the
+input side and column sums on the output side, which needs bijective S-boxes. Every factor
+outside `S` is `diffCount 0 0 = card K`. The result is
+(`Scheduled.diffKeyCount_two_round_bound`)
+
+```text
+diffKeyCount 2 a b * card K ^ (B - 1) <= u ^ (B - 1) * card (Idx -> K) ^ 2
+```
+
+In a longer schedule the other rounds are only required to be bijective
+(`Scheduled.diffKeyCount_window_bound`). Rounds before the window keep the difference
+nonzero and their rows sum to `card (Idx -> K)` per round; rounds after it have columns
+that sum to the same. `diffKeyCount_bound_of_two_full_rounds` applies this to two adjacent
+full HADES rounds, whose fixed constants `diffCount_addKey` absorbs, and
+`hades_differential_bound` charges rounds `0` and `1` of a schedule.
+
+The bound averages over the keys. `Differential/Checks/Hull.lean` takes a two-round cipher
+over `ZMod 5` where the bound allows `100` of `625` key pairs and the maximum is `85`; with
+both keys fixed to zero, one differential is realised by `5` of the `25` inputs, above the
+bound (`Scheduled.HullChecks.toy_fixed_exceeds`). Only two rounds are charged, so for the
+Poseidon2 instances the exponents are far below the trail exponents: 209 for KoalaBear,
+198 for BabyBear and 754 for BN254, each the largest that the ratio allows. They do not establish, for the
+permutation with its fixed constants, the designers' criterion that every differential
+has probability at most `p ^ (-t)`.
+
+The pinned BN254 width-three Poseidon2 certificate and the two SP1 width-sixteen
+certificates use these results. See [the certificate](PRODUCTION_CERTIFICATE.md) for
+their exact scope and source pins.

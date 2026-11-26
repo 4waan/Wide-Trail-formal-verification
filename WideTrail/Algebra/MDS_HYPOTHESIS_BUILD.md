@@ -10,9 +10,7 @@ theorem (which Mathlib has no vocabulary for at all), and instantiates both agai
 AES `MixColumns` matrix, turning the two headline theorems unconditional.
 
 Nothing here was obvious on the first attempt. The rest of this document is what was tried,
-what failed, why, and what actually worked, the general lessons (not tied to this specific
-proof) are split out into the `lean4-decide-pitfalls` skill; this document is the specific
-narrative of *this* proof.
+what failed, why, and what actually worked; it is the specific narrative of *this* proof.
 
 ## Starting constraints
 
@@ -59,7 +57,7 @@ is determined by its values on a basis. `bitDecomp` expresses every byte as the 
 only need checking on the `8×8 = 64` and `8×8×8 = 512` basis pairs/triples respectively,
 `decide` finishes both in a few seconds. Getting the *lifting* step (from basis facts to the
 general statement) to actually close required a run of numeral/normal-form debugging, `0`
-vs `0#8`, `.getLsbD i` vs `[i]`, documented in the skill; the mathematical content is exactly
+vs `0#8`, `.getLsbD i` vs `[i]`; the mathematical content is exactly
 "a bilinear form agreeing on basis pairs agrees everywhere."
 
 Multiplicative inverses use Fermat (`a^254 = a⁻¹` for nonzero `a`, since the `255` nonzero
@@ -182,5 +180,4 @@ just plugging in what Algebra layer built.
 The standard Mathlib baseline, nothing else, no `sorryAx`, no `native_decide`, no `bv_decide`
 fallback axiom, anywhere in the dependency graph. `lake build` is clean (one linter false
 positive on `isMDS_injective`, verified to be a false positive by checking the proof breaks if
-the flagged hypothesis is actually removed, left in place; see the linter-false-positive row
-in the `lean4-decide-pitfalls` skill).
+the flagged hypothesis is actually removed, left in place).

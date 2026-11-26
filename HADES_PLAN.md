@@ -271,12 +271,22 @@ in `Algebra/AESSbox.lean` and `Differential/AESConcrete.lean`.
 
 A pinned reference BN254 width-three Poseidon2 instance is certified in
 `WideTrail/Poseidon2/`. It includes initial mixing, distinct external/internal
-layers, and all round constants. See [the certificate](PRODUCTION_CERTIFICATE.md)
-for the exact source revision, proved properties, and limitations.
+layers, and all round constants. The two width-sixteen permutations SP1 uses, over
+KoalaBear and BabyBear, are certified there as well. See
+[the certificate](PRODUCTION_CERTIFICATE.md) for the exact source revisions, proved
+properties, and limitations.
 
-Subspace-trail exclusion remains a separate job, informed by
+Later work also charges the partial rounds (`Subspace.lean`, `Krylov.lean`), gives the
+exact dimensions of the inactive spaces and a criterion for the internal layer
+`c (diag d + J)` (`Dimension.lean`), keeps the trail ratio exact
+(`hades_probability_exact`), and bounds the key-averaged differential over two full
+rounds (`Hull.lean`).
+
+Subspace-trail exclusion beyond the inactive spaces of the partial rounds remains a
+separate job, informed by
 [Proving Resistance Against Infinitely Long Subspace Trails](https://doi.org/10.46586/tosc.v2021.i2.314-352).
 Sponge indifferentiability and universal implementation or AIR equivalence remain
-separate roadmap branches. No fixed-key probability, differential-hull bound,
+separate roadmap branches. No fixed-key probability, fixed-key differential bound,
 algebraic-attack resistance, sponge-security, or zkVM-soundness claim follows
-from this certificate.
+from this certificate; the differential bound that exists is averaged over an
+additional independent uniform key per round and charges two full rounds.

@@ -71,6 +71,12 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
   the model with an additional independent uniform key per round (`u = 6`,
   `6 * 2^28 ≤ p`, so `dd = 28`, and `28 * 32 = 896`, `probability_exponent`).
   `independent_key_probability_general` is the same for every round-constant table.
+* `independent_key_probability_exact`, `independent_key_probability_sharp`, and their
+  `_general` forms for every round-constant table: in the same model, for every nonzero trail,
+  `keyCount * p^32 ≤ 6^32 * |F^16|^21` (the ratio `p / 6` kept exact for each of the `32`
+  charged S-boxes of the full rounds) and `keyCount * 2^906 ≤ |F^16|^21`. `906` is the largest
+  exponent this arithmetic gives (`sharp_exponent_bound`; `Checks/BabyBear.lean` shows `907`
+  fails).
 * **The partial rounds contribute nothing to this argument.** A nonzero space of differences,
   of dimension exactly `3` (`finrank_partial_inactive`; the lower bound
   `three_le_finrank_partial_inactive` is from rank–nullity), stays inactive through the thirteen

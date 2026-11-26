@@ -37,6 +37,18 @@ applies the full outer-block bound, and obtains the corresponding exact integer
 probability inequality. Fixed additions are retained in the round definition.
 An additional independent uniform key per round is the sample space.
 
+The same files keep the ratio `|K| / u` per charged S-box exact instead of rounding it
+down to a whole number of bits: for `A` charged S-boxes,
+`keyCount * |K|^A <= u^A * N`, where `N` is the number of key sequences
+(`hades_probability_exact`, `hades_probability_with_middle_exact`), and
+`mul_le_of_ratio` turns such a ratio into a power of two. `Hades/Hull.lean` bounds a differential, the sum over all trails from one
+input difference to one output difference, in the same sample space: if two adjacent full
+rounds have S-boxes of uniformity at most `u` and the linear layer of the first has branch
+number at least `B`, the key-averaged probability of every differential with a nonzero
+input difference is at most `(u / |K|)^(B - 1)` (`diffKeyCount_bound_of_two_full_rounds`;
+`hades_differential_bound` for the first two rounds of a HADES schedule). Only those two
+rounds are charged; the other rounds enter only through bijectivity.
+
 ## Pinned BN254 instance
 
 The first instance is the reference BN254 width-three Poseidon2 permutation.
@@ -77,13 +89,22 @@ The complete permutation is bijective, and every distinct input pair incurs at
 least 16 active S-box applications in the outer rounds. No S-box, primality,
 matrix, or branch-number premise remains for these concrete results.
 
-`Poseidon2/BN254Middle.lean` charges the 56 internal rounds as well. The internal
-matrix leaves no nonzero difference off the S-box coordinate for three consecutive
-rounds (`internal_inactive_trivial`), and two rounds are not enough
-(`internal_inactive_two_nontrivial`). Each of the eighteen disjoint three-round
-windows therefore applies the S-box to a nonzero difference, so every distinct
-input pair incurs at least 34 active S-box applications (`activity_with_partial`).
-This is a pigeonhole lower bound. It is not claimed to be attained.
+`Poseidon2/BN254Middle.lean` charges the 56 internal rounds as well. No nonzero
+difference stays off the S-box coordinate through three consecutive partial rounds
+(`internal_inactive_trivial`), and some nonzero difference stays inactive through two
+(`internal_inactive_two_nontrivial`), so the window cannot be shortened. Each of the
+eighteen disjoint three-round windows therefore applies the S-box to a nonzero
+difference, so every distinct input pair incurs at least 34 active S-box applications
+(`activity_with_partial`). This is a pigeonhole lower bound. It is not claimed to be
+attained.
+
+The internal matrix is `diag (1, 1, 2) + J` (`internal_toLinearMap_eq`), and its
+diagonal entries off coordinate zero, `1` and `2`, are distinct
+(`internalDiag_injOn`). The general criterion of `Hades/Dimension.lean` therefore
+proves the three-round statement a second time
+(`internal_inactive_trivial_by_criterion`), and the differences that stay inactive
+through `r <= 3` consecutive partial rounds form a space of dimension exactly `3 - r`
+(`finrank_internal_inactive`).
 
 The independently keyed variant has individual-trail probability at most
 `2^(-4016)`, since each charged S-box costs at least 251 bits in that sample
@@ -97,6 +118,32 @@ With the internal rounds charged, the same independently keyed trail bound becom
 evaluated by `probability_exponent_with_partial`). The sample space and the
 caveats above are unchanged. Both exponents are far past any attack threshold, so
 the larger one completes the accounting rather than changing a security conclusion.
+
+The whole-bit exponents charge 251 bits per S-box, from `4 * 2^251 <= p`. Keeping
+the ratio `p / 4` exact for each of the 34 charged S-boxes gives
+`keyCount * p^34 <= 4^34 * |F^3|^64` for every nonzero trail
+(`independent_key_probability_exact`), and from it the exponent 8554
+(`independent_key_probability_sharp`, with `sharp_exponent_bound`).
+`BN254Checks.lean` shows that `2^8555 * 4^34 <= p^34` fails
+(`Checks.sharp_exponent_succ_fails`), so 8554 is the largest exponent this
+arithmetic gives. It is still an upper bound on the key-averaged probability of one trail, in the
+same sample space, and it is not claimed to be attained. No exact-ratio form of the
+16-S-box bound `independent_key_probability` is stated.
+
+`BN254Middle.lean` also bounds a differential, the sum over all trails from a nonzero
+input difference `a` to an output difference `b`, in the same additional-independent-key
+model. Over the 64 rounds that follow the initial external layer, the number of key
+sequences under which `(x, x + a)` reaches the difference `b`, times `p^3`, is at most
+`4^3` times the number of all key sequences (`independent_key_differential_exact`);
+times `2^754` it is at most that number (`independent_key_differential_sharp`), and
+`2^755 * 4^3 <= p^3` fails (`Checks.differential_sharp_exponent_succ_fails`). Only
+three S-boxes of the first two external rounds are charged, one fewer than the branch
+number four (`external_branch`); the other rounds enter only through bijectivity. This
+is the key-averaged differential in that model. It is not a statement about the
+permutation with its fixed constants or about any one key:
+`Differential/Checks/Hull.lean` exhibits a toy cipher whose differential, with both
+keys fixed to zero, exceeds the corresponding bound
+(`Scheduled.HullChecks.toy_fixed_exceeds`).
 
 `Poseidon2/BN254Checks.lean` checks all 64 transitions of a supplied execution
 trace and proves the pinned upstream `[0,1,2]` known-answer vector. A finite
@@ -174,58 +221,173 @@ code's round. The tables were checked against the crate sources outside Lean.
 
 ### Certified claims
 
-Shared, from `Plonky3.lean`: the permutation is bijective for every constant table;
+Shared, from `Plonky3.lean`, for every constant table: the permutation is bijective;
 the external layer has branch number at least 8 whenever `2, 3, 5, 7, 11, 17` are
 nonzero; and, for a nonzero scale and `2 ≠ 0`, the internal layer is invertible
-exactly when `81917 = 11^2 · 677` is nonzero.
+exactly when `81917 = 11^2 · 677` is nonzero. No nonzero difference stays inactive
+through sixteen consecutive partial rounds with `diag d + J` exactly when the fifteen
+diagonal entries off coordinate zero are pairwise distinct in the field
+(`inactiveSpace_sixteen_eq_bot_iff`); under that condition exactly `16 - r` dimensions
+of differences stay inactive through `r <= 16` consecutive partial rounds of the
+code's internal layer (`finrank_inactiveSpace_internal_eq`). The trail bounds are also
+stated as exact ratios (`independent_key_probability_exact`,
+`independent_key_probability_with_middle_exact`), and the key-averaged differential is
+bounded over the first two full rounds (`independent_key_differential_exact`): seven
+S-boxes are charged, one fewer than the branch number 8, and the partial rounds and the
+other full rounds are not charged.
 
 KoalaBear:
 
 - Primality by Lucas certificates (`KoalaBearPrimality.lean`).
 - `x^3` is a bijection with an explicit inverse exponent, and its differential
-  uniformity is at most 2.
+  uniformity is at most 2 (`sbox_uniform`). It is exactly 2: `x^3` is not
+  differentially 1-uniform (`Checks.sbox_not_uniform_one`).
+- The external layer's branch number is exactly 8: at least 8
+  (`external_isBranchBound`), and a difference of weight four has an image of weight
+  four (`Checks.external_not_branch_nine`).
 - No nonzero difference stays off the S-box coordinate through sixteen consecutive
   partial rounds (`internal_inactive_trivial`, a Krylov certificate checked by
   `decide`), and some difference does through fifteen
-  (`Checks.inactive_fifteen_ne_bot`).
+  (`Checks.inactive_fifteen_ne_bot`; an explicit one is `Checks.witness15`), so the
+  window is exactly 16. The sixteen-round statement is proved a second time, with no
+  table, by the diagonal criterion: the diagonal entries off coordinate zero are
+  pairwise distinct in the field (`diag_injOn`), which gives
+  `internal_inactive_trivial_by_criterion`. Exactly `16 - r` dimensions of differences
+  stay inactive through `r <= 16` consecutive partial rounds (`finrank_inactive_eq`).
 - Every distinct input pair incurs at least 33 active S-box applications: 32 in
   the full rounds and one from the twenty partial rounds (`activity`).
 - The independently keyed trail bound has exponent 957 (`independent_key_probability`,
-  `probability_exponent`).
+  `probability_exponent`): 29 bits per charged S-box, the largest whole number with
+  `2 * 2^29 <= p` (`Checks.thirty_too_large`). Keeping the ratio `p / 2` exact gives
+  `keyCount * p^33 <= 2^33 * |F^16|^28` for every nonzero trail
+  (`independent_key_probability_exact`) and the exponent 989
+  (`independent_key_probability_sharp`, with `sharp_exponent_bound`);
+  `2^990 * 2^33 <= p^33` fails (`Checks.sharp_exponent_succ_fails`), so 989 is the
+  largest exponent this arithmetic gives.
+- The key-averaged differential over the 28 rounds that follow the initial external
+  layer satisfies `diffKeyCount * p^7 <= 2^7 * |F^16|^28` for every nonzero input
+  difference (`independent_key_differential_exact`), hence the exponent 209
+  (`independent_key_differential_sharp`); `2^210 * 2^7 <= p^7` fails
+  (`Checks.differential_sharp_exponent_succ_fails`).
 
 BabyBear:
 
 - Primality by a Lucas certificate (`BabyBearPrimality.lean`).
 - `x^7` is a bijection with an explicit inverse exponent, and its differential
-  uniformity is at most 6. The checks show `x^3` and `x^5` are not permutations of
-  this field.
+  uniformity is at most 6 (`sbox_uniform`). It is exactly 6: one differential has six
+  solutions (`Checks.sbox_not_uniform_five`). The checks show `x^3` and `x^5` are not
+  permutations of this field (`Checks.cube_not_injective`,
+  `Checks.fifth_not_injective`).
+- The external layer's branch number is exactly 8 (`external_isBranchBound`,
+  `Checks.external_not_branch_nine`).
 - Every distinct input pair incurs at least 32 active S-box applications, all
   counted in the full rounds (`activity`). The independently keyed trail bound has
-  exponent 896.
+  exponent 896 (`independent_key_probability`, `probability_exponent`): 28 bits per
+  charged S-box, the largest whole number with `6 * 2^28 <= p`
+  (`Checks.probability_margin_sharp`). Keeping the ratio `p / 6` exact gives
+  `keyCount * p^32 <= 6^32 * |F^16|^21` for every nonzero trail
+  (`independent_key_probability_exact`) and the exponent 906
+  (`independent_key_probability_sharp`, with `sharp_exponent_bound`);
+  `2^907 * 6^32 <= p^32` fails (`Checks.sharp_exponent_succ_fails`), so 906 is the
+  largest exponent this arithmetic gives.
+- The key-averaged differential over the 21 rounds that follow the initial external
+  layer satisfies `diffKeyCount * p^7 <= 6^7 * |F^16|^21` for every nonzero input
+  difference (`independent_key_differential_exact`), hence the exponent 198
+  (`independent_key_differential_sharp`); `2^199 * 6^7 <= p^7` fails
+  (`Checks.differential_sharp_exponent_succ_fails`).
 - The thirteen partial rounds add nothing to this count. The differences that stay
-  off the S-box coordinate through all thirteen form a space of dimension at least 3
-  (`three_le_finrank_partial_inactive`), and there are input pairs whose difference
-  reaches no S-box in any partial round (`exists_pair_partial_free`). This follows
-  from having fewer partial rounds than the width. It is not an attack: such pairs
-  still incur the 32 S-boxes of the full rounds. With the same internal layer, no
-  nonzero difference would stay inactive through sixteen consecutive partial rounds
-  (`Checks.inactive_sixteen`).
+  off the S-box coordinate through all thirteen form a space of dimension exactly 3
+  (`finrank_partial_inactive`; `three_le_finrank_partial_inactive` is the lower bound
+  from rank–nullity), and there are input pairs whose difference reaches no S-box in
+  any partial round (`exists_pair_partial_free`). This follows from having fewer
+  partial rounds than the width. It is not an attack: such pairs still incur the 32
+  S-boxes of the full rounds. With the same internal layer, no nonzero difference
+  would stay inactive through sixteen consecutive partial rounds (`inactive_sixteen`,
+  by the diagonal criterion with `diag_injOn`; `Checks.inactive_sixteen`, by a Krylov
+  certificate for `diag d + J`), and some does through fifteen
+  (`Checks.inactive_fifteen_ne_bot`): the window is exactly 16 here as well, and
+  `13 / 16 = 0` (`partial_window_term_eq_zero`). Exactly `16 - r` dimensions of
+  differences stay inactive through `r <= 16` consecutive partial rounds
+  (`finrank_inactive_eq`).
+- Each round of the schedule is the code's round with the selected constants
+  (`rounds_apply_prefix`, `rounds_apply_partial`, `rounds_apply_suffix`).
 
-The same sample-space caveats as for BN254 apply to both exponents.
+Every statement above about activity, trails or differentials also has a `_general`
+form for every round-constant table (`activity_general`,
+`independent_key_probability_general`, `independent_key_probability_exact_general`,
+`independent_key_probability_sharp_general`,
+`independent_key_differential_exact_general`,
+`independent_key_differential_sharp_general`).
+
+The same sample-space caveats as for BN254 apply to every exponent above. The trail
+exponents bound one trail, and the differential exponents the key-averaged
+differential, both in the model with an additional independent uniform key per round;
+neither is a statement about the permutation with its fixed constants or about any one
+key. The activity counts are lower bounds and are not claimed to be attained. The
+exactness checks concern the uniformity, the branch number and the window that the
+bounds use, not the counts or the exponents themselves.
+
+### Structure of the linear layers
+
+These are facts about the two linear layers alone, from `Plonky3.lean` and
+`Algebra/Transpose.lean`, over every field satisfying the stated hypotheses. None is a
+statement about whole rounds, the S-box or an attack.
+
+- States whose four blocks of four coordinates sum to zero form a subspace of
+  dimension 12 (`blockSumZeroFlat`, `finrank_blockSumZeroFlat`). Under `35 ≠ 0` the
+  external layer equals `M4` applied to each block separately, with no mixing between
+  blocks, exactly on this subspace (`external_eq_mat4Blocks_iff`), and a state lies in
+  the subspace exactly when its image does (`external_mem_blockSumZeroFlat_iff`). Over
+  every commutative ring, the position sums of the output of the code's
+  `mds_light_permutation` are 5 times `M4` applied to those of the input
+  (`positionSums_mdsLight`). The S-box layer of a full round acts on every coordinate
+  and need not keep a state in this subspace. The subspace is singled out because
+  recent round-skipping work on Poseidon2 (IACR ePrint 2026/306) exploits the structure
+  of the linear-layer matrices; no claim is made about which properties that work uses,
+  and its authors state that their attacks do not mean that the primitive falls short of
+  its claimed security level.
+- The transpose of the external layer is `circ(2 M4ᵀ, M4ᵀ, M4ᵀ, M4ᵀ)`
+  (`external_dotProduct`), and it has branch number at least 8 under the same
+  hypothesis as the layer (`external_transpose_isBranchBound`). `M4ᵀ = circ(2, 1, 1, 3)`
+  is MDS under exactly the hypothesis that makes `M4` MDS
+  (`Poseidon2.m4_transpose_isMDS_iff`). The internal layer is its own transpose
+  (`internal_dotProduct`). If the linear branch number of a map is taken to be the
+  differential branch number of its transpose, which is a definition here and not a
+  proved statement about correlations, these bounds carry over to linear branch
+  numbers. No correlation, linear trail, linear hull or linear-attack bound is proved.
 
 ### Execution checks
 
 No published known-answer vector exists for either SP1 permutation with its pinned
 constants. The checks therefore use two weaker kinds of evidence:
 
-- KoalaBear's model reproduces the upstream `p3-koala-bear` test vector
-  (`src/poseidon2.rs:174-191`) with that test's own round constants
-  (`Checks.upstream_kat`). Those constants come from a seeded random generator and
-  were regenerated outside Lean, so this validates the layers, S-box and schedule,
-  but not the pinned table.
+- Upstream crate vectors, with each test's own round constants.
+  `Checks/Plonky3KAT.lean` proves that the generic model, with each instance's scale,
+  S-box and round count, sends the input of `test_poseidon2_width_16_random` to that
+  test's expected output, for `p3-koala-bear` 0.4.3-succinct (`src/poseidon2.rs:174-191`,
+  `KoalaBear.Plonky3KAT.upstream_kat`) and for `p3-baby-bear` 0.2.3-succinct
+  (`src/poseidon2.rs:164-181`, `BabyBear.Plonky3KAT.upstream_kat`). The tests' constants
+  come from a seeded random generator and were regenerated outside Lean by an emulation
+  of that generator. No Rust code was run; the evidence that the emulation is right is
+  that both expected outputs, copied from the crate sources, are reproduced. Negative
+  controls show that the vectors are not reproduced without the factor `R^{-1}`
+  (`kat_fails_unscaled`), without the initial external layer (`kat_fails_skip_initial`),
+  or with the raw samples read as canonical values (`kat_fails_raw_constants`). This
+  validates the layers, the S-box and the schedule, but not the pinned tables.
+  `Checks/KoalaBear.lean` also checks the KoalaBear vector round by round
+  (`Checks.upstream_kat`).
 - For both instances, the output for input zero with the pinned constants matches a
   value computed by an outside model of the code (`Checks.zero_permutation`,
-  `Checks.permutation_zero`). These are regression values, not upstream vectors.
+  `Checks.permutation_zero`), and `Checks/Plonky3KAT.lean` checks input zero again and
+  input `(0, 1, …, 15)` (`Plonky3KAT.permutation_zero`, `Plonky3KAT.permutation_range`).
+  These are regression values, not upstream vectors and not outputs of SP1.
+
+`Poseidon2/Plonky3Execution.lean` provides the materialized runner these checks
+evaluate: every coordinate is a named field, every layer is written out coordinate by
+coordinate, and `apply_mat4` keeps the code's addition chain. It is proved equal to the
+specification for every scale, S-box, constant table, number of partial rounds, input
+and round count (`Plonky3.executeDense_toState`,
+`Plonky3.permutation_eq_permutationDense`).
 
 KoalaBear's diagonal is also checked against the gnark recursion chip
 (`Checks.sp1Diag_eq_gnark`).
@@ -237,7 +399,14 @@ that the selected round counts provide a claimed security level against every
 attack. The internal-round count is a window argument giving a lower bound on
 activity; it does not prove absence of subspace trails, algebraic attack resistance, sponge indifferentiability, collision or
 preimage resistance, Rust machine-code equivalence, AIR equivalence, or zkVM
-soundness. Checking a reference vector is narrower than proving universal Rust
+soundness. The inactive-dimension and criterion results concern only the
+differences that avoid the partial-round S-box coordinate, not subspace trails in
+general. The trail and differential exponents are upper bounds on probabilities
+averaged over an additional independent uniform key per round; the differential
+bounds charge only the first two full rounds, and none of these results establishes,
+for the permutation with its fixed constants, the Poseidon designers' criterion that
+every differential has probability at most `p^(-t)`. No linear-cryptanalysis bound is
+proved. Checking a reference vector is narrower than proving universal Rust
 implementation equivalence. The immutable source, constants, model conventions,
 and these boundaries are part of the certificate's meaning.
 

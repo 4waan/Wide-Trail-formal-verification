@@ -13,9 +13,11 @@ import WideTrail.Hades.Hull
 `BN254.lean` counts sixteen active S-boxes, all in the eight external rounds, and
 charges nothing to the fifty-six internal rounds. This file counts those too.
 
-The internal matrix leaves no nonzero difference inactive for three consecutive
-rounds, so every window of three internal rounds applies the S-box to a nonzero
-difference at least once. Fifty-six rounds hold eighteen disjoint windows.
+No nonzero difference stays inactive through three consecutive partial rounds
+(`internal_inactive_trivial`), so every window of three internal rounds applies the S-box
+to a nonzero difference at least once. Fifty-six rounds hold eighteen disjoint windows.
+Some nonzero difference stays inactive through two consecutive partial rounds
+(`internal_inactive_two_nontrivial`), so the window cannot be shortened.
 
 The internal matrix is `diag (1, 1, 2) + J` (`internal_toLinearMap_eq`), and its diagonal
 entries off coordinate `0` are distinct (`internalDiag_injOn`). So the general criterion
@@ -27,7 +29,13 @@ differences stay inactive through `r ≤ 3` consecutive internal rounds
 The same count is carried into the independently keyed trail bound. As in
 `BN254.lean`, that bound concerns one trail and an additional independent uniform
 key per round. It says nothing about the fixed public constants alone, nor about
-a differential.
+a differential. `independent_key_probability_with_partial` charges `251` bits per
+charged S-box, the exponent `8534` (`probability_exponent_with_partial`).
+`independent_key_probability_exact` keeps the ratio `p / 4` exact for each of the `34`
+charged S-boxes: for every nonzero trail, the key count times `p^34` is at most `4^34`
+times the number of all key sequences. `independent_key_probability_sharp` turns this into
+the exponent `8554`, the largest this arithmetic gives (`sharp_exponent_bound`;
+`BN254Checks.lean` shows that `8555` fails). The sample space and the caveats are the same.
 
 The last section bounds a differential in the same model
 (`independent_key_differential_exact`, `independent_key_differential_sharp`): for every
@@ -66,7 +74,7 @@ theorem internal_inactive_trivial :
   · change a 2 = 0
     linear_combination (4 : F) * h0 - (5 : F) * h1 + h2
 
-/-- Two rounds are not enough: some nonzero difference survives them. The window
+/-- Some nonzero difference stays inactive through two consecutive partial rounds. The window
 length three in `internal_inactive_trivial` therefore cannot be shortened. -/
 theorem internal_inactive_two_nontrivial :
     Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 3)) 2 ≠ ⊥ :=
