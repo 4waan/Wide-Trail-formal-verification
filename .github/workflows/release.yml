@@ -1,0 +1,35 @@
+name: Release
+
+# Pushing a tag such as v0.1.0 creates the GitHub release for it. When the
+# repository is enabled in Zenodo's GitHub integration, Zenodo archives every
+# published release and mints a DOI for it, reading CITATION.cff for the metadata.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write   # create the release
+
+jobs:
+  release:
+    name: Create the GitHub release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # The version in CITATION.cff is what Zenodo records, so it has to match.
+      - name: Check that CITATION.cff names this version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          grep -qx "version: ${version}" CITATION.cff || {
+            echo "::error::CITATION.cff does not say 'version: ${version}'"
+            exit 1
+          }
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "WideTrail $GITHUB_REF_NAME" --generate-notes
