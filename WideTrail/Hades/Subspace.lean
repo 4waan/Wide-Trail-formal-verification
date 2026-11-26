@@ -352,3 +352,42 @@ theorem card_sub_le_finrank_inactiveSpace (L : Module.End K (Idx → K)) (mask :
   omega
 
 end Hades
+
+/-! ### The exact ratio with the middle rounds charged -/
+
+namespace Hades
+
+variable {Idx K : Type*} [Fintype Idx] [DecidableEq Idx] [Field K] [DecidableEq K] [Fintype K]
+
+/-- **`hades_probability_with_middle` as an exact ratio.** Under the hypotheses of
+`hades_probability_with_middle` without `u * 2 ^ d ≤ card K`, and with
+`A = (r / 2 + s / 2) * B + r % 2 + s % 2 + m / w` charged S-boxes,
+`keyCount * card K ^ A ≤ u ^ A * card (Idx → K) ^ (r + m + s)`.
+
+The sample space is unchanged: one trail, an additional independent uniform key per round.
+Nothing is claimed about the fixed public constants alone, nor about a differential. -/
+theorem hades_probability_with_middle_exact (r m s B w : Nat) (mask : Finset Idx)
+    (boxes : Nat → Idx → K ≃ K) (linear : Nat → (Idx → K) ≃ₗ[K] (Idx → K))
+    (values : Nat → Idx → K) {u : Nat}
+    (hu : ∀ n < r + m + s, ∀ i, IsDiffUniform (boxes n i) u)
+    (hbp : ∀ j, j + 1 < r → isBranchBound id (linear j) B)
+    (hbs : ∀ j, j + 1 < s → isBranchBound id (linear (r + m + j)) B)
+    (L : (Idx → K) ≃ₗ[K] (Idx → K)) (hmid : ∀ j < m, linear (r + j) = L)
+    (htriv : inactiveSpace L.toLinearMap mask w = ⊥)
+    {T : Nat → Idx → K} (h0 : T 0 ≠ 0) (x : Idx → K) :
+    keyCount (hadesSchedule r m s mask boxes linear values) (r + m + s) T x
+      * Fintype.card K ^ ((r / 2 + s / 2) * B + r % 2 + s % 2 + m / w)
+      ≤ u ^ ((r / 2 + s / 2) * B + r % 2 + s % 2 + m / w)
+        * Fintype.card (Idx → K) ^ (r + m + s) := by
+  let rounds := hadesSchedule r m s mask boxes linear values
+  by_cases hz : keyCount rounds (r + m + s) T x = 0
+  · change keyCount rounds _ _ _ * _ ≤ _
+    simp [hz]
+  · exact keyCount_weight_bound_exact_of_le rounds _ (fun n hn i _ => hu n hn i) T x
+      ((isTrail_of_keyCount_ne_zero hz).outer_middle_bound r m s B w h0
+        (fun j hj => hadesMask_prefix r m s mask hj)
+        (fun j hj => hadesMask_suffix r m s mask hj) hbp hbs L mask
+        (fun j hj => hmid j hj)
+        (fun j hj => hadesMask_middle r m s mask hj) htriv)
+
+end Hades

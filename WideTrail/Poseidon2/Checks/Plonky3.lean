@@ -540,3 +540,35 @@ end Poseidon2.Plonky3.Checks
 /-- info: 'Poseidon2.Plonky3.Checks.toy_permutation' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.Plonky3.Checks.toy_permutation
+
+/-! ### The exact ratio over `ZMod 29` -/
+
+namespace Poseidon2.Plonky3.Checks
+
+/-- The exact-ratio trail bound over `ZMod 29`, for every round-constant table: `u = 2` and
+`33` charged S-boxes, so `keyCount * 29^33 ≤ 2^33 * |F^16|^28`. -/
+theorem toy_probability_exact (values : ℕ → Fin 16 → F) {T : ℕ → Fin 16 → F} (h0 : T 0 ≠ 0)
+    (x : Fin 16 → F) :
+    Hades.keyCount (rounds toy_conditions 20 toySbox values) (8 + 20) T x
+        * Fintype.card F ^ (32 + 20 / 16)
+      ≤ 2 ^ (32 + 20 / 16) * Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  independent_key_probability_with_middle_exact toy_conditions toy_primes 20 toySbox values
+    toySbox_uniform toy_inactive h0 x
+
+end Poseidon2.Plonky3.Checks
+
+/-- info: 'Poseidon2.Plonky3.independent_key_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.independent_key_probability_exact
+
+/--
+info: 'Poseidon2.Plonky3.independent_key_probability_with_middle_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.independent_key_probability_with_middle_exact
+
+/-- info: 'Poseidon2.Plonky3.Checks.toy_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toy_probability_exact

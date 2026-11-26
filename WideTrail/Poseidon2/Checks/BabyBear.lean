@@ -585,3 +585,33 @@ end Poseidon2.BabyBear.Checks
 /-- info: 'Poseidon2.BabyBear.Checks.permutation_zero' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.Checks.permutation_zero
+
+/-! ### The sharp exponent -/
+
+namespace Poseidon2.BabyBear.Checks
+
+set_option exponentiation.threshold 1000 in
+/-- **`906` is the largest exponent the exact ratio gives.** `2^907 * 6^32 ≤ p^32` fails; with
+`sharp_exponent_bound`, `906` is the largest `E` with `2^E * 6^32 ≤ p^32`. -/
+theorem sharp_exponent_succ_fails :
+    ¬ 2 ^ 907 * 6 ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2)
+      ≤ modulus ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2) := by
+  decide
+
+end Poseidon2.BabyBear.Checks
+
+/-- info: 'Poseidon2.BabyBear.independent_key_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.independent_key_probability_exact
+
+/-- info: 'Poseidon2.BabyBear.sharp_exponent_bound' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.sharp_exponent_bound
+
+/-- info: 'Poseidon2.BabyBear.independent_key_probability_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.independent_key_probability_sharp
+
+/-- info: 'Poseidon2.BabyBear.Checks.sharp_exponent_succ_fails' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.Checks.sharp_exponent_succ_fails

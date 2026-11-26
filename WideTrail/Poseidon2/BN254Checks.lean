@@ -230,3 +230,20 @@ theorem reference_vector : permutation ![0, 1, 2] =
   decide
 
 end Poseidon2.BN254.Checks
+
+namespace Poseidon2.BN254.Checks
+
+set_option exponentiation.threshold 9000 in
+/-- **`8554` is the largest exponent the exact ratio gives.** `2^8555 * 4^34 ≤ p^34` fails; with
+`sharp_exponent_bound` (`BN254Middle.lean`), `8554` is the largest `E` with
+`2^E * 4^34 ≤ p^34`. -/
+theorem sharp_exponent_succ_fails :
+    ¬ 2 ^ 8555 * 4 ^ ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3)
+      ≤ modulus ^ ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3) := by
+  decide
+
+end Poseidon2.BN254.Checks
+
+/-- info: 'Poseidon2.BN254.Checks.sharp_exponent_succ_fails' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.Checks.sharp_exponent_succ_fails

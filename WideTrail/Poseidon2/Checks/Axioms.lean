@@ -86,3 +86,17 @@ namespace Poseidon2.AxiomChecks
 #print axioms Poseidon2.BabyBear.external_eq_mdsLight
 
 end Poseidon2.AxiomChecks
+
+/-! ### BN254: the exact ratio and the sharp exponent -/
+
+/-- info: 'Poseidon2.BN254.independent_key_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.independent_key_probability_exact
+
+/-- info: 'Poseidon2.BN254.sharp_exponent_bound' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.sharp_exponent_bound
+
+/-- info: 'Poseidon2.BN254.independent_key_probability_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.independent_key_probability_sharp

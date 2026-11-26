@@ -157,3 +157,29 @@ audit additionally checks every project declaration, including generated declara
 /-- info: 'Hades.inactiveSpace_diagPlusOnes' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Hades.inactiveSpace_diagPlusOnes
+
+/-! ### Independent-key trail bounds as exact ratios -/
+
+/-- info: 'Hades.mul_le_of_ratio' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Hades.mul_le_of_ratio
+
+/-- info: 'Hades.keyCount_le_card_pow' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.keyCount_le_card_pow
+
+/-- info: 'Hades.keyCount_weight_bound_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.keyCount_weight_bound_exact
+
+/-- info: 'Hades.keyCount_weight_bound_exact_of_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.keyCount_weight_bound_exact_of_le
+
+/-- info: 'Hades.hades_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.hades_probability_exact
+
+/-- info: 'Hades.hades_probability_with_middle_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.hades_probability_with_middle_exact

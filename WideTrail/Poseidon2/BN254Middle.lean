@@ -103,3 +103,53 @@ theorem probability_exponent_with_partial :
   decide
 
 end Poseidon2.BN254
+
+/-! ### The exact ratio and the sharp exponent
+
+`independent_key_probability_with_partial` charges `251` bits per charged S-box, the largest
+`d` with `4 * 2^d ≤ p`, so `8534` bits over the `34` charged S-boxes. Keeping the ratio `p / 4`
+exact (`independent_key_probability_exact`) gives `8554` bits
+(`independent_key_probability_sharp`), since `34 * log2 (p / 4) ≈ 8554.3`. The sample space is
+the same: one trail, an additional independent uniform key per round. -/
+
+namespace Poseidon2.BN254
+
+/-- **Trail bound as an exact ratio**, for the additional-independent-key model only: for every
+nonzero trail `T`, the number of key sequences realising `T`, times `p^34` (`p = modulus`), is
+at most `4^34` times the number of all key sequences. Here `u = 4` (`sbox_uniform`), and the
+`34` charged S-boxes are counted as in `activity_with_partial`. The exponent keeps its
+round-count arithmetic, as in `independent_key_probability_with_partial`. This concerns one
+trail in that model: not the permutation with its fixed constants, and not a differential. -/
+theorem independent_key_probability_exact {T : Nat → State} (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount (Hades.hadesSchedule 4 56 4 {0} (fun _ _ => sbox) linear values)
+        (4 + 56 + 4) T x * modulus ^ ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3)
+      ≤ 4 ^ ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3)
+        * Fintype.card (Fin 3 → F) ^ (4 + 56 + 4) := by
+  have h := Hades.hades_probability_with_middle_exact (Idx := Fin 3) (K := F) (u := 4)
+    4 56 4 4 3 {0} (fun _ _ => sbox) linear values
+    (fun _ _ _ => sbox_uniform) full_prefix full_suffix
+    internal linear_middle internal_inactive_trivial h0 x
+  rw [field_card] at h
+  exact h
+
+set_option exponentiation.threshold 9000 in
+/-- `2^8554 * 4^34 ≤ p^34`, by `decide`. `BN254Checks.lean` shows that `2^8555 * 4^34 ≤ p^34`
+fails, so `8554` is the largest such exponent. -/
+theorem sharp_exponent_bound :
+    2 ^ 8554 * 4 ^ ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3)
+      ≤ modulus ^ ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3) := by
+  decide
+
+/-- **Trail bound with the sharp exponent**, in the same model: for every nonzero trail `T`, the
+number of key sequences realising `T`, times `2^8554`, is at most the number of all key
+sequences. It follows from `independent_key_probability_exact` and `sharp_exponent_bound`, and
+`8554` is the largest exponent that this arithmetic gives. This concerns one trail in that model
+only: not the permutation with its fixed constants, and not a differential. -/
+theorem independent_key_probability_sharp {T : Nat → State} (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount (Hades.hadesSchedule 4 56 4 {0} (fun _ _ => sbox) linear values)
+        (4 + 56 + 4) T x * 2 ^ 8554
+      ≤ Fintype.card (Fin 3 → F) ^ (4 + 56 + 4) :=
+  Hades.mul_le_of_ratio (independent_key_probability_exact h0 x) sharp_exponent_bound
+    (pow_pos (by norm_num) _)
+
+end Poseidon2.BN254

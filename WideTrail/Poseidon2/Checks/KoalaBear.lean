@@ -602,3 +602,32 @@ end Poseidon2.KoalaBear.Checks
 /-- info: 'Poseidon2.KoalaBear.probability_exponent' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Poseidon2.KoalaBear.probability_exponent
+
+/-! ### The sharp exponent -/
+
+namespace Poseidon2.KoalaBear.Checks
+
+set_option exponentiation.threshold 1000 in
+/-- **`989` is the largest exponent the exact ratio gives.** `2^990 * 2^33 ≤ p^33` fails; with
+`sharp_exponent_bound`, `989` is the largest `E` with `2^E * 2^33 ≤ p^33`. -/
+theorem sharp_exponent_succ_fails :
+    ¬ 2 ^ 990 * 2 ^ (32 + 20 / 16) ≤ modulus ^ (32 + 20 / 16) := by
+  decide
+
+end Poseidon2.KoalaBear.Checks
+
+/-- info: 'Poseidon2.KoalaBear.independent_key_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_probability_exact
+
+/-- info: 'Poseidon2.KoalaBear.sharp_exponent_bound' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.sharp_exponent_bound
+
+/-- info: 'Poseidon2.KoalaBear.independent_key_probability_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_probability_sharp
+
+/-- info: 'Poseidon2.KoalaBear.Checks.sharp_exponent_succ_fails' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.Checks.sharp_exponent_succ_fails

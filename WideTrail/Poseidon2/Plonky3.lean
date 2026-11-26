@@ -652,3 +652,60 @@ theorem independent_key_probability_with_middle (hK : Conditions c)
 end Activity
 
 end Poseidon2.Plonky3
+
+/-! ### The independent-key trail bound as an exact ratio
+
+`independent_key_probability` and `independent_key_probability_with_middle` charge a whole
+number `dd` of bits per charged S-box, where `u * 2^dd ≤ |K|`. The two results below keep the
+ratio `|K| / u` per charged S-box exact. The sample space is the same: one trail, an additional
+independent uniform key per round. -/
+
+namespace Poseidon2.Plonky3
+
+variable {K : Type*} [Field K] [DecidableEq K] [Fintype K] {c : K}
+
+/-- **Trail bound from the full rounds, as an exact ratio.** If `sbox` has differential
+uniformity at most `u`, then for every nonzero trail `T`, the number of key sequences realising
+`T` in the model with an additional independent uniform key per round, times `|K|^32`, is at
+most `u^32` times the number of all key sequences. No relation between `u` and `|K|` is
+assumed. This concerns one trail in that model only: not the permutation with its fixed
+constants, and not a differential. -/
+theorem independent_key_probability_exact (hK : Conditions c)
+    (hprimes : ∀ p ∈ m4Primes, (p : K) ≠ 0) (rP : ℕ) (sbox : K ≃ K) (values : ℕ → Fin 16 → K)
+    {u : ℕ} (hu : IsDiffUniform sbox u) {T : ℕ → Fin 16 → K} (h0 : T 0 ≠ 0) (x : Fin 16 → K) :
+    Hades.keyCount (rounds hK rP sbox values) (8 + rP) T x * Fintype.card K ^ 32
+      ≤ u ^ 32 * Fintype.card (Fin 16 → K) ^ (8 + rP) := by
+  have h := Hades.hades_probability_exact (Idx := Fin 16) (K := K) (u := u)
+    4 rP 4 8 {0} (fun _ _ => sbox) (linear hK rP) values (fun _ _ _ => hu)
+    (full_prefix hK hprimes rP) (full_suffix hK hprimes rP) h0 x
+  rw [show (4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2 = 32 by norm_num] at h
+  rw [show 8 + rP = 4 + rP + 4 by omega]
+  exact h
+
+/-- **Trail bound with the partial rounds charged, as an exact ratio.** As
+`independent_key_probability_exact`, with `32 + rP / w` charged S-boxes under the inactive-space
+hypothesis of `activity_with_middle`:
+`keyCount * |K|^(32 + rP / w) ≤ u^(32 + rP / w) * |K^16|^(8 + rP)`. The sample space is the
+same: one trail, an additional independent uniform key per round. -/
+theorem independent_key_probability_with_middle_exact (hK : Conditions c)
+    (hprimes : ∀ p ∈ m4Primes, (p : K) ≠ 0) (rP : ℕ) (sbox : K ≃ K) (values : ℕ → Fin 16 → K)
+    {u w : ℕ} (hu : IsDiffUniform sbox u)
+    (htriv : Hades.inactiveSpace (diagPlusOnes (1 : K) (sp1Diag K)) ({0} : Finset (Fin 16)) w = ⊥)
+    {T : ℕ → Fin 16 → K} (h0 : T 0 ≠ 0) (x : Fin 16 → K) :
+    Hades.keyCount (rounds hK rP sbox values) (8 + rP) T x * Fintype.card K ^ (32 + rP / w)
+      ≤ u ^ (32 + rP / w) * Fintype.card (Fin 16 → K) ^ (8 + rP) := by
+  have htriv' : Hades.inactiveSpace
+      (internal c hK.scale hK.two hK.shermanMorrison).toLinearMap ({0} : Finset (Fin 16)) w =
+        ⊥ := by
+    rw [inactiveSpace_internal]
+    exact htriv
+  have h := Hades.hades_probability_with_middle_exact (Idx := Fin 16) (K := K) (u := u)
+    4 rP 4 8 w {0} (fun _ _ => sbox) (linear hK rP) values (fun _ _ _ => hu)
+    (full_prefix hK hprimes rP) (full_suffix hK hprimes rP)
+    (internal c hK.scale hK.two hK.shermanMorrison) (fun j hj => linear_middle hK rP hj)
+    htriv' h0 x
+  rw [show (4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2 + rP / w = 32 + rP / w by norm_num] at h
+  rw [show 8 + rP = 4 + rP + 4 by omega]
+  exact h
+
+end Poseidon2.Plonky3

@@ -45,3 +45,15 @@ theorem masked_weight_bound :
   keyCount_weight_bound probabilityRounds 2 (fun _ _ _ _ => cube_uniform) (by decide) _ _
 
 end Hades.Toy
+
+namespace Hades.Toy
+
+/-- The exact ratio on the same two-round count: `keyCount * 5 ^ W ≤ 2 ^ W * 25 ^ 2` for the
+charged weight `W`. -/
+theorem masked_weight_bound_exact :
+    keyCount probabilityRounds 2 probabilityTrail 0
+      * 5 ^ scheduledWeight probabilityRounds probabilityTrail 0 2
+      ≤ 2 ^ scheduledWeight probabilityRounds probabilityTrail 0 2 * 25 ^ 2 :=
+  keyCount_weight_bound_exact probabilityRounds 2 (fun _ _ _ _ => cube_uniform) _ _
+
+end Hades.Toy
