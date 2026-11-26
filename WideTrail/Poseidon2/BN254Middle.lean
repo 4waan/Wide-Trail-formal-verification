@@ -27,7 +27,15 @@ differences stay inactive through `r ≤ 3` consecutive internal rounds
 The same count is carried into the independently keyed trail bound. As in
 `BN254.lean`, that bound concerns one trail and an additional independent uniform
 key per round. It says nothing about the fixed public constants alone, nor about
-a differential. -/
+a differential.
+
+The last section bounds a differential in the same model
+(`independent_key_differential_exact`, `independent_key_differential_sharp`): for every
+nonzero input difference, the key count over the `64` rounds that follow the initial
+external layer, times `p^3`, is at most `4^3` times the number of all key sequences, and
+times `2^754` it is at most that number. Only `3` S-boxes of the first two external rounds
+are charged, one fewer than the branch number `4`. This too says nothing about the fixed
+public constants alone, or about any one key. -/
 
 set_option autoImplicit false
 

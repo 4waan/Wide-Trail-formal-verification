@@ -12,8 +12,9 @@ import WideTrail.Differential.Bricklayer
 `Markov.lean` and `Scheduled.lean` count the key vectors under which one input pair follows one
 trail. A differential is an input difference `a` and an output difference `b` with every
 intermediate difference allowed, so its count is a sum over all trails from `a` to `b`
-(`diffCount_comp` for a fixed map, `diffKeyCount_two_eq_sum_trailKeyCount` below). This file
-counts differentials in the same model and bounds them over two bricklayer rounds.
+(`diffCount_comp` for the composition of two fixed maps; `diffKeyCount_succ_eq_sum_trailKeyCount`
+below for any positive number of keyed rounds). This file counts differentials in the same model
+and bounds them over two bricklayer rounds.
 
 ## The model
 
@@ -30,8 +31,9 @@ are averaged over.
 * `diffKeyCount_const`: the count does not depend on `x`.
 * `diffKeyCount_succ`, `diffKeyCount_add`: over `r₁ + r₂` rounds the count is
   `∑ c, (count of the first r₁ rounds, a to c) * (count of the last r₂ rounds, c to b)`.
-  `diffKeyCount_two_eq_sum_trailKeyCount`: over two rounds the count is the sum of
-  `trailKeyCount` over all trails from `a` to `b`.
+  `diffKeyCount_succ_eq_sum_trailKeyCount`: over `r + 1` rounds the count is the sum of
+  `trailKeyCount` over all trails from `a` to `b`, one for each choice of the `r` intermediate
+  differences (`throughTrail`); `diffKeyCount_two_eq_sum_trailKeyCount` is the two-round case.
 * `sum_diffKeyCount`: every row sums to `|X| ^ r`. `sum_diffKeyCount_col`: every column sums to
   `|X| ^ r` when every `γ n` is bijective (from `sum_diffCount_col`). `diffKeyCount_eq_zero`:
   injective rounds never take `a ≠ 0` to `0`.
@@ -54,20 +56,26 @@ and each factor is a product over coordinates. A nonzero term needs `supp c = su
 `supp (lam 0 c) = supp β`. So `(c, lam 0 c)`, a state indexed by `Idx ⊕ Idx` (`codeword`), is
 nonzero, has weight at least `B`, and is supported on `S`, the `weight a + weight β` positions
 of `supp a` on the input side and `supp β` on the output side. Fix `B - 1` positions `D` of `S`.
-Two such `c` that agree on `S \ D` differ by a codeword supported on `D`, of weight at most
-`B - 1 < B`, so they are equal. The factors on `D` are each at most `u`. The factors on `S \ D`
-are summed over all values, by row sums on the input side and column sums on the output side,
-which needs bijective S-boxes. Every factor outside `S` is `diffCount (s n i) 0 0 = |K|`. The
-total is `u ^ (B - 1) * |K| ^ (2 |Idx| - (B - 1))`, and the count is `0` if `S` has fewer than
-`B - 1` positions. `sum_prod_le_of_weight` is this argument for any injective additive map whose
-nonzero values have weight at least `B`.
+Two such `c` that agree on `S \ D` differ by a codeword supported on `D`. For `B ≥ 1` its weight
+is at most `B - 1 < B`, so it is `0`; for `B = 0` the set `D` is empty and the codeword is `0`
+outright. Since `c ↦ (c, lam 0 c)` is injective, the two are equal. The factors on `D` are each
+at most `u`. The factors on `S \ D` are summed over all values, by row sums on the input side and
+column sums on the output side, which needs bijective S-boxes. Every factor outside `S` is
+`diffCount (s n i) 0 0 = |K|`. The total is `u ^ (B - 1) * |K| ^ (2 |Idx| - (B - 1))`, and the
+count is `0` if `S` has fewer than `B - 1` positions. `sum_prod_le_of_weight` is this argument for
+any injective additive map whose nonzero values have weight at least `B`.
 
-This bounds a differential, the sum over all trails, and not one trail. That is how one
-formalises the clustering part of Poseidon2's `2x` security margin; the paper's factor also
-covers meet-in-the-middle attacks, which this does not. Bounds of this kind
-for maximal and semi-maximal diffusion layers are studied by Hong et al. (FSE 2000) and Kang et
-al. (ETRI Journal 23(4), 2001); the statement for a general branch number `B` is proved here
-directly.
+This bounds a differential, the sum over all trails, and not one trail. The Poseidon designers
+(Grassi et al., ePrint 2019/458, the full version of the USENIX Security 2021 paper, Appendix
+C.1.1) call the permutation secure against differential cryptanalysis when every differential
+has probability at most `p ^ (-t)`, and, "since it is in general hard to compute the probability
+of a differential", require instead that every characteristic have probability at most
+`p ^ (-2t)`. The theorems here bound the differential itself, in the independent-key model, and
+charge two full rounds only. They do not establish the criterion `p ^ (-t)` for any instance,
+and nothing here concerns the other attacks that the designers' round margins cover. Bounds of
+this kind for maximal and semi-maximal diffusion layers are studied by Hong et al. (FSE 2000) and
+Kang et al. (ETRI Journal 23(4), 2001); the statement for a general branch number `B` is proved
+here directly.
 
 ## What is not claimed
 
@@ -232,8 +240,9 @@ theorem diffKeyCount_eq_zero (lam : ℕ → X ≃+ X) (γ : ℕ → X → X) (r 
       rw [ih _ _ (fun n hn => hγ (n + 1) (by omega)) hlc x, mul_zero]
 
 /-- **A window bound carries over to the schedule.** Suppose that the first `j` maps `γ n` are
-injective, that the `m` maps after round `j + w` are bijective, and that the `w` rounds starting
-at round `j` satisfy `count * Q ≤ V` at every nonzero input difference. Then for `a ≠ 0`,
+injective, that the `m` maps `γ n` with `j + w ≤ n < j + w + m` (the rounds after the window) are
+bijective, and that the `w` rounds starting at round `j` satisfy `count * Q ≤ V` at every
+nonzero input difference. Then for `a ≠ 0`,
 `diffKeyCount lam γ (j + w + m) a b x * Q ≤ V * |X| ^ (j + m)`: the first `j` rounds keep the
 difference nonzero, and their row sums and the column sums of the last `m` rounds are
 `|X| ^ j` and `|X| ^ m`. -/
@@ -300,6 +309,52 @@ theorem diffKeyCount_two_eq_sum_trailKeyCount (lam : ℕ → X ≃+ X) (γ : ℕ
   rw [diffKeyCount_two]
   simp only [trailKeyCount_eq_prod, Finset.prod_range_succ, Finset.prod_range_zero, one_mul]
   exact Fintype.sum_equiv (lam 0).toEquiv _ _ (fun c => by simp)
+
+omit [Fintype X] [DecidableEq X] [AddCommGroup X] in
+/-- The trail through the intermediate differences `d : Fin r → X`: `a` at position `0`,
+`d (n - 1)` at position `n` for `1 ≤ n ≤ r`, and `b` from position `r + 1` on. -/
+def throughTrail {r : ℕ} (a : X) (d : Fin r → X) (b : X) (n : ℕ) : X :=
+  if n = 0 then a else if h : n - 1 < r then d ⟨n - 1, h⟩ else b
+
+omit [Fintype X] [DecidableEq X] [AddCommGroup X] in
+/-- Dropping the first position of `throughTrail a d b` leaves the trail from `d 0` through
+`Fin.tail d` to `b`. -/
+theorem throughTrail_succ {r : ℕ} (a : X) (d : Fin (r + 1) → X) (b : X) (n : ℕ) :
+    throughTrail a d b (n + 1) = throughTrail (d 0) (Fin.tail d) b n := by
+  rcases n with _ | n
+  · simp [throughTrail]
+  · simp only [throughTrail, Nat.add_eq_zero_iff, one_ne_zero, and_false, if_false,
+      Nat.add_sub_cancel]
+    by_cases h : n < r
+    · rw [dif_pos (by omega), dif_pos h]
+      rfl
+    · rw [dif_neg (by omega), dif_neg h]
+
+/-- **`r + 1` rounds as a sum over trails.** The count over `r + 1` rounds is the sum of
+`trailKeyCount`, the count of `Scheduled.lean`, over all trails from `a` to `b`: one trail
+`throughTrail a d b` for each choice of the intermediate differences `d : Fin r → X`. -/
+theorem diffKeyCount_succ_eq_sum_trailKeyCount (lam : ℕ → X ≃+ X) (γ : ℕ → X → X) (r : ℕ)
+    (a b x : X) :
+    diffKeyCount lam γ (r + 1) a b x =
+      ∑ d : Fin r → X, trailKeyCount lam γ (r + 1) (throughTrail a d b) x := by
+  induction r generalizing lam γ a x with
+  | zero =>
+    rw [diffKeyCount_one, Fintype.sum_unique, trailKeyCount_eq_prod]
+    simp [throughTrail]
+  | succ r ih =>
+    rw [diffKeyCount_succ lam γ (r + 1) a b x x,
+      ← (Fin.consEquiv (fun _ : Fin (r + 1) => X)).sum_comp, Fintype.sum_prod_type]
+    conv_lhs => rw [← (lam 0).symm.toEquiv.sum_comp]
+    refine Finset.sum_congr rfl fun c _ => ?_
+    rw [ih, Finset.mul_sum]
+    refine Finset.sum_congr rfl fun d _ => ?_
+    rw [trailKeyCount_eq_prod, trailKeyCount_eq_prod, Finset.prod_range_succ' _ (r + 1),
+      mul_comm]
+    have hd : Fin.tail ((Fin.consEquiv fun _ : Fin (r + 1) => X) (c, d)) = d := rfl
+    have hc : (Fin.consEquiv fun _ : Fin (r + 1) => X) (c, d) 0 = c := rfl
+    have he : (lam 0).symm.toEquiv c = (lam 0).symm c := rfl
+    simp only [he, AddEquiv.apply_symm_apply, throughTrail_succ, hd, hc]
+    simp [throughTrail]
 
 end Keyed
 

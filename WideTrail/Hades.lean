@@ -18,5 +18,6 @@ import WideTrail.Hades.Checks.Krylov
 import WideTrail.Hades.Checks.Dimension
 import WideTrail.Hades.Checks.Axioms
 
-/-! Scheduled masked rounds, activity bounds for full outer blocks, and inactive
-propagation through partial rounds. -/
+/-! Scheduled masked rounds, activity bounds for full outer blocks, inactive
+propagation through partial rounds, and a bound on the key-averaged differential over
+two full rounds in the additional-independent-key model (`Hull.lean`). -/

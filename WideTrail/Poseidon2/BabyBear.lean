@@ -91,17 +91,27 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
   hypothesis of `Plonky3.activity_with_middle` with `w = 16`. The proofs use that the diagonal
   entries off coordinate `0` are pairwise distinct in `F` (`diag_injOn`, by `decide`) and the
   criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`; no Krylov table is used.
+* `independent_key_differential_exact`, `independent_key_differential_sharp`, and their
+  `_general` forms for every round-constant table: in the same model, for every nonzero input
+  difference `a`, every output difference `b` and every input `x`, the key count of the
+  differential `(a, b)` over the `21` rounds that follow the initial external layer satisfies
+  `diffKeyCount * p^7 ≤ 6^7 * |F^16|^21` and `diffKeyCount * 2^198 ≤ |F^16|^21`. Only `7` S-boxes
+  of the first two full rounds are charged, one fewer than the branch number `8`, and `198` is
+  the largest exponent this arithmetic gives (`differential_sharp_exponent_bound`;
+  `Checks/BabyBear.lean` shows `199` fails).
 
 ## What is not claimed
 
-The activity counts are lower bounds on charged S-boxes for actual input pairs; they are not
-claimed to be attained. The probability statements concern one trail in the model with an
-additional independent uniform key per round; they are not statements about the permutation
-with its fixed constants, and not about a differential. Nothing is said about subspace-trail
-resistance beyond the inactive-space statements here, about algebraic attacks, about the
-sponge, duplex or compression constructions built on the permutation, or about equivalence
-with the Rust code or the AIR beyond the transcriptions in `WideTrail.Poseidon2.Plonky3` and
-the round lemmas here.
+The activity counts are lower bounds on charged S-boxes for actual input pairs; they are not claimed
+to be attained. The trail-probability statements concern one trail in the model with an additional
+independent uniform key per round. The differential statements (`independent_key_differential_*`)
+bound the key-averaged differential of the rounds after the initial external layer, in the same
+model, and charge only `B - 1 = 7` S-boxes of the first two full rounds. None of these is a
+statement about the permutation with its fixed constants, or about any one key. Nothing is said
+about subspace-trail resistance beyond the inactive-space statements here, about algebraic attacks,
+about the sponge, duplex or compression constructions built on the permutation, or about equivalence
+with the Rust code or the AIR beyond the transcriptions in `WideTrail.Poseidon2.Plonky3` and the
+round lemmas here.
 -/
 
 set_option autoImplicit false

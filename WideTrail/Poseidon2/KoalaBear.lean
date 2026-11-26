@@ -76,18 +76,28 @@ every hypothesis of its theorems by `decide`.
   trail `T`, `keyCount * 2^(29 * (32 + 20 / 16)) ≤ |F^16|^(8 + 20)`, and
   `probability_exponent` evaluates the exponent to `957`. Here `u = 2` (`sbox_uniform`) and
   `29` is the largest `dd` with `2 * 2^dd ≤ p` (`Checks/KoalaBear.lean` shows `30` fails).
+* `independent_key_differential_exact`, `independent_key_differential_sharp`, and their
+  `_general` forms for every round-constant table: in the same model, for every nonzero input
+  difference `a`, every output difference `b` and every input `x`, the key count of the
+  differential `(a, b)` over the `28` rounds that follow the initial external layer satisfies
+  `diffKeyCount * p^7 ≤ 2^7 * |F^16|^28` and `diffKeyCount * 2^209 ≤ |F^16|^28`. Only `7` S-boxes
+  of the first two full rounds are charged, one fewer than the branch number `8`, and `209` is
+  the largest exponent this arithmetic gives (`differential_sharp_exponent_bound`;
+  `Checks/KoalaBear.lean` shows `210` fails).
 
 ## What is not claimed
 
-The activity counts are lower bounds on charged S-box applications for actual input pairs; they
-are not claimed to be attained. The probability statements concern one trail in the model with
-an additional independent uniform key per round; they are not statements about the permutation
-with its fixed constants, and not about a differential. Nothing is said about subspace-trail
-resistance beyond the inactive-space statements here, about algebraic attacks, about the sponge,
-duplex and compression constructions built on the permutation, or about equivalence with the
-Rust code, the AIR or the gnark circuit beyond the transcriptions stated in
-`WideTrail.Poseidon2.Plonky3` and the round lemmas here. The model works with field elements,
-not with the Montgomery representatives the code stores.
+The activity counts are lower bounds on charged S-box applications for actual input pairs; they are
+not claimed to be attained. The trail-probability statements concern one trail in the model with an
+additional independent uniform key per round. The differential statements
+(`independent_key_differential_*`) bound the key-averaged differential of the rounds after the
+initial external layer, in the same model, and charge only `B - 1 = 7` S-boxes of the first two full
+rounds. None of these is a statement about the permutation with its fixed constants, or about any
+one key. Nothing is said about subspace-trail resistance beyond the inactive-space statements here,
+about algebraic attacks, about the sponge, duplex and compression constructions built on the
+permutation, or about equivalence with the Rust code, the AIR or the gnark circuit beyond the
+transcriptions stated in `WideTrail.Poseidon2.Plonky3` and the round lemmas here. The model works
+with field elements, not with the Montgomery representatives the code stores.
 -/
 
 set_option autoImplicit false

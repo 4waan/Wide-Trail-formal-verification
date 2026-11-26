@@ -94,17 +94,25 @@ constant table need not have this form: SP1 `5.2.4`'s BabyBear table `RC_16_30` 
   `finrank_inactiveSpace_internal_eq` makes `finrank_inactiveSpace_internal` exact: `16 - r`
   dimensions for `r ≤ 16`. This is a second route to the inactive-space hypothesis of
   `activity_with_middle` with `w = 16`, with no Krylov table.
+* `independent_key_differential_exact`: under the `m4Primes` hypothesis, if `sbox` has differential
+  uniformity at most `u`, then in the same model, for every nonzero input difference `a`, every
+  output difference `b` and every input `x`, the key count of the differential `(a, b)` over the
+  `8 + rP` rounds that follow the initial external layer satisfies
+  `diffKeyCount * |K|^7 ≤ u^7 * |K^16|^(8 + rP)`. Only `7` S-boxes of the first two full rounds are
+  charged, one fewer than the branch number `8` (`Hades.hades_differential_bound`).
 
 ## What is not claimed
 
-The activity counts are lower bounds on charged S-boxes for actual input pairs; they are not
-claimed to be attained. The probability statements concern one trail in the model with an
-additional independent uniform key per round; they are not statements about the permutation with
-its fixed constants, and not about a differential. Nothing is said about subspace-trail
-resistance beyond the inactive-space statements here, about algebraic attacks, about sponge or
-duplex constructions built on the permutation, or about equivalence with the Rust code or the AIR
-beyond the transcriptions stated here (`external_eq_mdsLight` and the round lemmas). The
-inactive-space hypothesis can fail for some fields (`Checks/Plonky3.lean`, `ZMod 23`).
+The activity counts are lower bounds on charged S-boxes for actual input pairs; they are not claimed
+to be attained. The trail-probability statements concern one trail in the model with an additional
+independent uniform key per round. The differential statement (`independent_key_differential_exact`)
+bounds the key-averaged differential of the rounds after the initial external layer, in the same
+model, and charges only `B - 1 = 7` S-boxes of the first two full rounds. None of these is a
+statement about the permutation with its fixed constants, or about any one key. Nothing is said
+about subspace-trail resistance beyond the inactive-space statements here, about algebraic attacks,
+about sponge or duplex constructions built on the permutation, or about equivalence with the Rust
+code or the AIR beyond the transcriptions stated here (`external_eq_mdsLight` and the round lemmas).
+The inactive-space hypothesis can fail for some fields (`Checks/Plonky3.lean`, `ZMod 23`).
 -/
 
 set_option autoImplicit false

@@ -39,6 +39,14 @@ permutation of `ZMod 5` with differential uniformity exactly `2` (`cube_uniform`
 All finite checks are kernel `decide`; `toy_count_le` uses `decide +kernel`, which leaves the
 whole evaluation to the kernel. The parameters were chosen, and the maximum and the witness found,
 by an exhaustive search outside Lean; the kernel rechecks every value used.
+
+## What is not claimed
+
+The maximum `85` and its witness concern this toy cipher only. Nothing here is evaluated for
+Poseidon2 or any other instance, and the room between `85` and `100` says nothing about how
+close the bound is elsewhere. The fixed-key check uses the zero keys only: it shows that the
+bound can fail for one fixed key, and it says nothing about any other fixed key, in particular
+about any fixed nonzero key.
 -/
 
 set_option autoImplicit false
@@ -205,6 +213,10 @@ end Scheduled.HullChecks
 /-- info: 'Scheduled.diffKeyCount_two_eq_sum_trailKeyCount' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Scheduled.diffKeyCount_two_eq_sum_trailKeyCount
+
+/-- info: 'Scheduled.diffKeyCount_succ_eq_sum_trailKeyCount' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Scheduled.diffKeyCount_succ_eq_sum_trailKeyCount
 
 /-- info: 'Scheduled.sum_prod_le_of_weight' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
