@@ -10,6 +10,8 @@ import WideTrail.Poseidon2.BN254Checks
 import WideTrail.Poseidon2.Checks.BN254SP1
 import WideTrail.Poseidon2.Plonky3
 import WideTrail.Poseidon2.Checks.Plonky3
+import WideTrail.Poseidon2.KoalaBear
+import WideTrail.Poseidon2.Checks.KoalaBear
 import WideTrail.Poseidon2.BabyBear
 import WideTrail.Poseidon2.Checks.BabyBear
 
