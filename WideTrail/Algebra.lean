@@ -8,5 +8,7 @@ import WideTrail.Algebra.MDS
 import WideTrail.Algebra.AESMix
 import WideTrail.Algebra.AESSbox
 import WideTrail.Algebra.PowerSbox
+import WideTrail.Algebra.MDS4
+import WideTrail.Algebra.Checks.MDS4
 
 /-! Concrete finite-field arithmetic and MDS branch bounds. -/
