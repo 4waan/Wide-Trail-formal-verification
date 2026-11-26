@@ -13,30 +13,40 @@ import Mathlib.Tactic.IntervalCases
 
 `WideTrail.Poseidon2.Plonky3` states its results over an arbitrary field under explicit
 hypotheses. The checks below show, on small prime fields, that the hypotheses can all hold at
-once, that two of them cannot be dropped, and that the external layer agrees with the code's
-evaluation order on concrete vectors. All finite checks are kernel `decide`.
+once; that the `m4Primes` hypothesis cannot be dropped from `external_isBranchBound`, whose
+conclusion fails over `ZMod 17`; that the inactive-space hypothesis of `activity_with_middle` is
+not implied by the others, since over `ZMod 23` it fails for every window while all the others
+hold (this does not show that the conclusion of `activity_with_middle` fails over `ZMod 23`);
+and that the external layer agrees with the code's evaluation order on concrete vectors. All
+finite checks are kernel `decide`.
 
 * **`ZMod 29`, everything holds.** `29` is none of `2, 3, 5, 7, 11, 17, 677`, the cube map is a
   permutation (`29 ≡ 2 mod 3`), and `20 = 2^{-32}` in `ZMod 29` (`toy_scale`) is the scale.
-  A Krylov certificate (`toy_inactive`) shows that no nonzero difference avoids coordinate `0`
-  for sixteen applications of `diag d + J`. With `rP = 20`, as for KoalaBear, the theorems give
-  `33` charged S-boxes (`toy_activity`) and the trail exponent `3 * 33` (`toy_probability`),
-  for every round-constant table. Fifteen rounds are not enough (`toy_fifteen_ne_bot`).
+  A Krylov certificate (`toy_inactive`) shows that no nonzero difference stays inactive through
+  sixteen consecutive partial rounds with `diag d + J`. With `rP = 20`, as for KoalaBear, the
+  theorems give `33` charged S-boxes (`toy_activity`) and the trail exponent `3 * 33`
+  (`toy_probability`), for every round-constant table. Fifteen rounds are not enough
+  (`toy_fifteen_ne_bot`).
 * **An execution over `ZMod 29`.** With a constant table built by `roundValues`, the whole
   permutation on `(0, 1, …, 15)` is checked round by round against a trace computed outside
   Lean by an independent model of the code's loops (`toy_permutation`). This exercises the
   schedule, the masks, the partial-round constants at `state[0]` and the scaled internal layer.
-* **`ZMod 17`, the `m4Primes` hypothesis cannot be dropped.** `Conditions` holds, so the
-  permutation is defined and bijective (`seventeen_bijective`), and `1, …, 5` are nonzero, but
-  `17 ∈ m4Primes` vanishes. The state with first block `(0, 1, 9, 5)` and all other blocks zero
-  has `3` nonzero coordinates and an image with `4`: weight `7 < 8`
-  (`seventeen_not_isBranchBound`).
-* **`ZMod 23`, the inactive-space hypothesis of `activity_with_middle` can fail for every
-  window.** Every hypothesis of `activity` holds (`twentyThree_activity`), but `2^11 = 1` in
-  `ZMod 23`, so the diagonal entries `d 1 = 1` and `d 12 = 2^11` coincide. The difference
+  It does not pin the internal diagonal: in `ZMod 29`, `d_0 = -2 = 2^15 = d_15`, so the trace
+  would be the same with those two entries exchanged. The diagonal is pinned by `sp1Diag_zero`,
+  `sp1Diag_eq_pow` and `sp1Diag_fifteen`.
+* **`ZMod 17`, the `m4Primes` hypothesis cannot be dropped from `external_isBranchBound`.**
+  `Conditions` holds, so the permutation is defined and bijective (`seventeen_bijective`), and
+  `1, …, 5` are nonzero, but `17 ∈ m4Primes` vanishes. The state with first block
+  `(0, 1, 9, 5)` and all other blocks zero has `3` nonzero coordinates and an image with `4`:
+  weight `7 < 8` (`seventeen_not_isBranchBound`).
+* **`ZMod 23`, the inactive-space hypothesis of `activity_with_middle` is not implied by the
+  others.** Every other hypothesis holds (`twentyThree_activity` uses them all), but `2^11 = 1`
+  in `ZMod 23`, so the diagonal entries `d 1 = 1` and `d 12 = 2^11` coincide. The difference
   `e 12 - e 1` is then fixed by `diag d + J` and never reaches coordinate `0`, so the inactive
-  space is nonzero for every window length (`twentyThree_inactive_ne_bot`). The middle rounds
-  are charged nothing by this route over that field.
+  space is nonzero for every window length (`twentyThree_inactive_ne_bot`), and
+  `activity_with_middle` does not apply over that field for any window. This does not show that
+  its conclusion fails there; it shows only that this route charges the partial rounds
+  nothing.
 * **The external layer against the code.** `toy_external` evaluates `external` on
   `(0, 1, …, 15)` over `ZMod 29`. `koalaBear_mdsLight_neg`, `koalaBear_mdsLight_cubic`,
   `babyBear_mdsLight_neg` and `babyBear_mdsLight_cubic` evaluate the code transcription
@@ -52,6 +62,15 @@ evaluation order on concrete vectors. All finite checks are kernel `decide`.
   `MONTY_INVERSE`, the element with Montgomery representative `1` (`p3-koala-bear`
   `src/poseidon2.rs:35`, `p3-baby-bear` `src/poseidon2.rs:27`). Primality of the two moduli is
   not proved here.
+
+## What is not claimed
+
+The execution over `ZMod 29` is compared with a second model computed outside Lean, not with the
+Rust code. The `mdsLight` vectors over the SP1 fields are compared with an outside model that
+reproduces the test vectors of the `p3-koala-bear` and `p3-baby-bear` crates; they are not
+compared with SP1's AIR, the gnark circuit or a built binary. The counterexamples over `ZMod 17`
+and `ZMod 23` concern those fields only. Nothing here strengthens the security claims of
+`WideTrail.Poseidon2.Plonky3`.
 
 The axiom footprints of the main results are pinned at the end of the file.
 -/
@@ -122,7 +141,8 @@ def toyKrylovInv : Fin 16 → Fin 16 → F :=
     ![22, 15, 8, 5, 2, 9, 14, 22, 10, 8, 19, 19, 11, 19, 2, 15],
     ![6, 23, 20, 20, 3, 15, 3, 14, 8, 7, 3, 24, 0, 13, 3, 7]]
 
-/-- **Sixteen internal rounds leave no inactive difference over `ZMod 29`.** -/
+/-- **No nonzero difference stays inactive through sixteen consecutive partial rounds over
+`ZMod 29`.** -/
 theorem toy_inactive :
     Hades.inactiveSpace (diagPlusOnes (1 : F) (sp1Diag F)) ({0} : Finset (Fin 16)) 16 = ⊥ :=
   Hades.inactiveSpace_diagPlusOnes_eq_bot one_ne_zero (sp1Diag F) 0 16 toyKrylov
@@ -209,7 +229,7 @@ theorem toyTrace_start :
   decide
 
 set_option maxHeartbeats 4000000 in
--- Each of the 28 transitions is checked once, avoiding nested execution reduction.
+-- Kernel evaluation of twenty-eight rounds exceeds the default limit.
 /-- Each of the `28` rounds is checked once, on literal states. -/
 theorem toyTrace_step : ∀ n : Fin 28,
     (rounds toy_conditions 20 toySbox toyValues n.val).apply (toyTraceAt n.val) =
@@ -303,7 +323,7 @@ theorem twentyThree_fixed :
   decide
 
 /-- **No window length works over `ZMod 23`.** The fixed difference `e 12 - e 1` has zero at
-coordinate `0`, so it stays inactive through any number of internal rounds. -/
+coordinate `0`, so it stays inactive through any number of consecutive partial rounds. -/
 theorem twentyThree_inactive_ne_bot (w : ℕ) :
     Hades.inactiveSpace (diagPlusOnes (1 : ZMod 23) (sp1Diag (ZMod 23)))
       ({0} : Finset (Fin 16)) w ≠ ⊥ := by

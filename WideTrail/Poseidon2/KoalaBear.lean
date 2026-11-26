@@ -60,8 +60,8 @@ every hypothesis of its theorems by `decide`.
 * `permutation_bijective`; `permutation_bijective_general` for every round-constant table.
 * `sbox_uniform`: the S-box has differential uniformity at most `2`.
 * `external_isBranchBound`: the external layer has branch number at least `8`.
-* `internal_inactive_trivial`: no nonzero difference stays off coordinate `0` through `16`
-  consecutive internal layers. The proof is a Krylov certificate: the literal tables `krylov`
+* `internal_inactive_trivial`: no nonzero difference stays inactive through `16` consecutive
+  partial rounds. The proof is a Krylov certificate: the literal tables `krylov`
   (`u j = A^j e_0` for `A = diag d + J`) and `krylovInv` (a left inverse of the matrix with rows
   `u j`) were computed outside Lean, and `decide` checks the recurrence and the inverse. By
   `Plonky3.inactiveSpace_internal` the factor `R^{-1}` plays no role.
@@ -329,7 +329,7 @@ theorem permutation_bijective_general (table : ℕ → State) :
 
 /-- A first-half full round is the code's round (`p3-poseidon2` `0.4.3-succinct`
 `src/lib.rs:183-187`) with `external_constants[j]`. -/
-theorem rounds_apply_begin {j : ℕ} (hj : j < 4) (x : State) :
+theorem rounds_apply_prefix {j : ℕ} (hj : j < 4) (x : State) :
     (rounds j).apply x =
       external (fun i => sbox (x i + externalConstants ⟨j, by omega⟩ i)) := by
   rw [rounds, Plonky3.rounds_apply_prefix conditions 20 sbox values hj x, values_eq_roundValues,
@@ -347,7 +347,7 @@ theorem rounds_apply_partial {j : ℕ} (hj : j < 20) (x : State) :
 
 /-- A second-half full round is the code's round (`p3-poseidon2` `0.4.3-succinct`
 `src/lib.rs:197-201`) with `external_constants[4 + j]`. -/
-theorem rounds_apply_end {j : ℕ} (hj : j < 4) (x : State) :
+theorem rounds_apply_suffix {j : ℕ} (hj : j < 4) (x : State) :
     (rounds (24 + j)).apply x =
       external (fun i => sbox (x i + externalConstants ⟨4 + j, by omega⟩ i)) := by
   rw [show 24 + j = 4 + 20 + j by omega, rounds,
@@ -437,7 +437,8 @@ theorem krylovInv_mul : ∀ i k : Fin 16,
     ∑ j, krylovInv i j * krylov j k = if i = k then 1 else 0 := by
   decide
 
-/-- **Sixteen internal layers leave no inactive difference**, for the unscaled `diag d + J`. -/
+/-- **No nonzero difference stays inactive through sixteen consecutive partial rounds**, for
+the unscaled layer `diag d + J`. -/
 theorem inactive_trivial :
     Hades.inactiveSpace (diagPlusOnes (1 : F) (Plonky3.sp1Diag F)) ({0} : Finset (Fin 16)) 16 =
       ⊥ :=

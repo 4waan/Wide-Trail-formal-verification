@@ -169,7 +169,7 @@ For KoalaBear, the partial rows of `RC16` are zero outside column zero, which is
 proved (`partial_constants_zero`). For BabyBear, the code takes column zero of rows
 4 to 16 of `RC_16_30` as the partial constants and rows 0–3 and 17–20 as the full
 rounds; the other columns of rows 4 to 16 are nonzero but never read. The Lean
-table zeroes them, and `partial_round_apply` shows each partial round is then the
+table zeroes them, and `rounds_apply_partial` shows each partial round is then the
 code's round. The tables were checked against the crate sources outside Lean.
 
 ### Certified claims

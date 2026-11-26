@@ -462,7 +462,7 @@ namespace BlockCirculant
 variable {B P K : Type*} [Fintype B] [Field K]
 
 /-- A finite sum of functions, evaluated at one point. -/
-theorem sum_fun_apply (f : B → P → K) (c : P) : (∑ j, f j) c = ∑ j, f j c :=
+private theorem sum_fun_apply (f : B → P → K) (c : P) : (∑ j, f j) c = ∑ j, f j c :=
   map_sum (Pi.evalAddMonoidHom (fun _ : P => K) c) f Finset.univ
 
 /-- The block sum as a sum of blocks, as functions. -/

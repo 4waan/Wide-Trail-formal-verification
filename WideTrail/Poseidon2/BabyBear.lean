@@ -34,7 +34,7 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
   (`p3-poseidon2` `src/lib.rs:177-202`).
 * **External layer.** `Plonky3.external`, the block circulant `circ(2 M4, M4, M4, M4)` with
   `M4 = circ(2, 3, 1, 1)`, which `Plonky3.external_eq_mdsLight` identifies with the code's
-  `mds_light_permutation`. Its branch number is at least `8` (`external_branch`).
+  `mds_light_permutation`. Its branch number is at least `8` (`external_isBranchBound`).
 * **Internal layer.** `x_i ↦ R^{-1} (d_i x_i + ∑_j x_j)` with `R = 2^32`,
   `R^{-1} = 943718400` (`montyInverse`, the code's `MONTY_INVERSE`, `p3-baby-bear`
   `src/poseidon2.rs:27`) and `d = (-2, 1, 2, 4, …, 2^13, 2^15)` (`Plonky3.sp1Diag`;
@@ -49,23 +49,26 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
   rows `0` to `3` and `17` to `20`. So round `n < 21` of the schedule reads row `n` of
   `RC_16_30`, only column `0` for the partial rounds `4 ≤ n < 17`. Columns `1` to `15` of rows
   `4` to `16` are nonzero in `RC_16_30` but never read; they are `0` here
-  (`partialRowsAtZero`, by `decide`), and `partial_round_apply` shows that each partial round
-  is then the code's round. The values were checked against the crate source outside Lean
-  (re-extracted from `src/lib.rs`, with the `drain` selection emulated); inside Lean, only the
-  vanishing of the unread entries is proved about the table.
+  (`partialRowsAtZero`, by `decide`). `externalConstants` (rows `0` to `3`, then `17` to `20`)
+  and `internalConstants` (column `0` of rows `4` to `16`) are the code's two arrays,
+  `values_eq_roundValues` shows `values = Plonky3.roundValues 13 externalConstants
+  internalConstants`, and `rounds_apply_prefix`, `rounds_apply_partial` and
+  `rounds_apply_suffix` state each round as the code's round with those arrays. The values were
+  checked against the crate source outside Lean (re-extracted from `src/lib.rs`, with the
+  `drain` selection emulated); inside Lean, the table is only related to the two arrays, which
+  are read off the same literals, and its unread entries are shown to vanish.
 
 ## Results
 
 * `permutation_bijective`.
 * `activity`: two distinct inputs incur at least `32` charged S-box applications, all counted
-  in the eight full rounds. `activity_of_values` is the same for every round-constant table.
+  in the eight full rounds. `activity_general` is the same for every round-constant table.
 * `independent_key_probability`: for every nonzero trail, `keyCount * 2^896 ≤ |F^16|^21` in
   the model with an additional independent uniform key per round (`u = 6`,
   `6 * 2^28 ≤ p`, so `dd = 28`, and `28 * 32 = 896`, `probability_exponent`).
-  `independent_key_probability_of_values` is the same for every round-constant table.
-* **The partial rounds contribute nothing to this argument.** Thirteen internal rounds leave a
-  nonzero space of differences, of dimension at least `3`, that stays off coordinate `0`
-  throughout the thirteen partial rounds
+  `independent_key_probability_general` is the same for every round-constant table.
+* **The partial rounds contribute nothing to this argument.** A nonzero space of differences,
+  of dimension at least `3`, stays inactive through the thirteen consecutive partial rounds
   (`partial_inactive_ne_bot`, `three_le_finrank_partial_inactive`); every window `w` for
   which `Plonky3.activity_with_middle` applies has `13 / w = 0`
   (`partial_window_term_eq_zero`); and there are distinct inputs whose actual difference
@@ -158,7 +161,7 @@ Sherman–Morrison condition `81917 ≠ 0`, and `R^{-1} ≠ 0`. -/
 theorem conditions : Conditions montyInverse := ⟨by decide, by decide, by decide, by decide⟩
 
 /-- `2, 3, 5, 7, 11, 17` are nonzero in `F`, so `M4` is MDS over `F` (`m4_isMDS`). -/
-theorem primes : ∀ p ∈ m4Primes, (p : F) ≠ 0 := by decide
+theorem m4Primes_ne_zero : ∀ p ∈ m4Primes, (p : F) ≠ 0 := by decide
 
 /-- The first diagonal entry is the code's `BabyBear::ORDER_U32 - 2` (`p3-baby-bear`
 `src/poseidon2.rs:30`). -/
@@ -179,8 +182,8 @@ theorem internal_apply (x : State) (i : Fin 16) :
   rfl
 
 /-- **Branch number at least `8` for the external layer.** -/
-theorem external_branch : isBranchBound id external 8 :=
-  external_isBranchBound primes conditions.thirtyFive
+theorem external_isBranchBound : isBranchBound id external 8 :=
+  Plonky3.external_isBranchBound m4Primes_ne_zero conditions.thirtyFive
 
 /-! ### The pinned round constants -/
 
@@ -236,6 +239,31 @@ theorem partialRowsAtZero : PartialRowsAtZero 13 values := by
   intro j hj i hi
   exact h ⟨j, hj⟩ i hi
 
+/-- The code's `external_round_constants`: the rows of `RC_16_30` left after `drain(4..17)`,
+of which the two full-round loops read the first eight, rows `0` to `3` and `17` to `20`
+(`sp1-primitives` `5.2.4` `src/lib.rs:1110-1115`; `p3-poseidon2` `0.2.3-succinct`
+`src/lib.rs:183-184`, `:197-198`). -/
+def externalConstants (r : Fin 8) : State :=
+  if h : r.val < 4 then roundConstants ⟨r.val, by omega⟩
+  else roundConstants ⟨r.val + 13, by omega⟩
+
+/-- The code's `internal_round_constants`: column `0` of rows `4` to `16` of `RC_16_30`, taken
+by `drain(4..17).map(|vec| vec[0])` (`sp1-primitives` `5.2.4` `src/lib.rs:1113-1114`). -/
+def internalConstants (j : Fin 13) : F := roundConstants ⟨j.val + 4, by omega⟩ 0
+
+theorem values_eq_roundValues_lt : ∀ n : Fin 21, ∀ i : Fin 16,
+    values n.val i = Plonky3.roundValues 13 externalConstants internalConstants n.val i := by
+  decide
+
+/-- **The table is the code's two arrays.** `values` is the table that `Plonky3.roundValues`
+builds from `external_round_constants` and `internal_round_constants`. -/
+theorem values_eq_roundValues :
+    values = Plonky3.roundValues 13 externalConstants internalConstants := by
+  funext n i
+  by_cases hn : n < 21
+  · exact values_eq_roundValues_lt ⟨n, hn⟩ i
+  · simp [values, Plonky3.roundValues, hn, show ¬n < 4 by omega, show ¬n < 4 + 13 by omega]
+
 /-! ### The permutation -/
 
 /-- The `21` rounds with the pinned constants: four full, thirteen partial and four full
@@ -250,45 +278,55 @@ theorem permutation_eq (x : State) : permutation x = Hades.execute rounds (exter
 theorem permutation_bijective : Function.Bijective permutation :=
   Plonky3.permutation_bijective conditions 13 sbox values
 
-/-- A first-half full round is the code's round (`p3-poseidon2` `src/lib.rs:183-187`). -/
-theorem full_round_apply_prefix {j : ℕ} (hj : j < 4) (x : State) :
-    (rounds j).apply x = external (fun i => sbox (x i + values j i)) :=
-  rounds_apply_prefix conditions 13 sbox values hj x
+/-- A first-half full round is the code's round (`p3-poseidon2` `0.2.3-succinct`
+`src/lib.rs:183-187`) with `external_constants[j]`. -/
+theorem rounds_apply_prefix {j : ℕ} (hj : j < 4) (x : State) :
+    (rounds j).apply x =
+      external (fun i => sbox (x i + externalConstants ⟨j, by omega⟩ i)) := by
+  rw [rounds, Plonky3.rounds_apply_prefix conditions 13 sbox values hj x, values_eq_roundValues,
+    Plonky3.roundValues_prefix 13 _ _ hj]
+  rfl
 
-/-- A partial round is the code's round (`p3-poseidon2` `src/lib.rs:190-194`): add the
-constant to `x 0`, apply the S-box to `x 0` alone, then the internal layer. -/
-theorem partial_round_apply {j : ℕ} (hj : j < 13) (x : State) :
+/-- **A partial round is the code's round** (`p3-poseidon2` `0.2.3-succinct`
+`src/lib.rs:190-194`): add `internal_constants[j]` to `state[0]`, apply the S-box to `state[0]`
+only, then the internal layer. -/
+theorem rounds_apply_partial {j : ℕ} (hj : j < 13) (x : State) :
     (rounds (4 + j)).apply x =
-      internal (Function.update x 0 (sbox (x 0 + values (4 + j) 0))) :=
-  rounds_apply_middle conditions 13 sbox values partialRowsAtZero hj x
+      internal (Function.update x 0 (sbox (x 0 + internalConstants ⟨j, hj⟩))) := by
+  rw [rounds, values_eq_roundValues]
+  exact Plonky3.rounds_roundValues_apply_middle conditions 13 sbox _ _ hj x
 
-/-- A second-half full round is the code's round (`p3-poseidon2` `src/lib.rs:197-201`). -/
-theorem full_round_apply_suffix {j : ℕ} (hj : j < 4) (x : State) :
-    (rounds (4 + 13 + j)).apply x = external (fun i => sbox (x i + values (4 + 13 + j) i)) :=
-  rounds_apply_suffix conditions 13 sbox values hj x
+/-- A second-half full round is the code's round (`p3-poseidon2` `0.2.3-succinct`
+`src/lib.rs:197-201`) with `external_constants[4 + j]`. -/
+theorem rounds_apply_suffix {j : ℕ} (hj : j < 4) (x : State) :
+    (rounds (17 + j)).apply x =
+      external (fun i => sbox (x i + externalConstants ⟨4 + j, by omega⟩ i)) := by
+  rw [show 17 + j = 4 + 13 + j by omega, rounds,
+    Plonky3.rounds_apply_suffix conditions 13 sbox values hj x, values_eq_roundValues,
+    Plonky3.roundValues_suffix 13 _ _ hj]
+  rfl
 
 /-! ### Activity -/
 
 /-- **Thirty-two charged S-boxes, for every round-constant table.** Two distinct inputs incur
 at least `32` charged S-box applications over the `8 + 13` rounds, all counted in the full
 rounds. A lower bound; it is not claimed to be attained. -/
-theorem activity_of_values (v : ℕ → Fin 16 → F) {x y : State} (hxy : x ≠ y) :
+theorem activity_general (v : ℕ → Fin 16 → F) {x y : State} (hxy : x ≠ y) :
     32 ≤ Hades.scheduledWeight (Plonky3.rounds conditions 13 sbox v)
       (Hades.differenceTrace (Plonky3.rounds conditions 13 sbox v) (external x) (external y))
       0 (8 + 13) :=
-  Plonky3.activity conditions primes 13 sbox v hxy
+  Plonky3.activity conditions m4Primes_ne_zero 13 sbox v hxy
 
 /-- **Thirty-two charged S-boxes for the pinned permutation.** -/
 theorem activity {x y : State} (hxy : x ≠ y) :
     32 ≤ Hades.scheduledWeight rounds
       (Hades.differenceTrace rounds (external x) (external y)) 0 (8 + 13) :=
-  activity_of_values values hxy
+  activity_general values hxy
 
 /-! ### The partial rounds contribute nothing to this argument -/
 
-/-- **Thirteen partial rounds leave a nonzero inactive difference.** Some nonzero difference
-avoids coordinate `0` in all thirteen applications of the internal layer, since `13 < 16`
-(`Hades.inactiveSpace_ne_bot`). -/
+/-- **Some nonzero difference stays inactive through the thirteen consecutive partial
+rounds**, since `13 < 16` (`Hades.inactiveSpace_ne_bot`). -/
 theorem partial_inactive_ne_bot :
     Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) 13 ≠ ⊥ :=
   inactiveSpace_internal_ne_bot _ _ _ _ (by norm_num)
@@ -308,12 +346,12 @@ theorem partial_window_term_eq_zero {w : ℕ}
   middle_term_eq_zero (by norm_num) htriv
 
 /-- **Some distinct inputs charge no S-box in the partial rounds**, for every round-constant
-table. Take a nonzero difference `a` in the inactive space of thirteen internal rounds; the
-first four rounds after the initial layer form a bijection, so some pair of inputs reaches the
-states `a` and `0` at round `4`. Their difference then crosses all thirteen partial rounds
-without reaching coordinate `0` (`Hades.IsTrail.free_window`). This is a structural property
-of thirteen partial rounds at width sixteen, not an attack: such pairs still incur the `32`
-charged S-boxes of `activity_of_values` in the full rounds. -/
+table. Take a nonzero difference `a` that stays inactive through thirteen consecutive partial
+rounds; the first four rounds after the initial layer form a bijection, so some pair of inputs
+reaches the states `a` and `0` at round `4`. Their difference then crosses all thirteen partial
+rounds without reaching coordinate `0` (`Hades.IsTrail.free_window`). This is a structural
+property of thirteen partial rounds at width sixteen, not an attack: such pairs still incur the
+`32` charged S-boxes of `activity_general` in the full rounds. -/
 theorem exists_pair_partial_free (v : ℕ → Fin 16 → F) :
     ∃ x y : State, x ≠ y ∧
       Hades.scheduledWeight (Plonky3.rounds conditions 13 sbox v)
@@ -349,12 +387,12 @@ independent uniform key per round only: the number of key sequences realising a 
 trail `T`, times `2^(28 * 32)`, is at most the number of all key sequences. The exponent keeps
 its round arithmetic; `probability_exponent` evaluates it to `896`. This concerns one trail in
 that model: not the permutation with its fixed constants, and not a differential. -/
-theorem independent_key_probability_of_values (v : ℕ → Fin 16 → F) {T : ℕ → State}
+theorem independent_key_probability_general (v : ℕ → Fin 16 → F) {T : ℕ → State}
     (h0 : T 0 ≠ 0) (x : State) :
     Hades.keyCount (Plonky3.rounds conditions 13 sbox v) (8 + 13) T x *
         2 ^ (28 * ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2))
       ≤ Fintype.card (Fin 16 → F) ^ (8 + 13) := by
-  have h := Plonky3.independent_key_probability conditions primes 13 sbox v sbox_uniform
+  have h := Plonky3.independent_key_probability conditions m4Primes_ne_zero 13 sbox v sbox_uniform
     probability_margin h0 x
   rwa [show (28 : ℕ) * 32 = 28 * ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2) by norm_num] at h
 
@@ -362,7 +400,7 @@ theorem independent_key_probability_of_values (v : ℕ → Fin 16 → F) {T : �
 theorem independent_key_probability {T : ℕ → State} (h0 : T 0 ≠ 0) (x : State) :
     Hades.keyCount rounds (8 + 13) T x * 2 ^ (28 * ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2))
       ≤ Fintype.card (Fin 16 → F) ^ (8 + 13) :=
-  independent_key_probability_of_values values h0 x
+  independent_key_probability_general values h0 x
 
 /-- The displayed bound's concrete exponent. -/
 theorem probability_exponent : 28 * ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2) = 896 := by

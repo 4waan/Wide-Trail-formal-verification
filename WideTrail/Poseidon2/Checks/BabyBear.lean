@@ -25,24 +25,30 @@ outside model. All finite checks are kernel `decide`.
   source asserts this gcd condition before choosing round numbers (`p3-poseidon2`
   `0.2.3-succinct` `src/round_numbers.rs:33`). The inverse exponent satisfies
   `7 * 1725656503 ≡ 1 mod (p - 1)` with `1725656503 < p - 1` (`inverseExponent_mod`).
+* **The uniformity bound `6` is attained.** For input difference `1`, the output difference
+  `1346933384` has six solutions of `(x + 1)^7 - x^7 = 1346933384`, listed in `diffWitnesses`
+  and found outside Lean by exact root finding mod `p`; only their membership in the difference
+  set and their distinctness are checked here (`sbox_not_uniform_five`). With `sbox_uniform`,
+  the differential uniformity of `x ↦ x^7` on `F` is exactly `6`.
 * **The trail exponent is the largest the margin allows.** `6 * 2^28 ≤ p < 6 * 2^29`
   (`probability_margin_sharp`), so with `u = 6` the generic bound gives at most `dd = 28` per
   charged S-box.
-* **The external branch number is exactly `8`.** `external_branch` gives at least `8`. The
-  difference `branchWitness`, equal to `-1` at coordinates `0`, `4`, `8` and to `4` at
+* **The external branch number is exactly `8`.** `external_isBranchBound` gives at least `8`.
+  The difference `branchWitness`, equal to `-1` at coordinates `0`, `4`, `8` and to `4` at
   coordinate `12`, has block sum `e_0`, so the external layer cancels it in the first three
   blocks and sends it to `5 M4 e_0` in the last: four active coordinates in, four out
   (`external_branchWitness`, `external_not_branch_nine`).
 * **The window is exactly sixteen over BabyBear.** A Krylov certificate
-  (`inactive_sixteen`) shows that no nonzero difference avoids coordinate `0` for sixteen
-  applications of `diag d + J`, and fifteen are not enough (`inactive_fifteen_ne_bot`). So the
-  hypothesis of `Plonky3.activity_with_middle` holds over this field with `w = 16`, unlike over
-  `ZMod 23` (`Checks/Plonky3.lean`), and it yields `32 + 13 / 16 = 32`
-  (`activity_with_window`): the partial rounds add nothing because `13 < 16`.
-* **An explicit inactive difference.** `witness` is a nonzero difference that stays off
-  coordinate `0` through thirteen applications of the internal layer (`witness_mem`) and not
-  through fourteen (`witness_not_mem_fourteen`). Membership is orthogonality to the first
-  thirteen Krylov vectors, which `decide` checks directly.
+  (`inactive_sixteen`) shows that no nonzero difference stays inactive through sixteen
+  consecutive partial rounds with `diag d + J`, while some does through fifteen
+  (`inactive_fifteen_ne_bot`). So the hypothesis of `Plonky3.activity_with_middle` holds over
+  this field with `w = 16`, unlike over `ZMod 23` (`Checks/Plonky3.lean`), and it yields
+  `32 + 13 / 16 = 32` (`activity_with_window`): the partial rounds add nothing because
+  `13 < 16`.
+* **An explicit inactive difference.** `witness` is a nonzero difference that stays inactive
+  through thirteen consecutive partial rounds (`witness_mem`) and not through fourteen
+  (`witness_not_mem_fourteen`). Membership is orthogonality to the first thirteen Krylov
+  vectors, which `decide` checks directly.
 * **The Montgomery factor.** Dropping the scale `R^{-1}` does not change the inactive space
   (`scale_invisible`, from `Plonky3.inactiveSpace_internal`), although the scaled and unscaled
   layers differ as maps (`scale_visible`). So the partial-round statements do not depend on
@@ -55,6 +61,17 @@ outside model. All finite checks are kernel `decide`.
   known-answer test of `p3-baby-bear` `0.2.3-succinct` (`src/poseidon2.rs:164-181`, with that
   test's own constants). No SP1 binary was run; the value is a regression check of the model,
   not a statement about the deployed code.
+
+## What is not claimed
+
+`permutation_zero` is a regression value from outside models, which reproduce the test vector of
+`p3-baby-bear` `0.2.3-succinct` with that test's own constants; it is not an output of SP1 and is
+not compared with SP1's AIR, the gnark circuit or a built binary. The exponent checks
+(`least_permutation_exponent`, `gcd_seven`) are facts about the field; they say nothing about
+which exponent SP1 uses beyond the citations in `WideTrail.Poseidon2.BabyBear`.
+`sbox_not_uniform_five` and `external_not_branch_nine` show that the uniformity `u = 6` and the
+branch number `8` used by the bounds cannot be improved, not that the count `32` is attained.
+Nothing here strengthens the security claims of `WideTrail.Poseidon2.BabyBear`.
 
 The axiom footprints of the main results are pinned at the end of the file.
 -/
@@ -119,6 +136,31 @@ theorem inverseExponent_mod :
     7 * inverseExponent % (modulus - 1) = 1 ∧ inverseExponent < modulus - 1 := by
   decide
 
+/-! ### The uniformity bound -/
+
+/-- Six solutions of `(x + 1)^7 - x^7 = 1346933384`, found outside Lean by exact root finding
+mod `p`. -/
+def diffWitnesses : Finset F :=
+  {216551164, 323534659, 937428934, 1075836986, 1689731261, 1796714756}
+
+/-- **`x ↦ x^7` is not differentially `5`-uniform.** For input difference `1`, the output
+difference `1346933384` has the six solutions `diffWitnesses`. With `sbox_uniform`, the
+differential uniformity is exactly `6`. -/
+theorem sbox_not_uniform_five : ¬ IsDiffUniform sbox 5 := by
+  intro h
+  have hle := h 1 one_ne_zero 1346933384
+  have hsub : diffWitnesses ⊆ diffSet sbox 1 1346933384 := by
+    intro x hx
+    refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩
+    rw [sbox_toFun]
+    simp only [diffWitnesses, Finset.mem_insert, Finset.mem_singleton] at hx
+    rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+  have hcard : diffWitnesses.card = 6 := by decide
+  have hge := Finset.card_le_card hsub
+  rw [hcard] at hge
+  unfold diffCount at hle
+  omega
+
 /-! ### The trail exponent -/
 
 /-- `28` is the largest `dd` with `6 * 2^dd ≤ p`. -/
@@ -139,7 +181,7 @@ theorem external_branchWitness :
   rw [external_eq_mdsLight]
   decide
 
-/-- **The bound `8` of `external_branch` is attained.** -/
+/-- **The bound `8` of `external_isBranchBound` is attained.** -/
 theorem external_not_branch_nine : ¬ isBranchBound id external 9 := by
   intro h
   have hw := h branchWitness (by decide)
@@ -251,7 +293,8 @@ theorem krylovInv_mul : ∀ i k : Fin 16,
     ∑ j, krylovInv i j * krylov j k = if i = k then 1 else 0 := by
   decide
 
-/-- **Sixteen internal rounds leave no inactive difference over BabyBear.** -/
+/-- **No nonzero difference stays inactive through sixteen consecutive partial rounds over
+BabyBear.** -/
 theorem inactive_sixteen :
     Hades.inactiveSpace (diagPlusOnes (1 : F) (sp1Diag F)) ({0} : Finset (Fin 16)) 16 = ⊥ :=
   Hades.inactiveSpace_diagPlusOnes_eq_bot one_ne_zero (sp1Diag F) 0 16 krylov krylov_zero
@@ -269,7 +312,7 @@ theorem activity_with_window (v : ℕ → Fin 16 → F) {x y : State} (hxy : x �
     32 + 13 / 16 ≤ Hades.scheduledWeight (Plonky3.rounds conditions 13 sbox v)
       (Hades.differenceTrace (Plonky3.rounds conditions 13 sbox v) (external x) (external y))
       0 (8 + 13) :=
-  activity_with_middle conditions primes 13 sbox v inactive_sixteen hxy
+  activity_with_middle conditions m4Primes_ne_zero 13 sbox v inactive_sixteen hxy
 
 theorem window_term_eq_zero : 13 / 16 = 0 := partial_window_term_eq_zero inactive_sixteen
 
@@ -306,7 +349,7 @@ theorem scale_visible :
     internal (Pi.single 0 1) ≠ diagPlusOnes (1 : F) (sp1Diag F) (Pi.single 0 1) := by
   decide
 
-/-- **`witness` crosses thirteen internal rounds without reaching coordinate `0`.** -/
+/-- **`witness` stays inactive through thirteen consecutive partial rounds.** -/
 theorem witness_mem :
     witness ∈ Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) 13 := by
   rw [scale_invisible]
@@ -314,8 +357,10 @@ theorem witness_mem :
     (fun j => krylov (Fin.castLE (by norm_num) j)) (fun j => krylov_eq_pow _) witness).mpr
     witness_orthogonal
 
-/-- `witness` reaches coordinate `0` at the fourteenth application, so thirteen is exactly how
-far it travels unseen. -/
+/-- `witness` does not stay inactive through fourteen consecutive partial rounds: with the
+unscaled layer `diag d + J`, coordinate `0` of the fourteenth S-box input is
+`krylov 13 ⬝ᵥ witness ≠ 0`, and the scale does not change which coordinates vanish
+(`scale_invisible`). So thirteen is exactly how far it travels unseen. -/
 theorem witness_not_mem_fourteen :
     witness ∉ Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) 14 := by
   rw [scale_invisible]
@@ -402,7 +447,7 @@ def zeroTraceAt (n : ℕ) : State := if h : n < 22 then zeroTrace ⟨n, h⟩ els
 theorem zeroTrace_start : zeroTraceAt 0 = external 0 := by decide
 
 set_option maxHeartbeats 4000000 in
--- Each of the 21 transitions is checked once, avoiding nested execution reduction.
+-- Kernel evaluation of twenty-one rounds exceeds the default limit.
 /-- Each of the `21` rounds is checked once, on literal states. -/
 theorem zeroTrace_step : ∀ n : Fin 21,
     (rounds n.val).apply (zeroTraceAt n.val) = zeroTraceAt (n.val + 1) := by
@@ -440,9 +485,9 @@ end Poseidon2.BabyBear.Checks
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.conditions
 
-/-- info: 'Poseidon2.BabyBear.external_branch' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+/-- info: 'Poseidon2.BabyBear.external_isBranchBound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
-#print axioms Poseidon2.BabyBear.external_branch
+#print axioms Poseidon2.BabyBear.external_isBranchBound
 
 /-- info: 'Poseidon2.BabyBear.partialRowsAtZero' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
@@ -452,13 +497,25 @@ end Poseidon2.BabyBear.Checks
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.permutation_bijective
 
-/-- info: 'Poseidon2.BabyBear.partial_round_apply' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+/-- info: 'Poseidon2.BabyBear.values_eq_roundValues' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
-#print axioms Poseidon2.BabyBear.partial_round_apply
+#print axioms Poseidon2.BabyBear.values_eq_roundValues
 
-/-- info: 'Poseidon2.BabyBear.activity_of_values' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+/-- info: 'Poseidon2.BabyBear.rounds_apply_prefix' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
-#print axioms Poseidon2.BabyBear.activity_of_values
+#print axioms Poseidon2.BabyBear.rounds_apply_prefix
+
+/-- info: 'Poseidon2.BabyBear.rounds_apply_partial' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.rounds_apply_partial
+
+/-- info: 'Poseidon2.BabyBear.rounds_apply_suffix' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.rounds_apply_suffix
+
+/-- info: 'Poseidon2.BabyBear.activity_general' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.activity_general
 
 /-- info: 'Poseidon2.BabyBear.activity' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
@@ -480,9 +537,9 @@ end Poseidon2.BabyBear.Checks
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.exists_pair_partial_free
 
-/-- info: 'Poseidon2.BabyBear.independent_key_probability_of_values' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+/-- info: 'Poseidon2.BabyBear.independent_key_probability_general' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
-#print axioms Poseidon2.BabyBear.independent_key_probability_of_values
+#print axioms Poseidon2.BabyBear.independent_key_probability_general
 
 /-- info: 'Poseidon2.BabyBear.independent_key_probability' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
@@ -495,6 +552,10 @@ end Poseidon2.BabyBear.Checks
 /-- info: 'Poseidon2.BabyBear.Checks.least_permutation_exponent' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.Checks.least_permutation_exponent
+
+/-- info: 'Poseidon2.BabyBear.Checks.sbox_not_uniform_five' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.Checks.sbox_not_uniform_five
 
 /-- info: 'Poseidon2.BabyBear.Checks.inactive_sixteen' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in

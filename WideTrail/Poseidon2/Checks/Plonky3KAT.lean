@@ -20,9 +20,9 @@ round constants. This file proves, by `decide` on the runner of
 `WideTrail.Poseidon2.Plonky3Execution` and its refinement theorem, that the generic model
 `Plonky3.permutation`, with the scale, S-box and round count of `WideTrail.Poseidon2.KoalaBear`
 and `WideTrail.Poseidon2.BabyBear` and with the test's round constants, sends the test's input
-to the test's expected output. This exercises the model end to end against the Rust code: the
-initial external layer, the external layer `circ(2 M4, M4, M4, M4)`, the internal layer with its
-factor `R^{-1}`, the S-box, the partial rounds on `state[0]` and the schedule.
+to the test's expected output. This exercises the model end to end against the crates' test
+vectors: the initial external layer, the external layer `circ(2 M4, M4, M4, M4)`, the internal
+layer with its factor `R^{-1}`, the S-box, the partial rounds on `state[0]` and the schedule.
 
 ## What the tests run
 
@@ -98,15 +98,16 @@ Each `decide` evaluates the whole permutation at once on the runner.
 ## What is not claimed
 
 A known-answer test checks one input, with round constants that are not SP1's. It shows that the
-model and the Rust code agree there; it does not prove that they agree on every input, and the
-agreement of the model's round-constant tables with SP1's rests on the source comparisons
-recorded in `WideTrail.Poseidon2.KoalaBear` and `WideTrail.Poseidon2.BabyBear`. The regression
-values are outputs of the model, not of SP1. No security statement is made here: the activity
-counts of the instances are lower bounds on charged S-boxes for actual input pairs, and their
-probability statements concern one trail in the model with an additional independent uniform
-key per round, not the permutation with its fixed constants and not a differential. Nothing is
-said about subspace-trail resistance, algebraic attacks, sponge or duplex constructions, or
-equivalence with the AIR or the gnark circuit.
+model, with the regenerated constants, computes the output that the crate's test asserts on that
+input; it does not prove that model and code agree on every input, and the agreement of the
+model's round-constant tables with SP1's rests on the source comparisons recorded in
+`WideTrail.Poseidon2.KoalaBear` and `WideTrail.Poseidon2.BabyBear`. The regression values are
+outputs of the model, not of SP1. No security statement is made here: the activity counts of
+the instances are lower bounds on charged S-boxes for actual input pairs, and their probability
+statements concern one trail in the model with an additional independent uniform key per round,
+not the permutation with its fixed constants and not a differential. Nothing is said about
+subspace-trail resistance, algebraic attacks, sponge or duplex constructions, or equivalence
+with SP1's AIR, the gnark circuit or a built binary.
 -/
 
 set_option autoImplicit false
@@ -120,10 +121,12 @@ namespace Poseidon2.KoalaBear.Plonky3KAT
 open Plonky3 (Dense permutationDense roundValues permutation_eq_of_dense permutation_ne_of_dense
   execute_ne_of_dense)
 
-/-- The field element whose Montgomery representative is `v`: `v R^{-1}`, `R = 2^32`. -/
+/-- The field element `v R^{-1}`, `R = 2^32`: for `v < p`, the element whose Montgomery
+representative is `v`. -/
 def fromMonty (v : ℕ) : F := (v : F) * montyInverse
 
-/-- `v` is the Montgomery representative of `fromMonty v`. -/
+/-- `v * R^{-1} * R = v` in `F`; for `v < p` (`raw_lt_modulus`) this makes `v` the Montgomery
+representative of `fromMonty v`. -/
 theorem fromMonty_mul (v : ℕ) : fromMonty v * 2 ^ 32 = v := by
   rw [fromMonty, mul_assoc, montyInverse_mul, mul_one]
 
@@ -250,10 +253,12 @@ namespace Poseidon2.BabyBear.Plonky3KAT
 open Plonky3 (Dense permutationDense roundValues permutation_eq_of_dense permutation_ne_of_dense
   execute_ne_of_dense)
 
-/-- The field element whose Montgomery representative is `v`: `v R^{-1}`, `R = 2^32`. -/
+/-- The field element `v R^{-1}`, `R = 2^32`: for `v < p`, the element whose Montgomery
+representative is `v`. -/
 def fromMonty (v : ℕ) : F := (v : F) * montyInverse
 
-/-- `v` is the Montgomery representative of `fromMonty v`. -/
+/-- `v * R^{-1} * R = v` in `F`; for `v < p` (`raw_lt_modulus`) this makes `v` the Montgomery
+representative of `fromMonty v`. -/
 theorem fromMonty_mul (v : ℕ) : fromMonty v * 2 ^ 32 = v := by
   rw [fromMonty, mul_assoc, montyInverse_mul, mul_one]
 

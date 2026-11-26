@@ -37,16 +37,37 @@ which of its ingredients could not be changed. Every finite check is `decide`.
   `3^(2^24) = 1828256994`).
 * **The trail-bound exponent `29` is the largest possible**: `2 * 2^30 > p`
   (`thirty_too_large`).
-* **The window `16` cannot be shortened.** Fifteen internal layers leave a nonzero inactive
-  difference, by a dimension count (`inactive_fifteen_ne_bot`) and explicitly: `witness15`,
-  with first coordinate `0`, is orthogonal to `krylov 0, …, krylov 14` and so stays off
-  coordinate `0` through fifteen applications of `diag d + J` (`witness15_mem`).
+* **The bounds `u = 2` and `8` are attained.** For input difference `1`, both `0` and `-1`
+  solve `(x + 1)^3 - x^3 = 1`, so the cube S-box is not differentially `1`-uniform
+  (`sbox_not_uniform_one`) and `2` is the least `u` with `IsDiffUniform sbox u`. The
+  difference `branchWitness`, equal to `-1` at coordinates `0`, `4`, `8` and to `4` at
+  coordinate `12`, has weight four and an image of weight four (`external_branchWitness`), so
+  the branch number of the external layer is exactly `8` (`external_not_branch_nine`), as over
+  BabyBear.
+* **The window `16` cannot be shortened.** Some nonzero difference stays inactive through
+  fifteen consecutive partial rounds, by a dimension count (`inactive_fifteen_ne_bot`) and
+  explicitly: `witness15` is orthogonal to `krylov 0, …, krylov 14`, so it stays inactive through
+  fifteen consecutive partial rounds with `diag d + J` (`witness15_mem`), and
+  `krylov 15 ⬝ᵥ witness15 ≠ 0`, so it does not stay inactive through sixteen
+  (`witness15_not_mem_sixteen`).
 * **The Montgomery factor.** Dropping `R^{-1}` changes the internal layer
   (`internal_ne_unscaled`) but none of its inactive spaces (`inactiveSpace_internal_eq`).
 * **Cross-checks with other sources.** The diagonal, as elements of `F`, is the gnark chip's
   `matInternalDiagM1` (`sp1-recursion-gnark-ffi` `6.10.0`
   `go/sp1/poseidon2/poseidon2_koalabear.go:117-134`; `sp1Diag_eq_gnark`), and
   `1 + ∑ 1/d_i = 1065548291` in `F` (`one_add_sum_inv_eq`).
+
+## What is not claimed
+
+`upstream_kat` validates the model against the test vector of `p3-koala-bear` `0.4.3-succinct`
+only, with round constants regenerated outside Lean; it is not a comparison with SP1's AIR, the
+gnark circuit or a built binary. `zero_permutation` is a regression value from an outside model,
+not an output of SP1. `pow_five_bijective` and the other exponent checks are facts about the
+field; they say nothing about which exponent SP1 uses beyond the citations in
+`WideTrail.Poseidon2.KoalaBear`. `sbox_not_uniform_one` and `external_not_branch_nine` show that
+the uniformity `u = 2` and the branch number `8` used by the bounds cannot be improved, not that
+the count `33` is attained. Nothing here strengthens the security claims of
+`WideTrail.Poseidon2.KoalaBear`.
 
 The axiom footprints of the main results are pinned at the end of the file.
 -/
@@ -325,15 +346,57 @@ theorem thirty_too_large : ¬ 2 * 2 ^ 30 ≤ Fintype.card F := by
   rw [field_card]
   decide
 
+/-! ### The bounds `u = 2` and `8` are attained -/
+
+/-- **The cube S-box is not differentially `1`-uniform.** For input difference `1`, the output
+difference `1` has the two solutions `0` and `-1` of `(x + 1)^3 - x^3 = 1`. With `sbox_uniform`,
+the differential uniformity is exactly `2`. -/
+theorem sbox_not_uniform_one : ¬ IsDiffUniform sbox 1 := by
+  intro h
+  have hle := h 1 one_ne_zero 1
+  have hsub : ({0, -1} : Finset F) ⊆ diffSet sbox 1 1 := by
+    intro x hx
+    refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩
+    rw [sbox_toFun]
+    rcases Finset.mem_insert.mp hx with rfl | hx
+    · decide
+    · rw [Finset.mem_singleton.mp hx]
+      decide
+  have hcard : ({0, -1} : Finset F).card = 2 := by decide
+  have hge := Finset.card_le_card hsub
+  rw [hcard] at hge
+  unfold diffCount at hle
+  omega
+
+/-- A nonzero difference of weight four whose image also has weight four. -/
+def branchWitness : State := ![-1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, 4, 0, 0, 0]
+
+/-- The first three blocks of `branchWitness` cancel against the block sum `e_0`; the last
+becomes `5 M4 e_0 = (10, 5, 5, 15)`. -/
+theorem external_branchWitness :
+    external branchWitness = ![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 5, 5, 15] := by
+  rw [external_eq_mdsLight]
+  decide
+
+/-- **The bound `8` of `external_isBranchBound` is attained.** -/
+theorem external_not_branch_nine : ¬ isBranchBound id external 9 := by
+  intro h
+  have hw := h branchWitness (by decide)
+  rw [external_branchWitness] at hw
+  revert hw
+  decide
+
 /-! ### The window length -/
 
-/-- Fifteen internal layers leave a nonzero inactive difference (dimension count). -/
+/-- Some nonzero difference stays inactive through fifteen consecutive partial rounds
+(dimension count). -/
 theorem inactive_fifteen_ne_bot :
     Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) 15 ≠ ⊥ :=
   Plonky3.inactiveSpace_internal_ne_bot montyInverse conditions.scale conditions.two
     conditions.shermanMorrison (by norm_num)
 
-/-- A nonzero difference orthogonal to `krylov 0, …, krylov 14`, computed outside Lean. -/
+/-- A nonzero difference orthogonal to `krylov 0, …, krylov 14`, computed outside Lean: one
+that stays inactive through fifteen consecutive partial rounds. -/
 def witness15 : State :=
   ![0, 494989731, 578657468, 1162995235, 635910754, 1147037842, 1932065030, 1983974681, 1379422881,
       47766227, 1129244337, 560391998, 580513651, 1330209349, 1951765846, 1]
@@ -344,7 +407,8 @@ theorem witness15_orthogonal : ∀ j : Fin 15, krylov j.castSucc ⬝ᵥ witness1
 theorem witness15_ne_zero : witness15 ≠ 0 := by
   decide
 
-/-- **An explicit difference that avoids the S-box through fifteen internal layers.** -/
+/-- **An explicit difference that stays inactive through fifteen consecutive partial
+rounds.** -/
 theorem witness15_mem :
     witness15 ∈ Hades.inactiveSpace (diagPlusOnes (1 : F) (Plonky3.sp1Diag F))
       ({0} : Finset (Fin 16)) 15 := by
@@ -360,6 +424,24 @@ theorem witness15_mem :
       (fun j hj => krylov_zero j.castSucc hj) hstep
   rw [Hades.mem_inactiveSpace_singleton_iff _ (diagPlusOnes_dotProduct 1 _) 0 15 _ hu]
   exact witness15_orthogonal
+
+/-- `witness15` does not stay inactive through sixteen consecutive partial rounds: with
+`diag d + J`, coordinate `0` of the sixteenth S-box input is `krylov 15 ⬝ᵥ witness15 ≠ 0`. So
+fifteen is exactly how far it travels unseen. -/
+theorem witness15_not_mem_sixteen :
+    witness15 ∉ Hades.inactiveSpace (diagPlusOnes (1 : F) (Plonky3.sp1Diag F))
+      ({0} : Finset (Fin 16)) 16 := by
+  have hu : ∀ j : Fin 16, krylov j =
+      (diagPlusOnes (1 : F) (Plonky3.sp1Diag F) ^ (j : ℕ)) (Pi.single 0 1) :=
+    Hades.eq_pow_apply_of_recurrence _ _ krylov krylov_zero
+      (fun j k hjk => by
+        rw [krylov_succ j k hjk]
+        funext i
+        rw [diagPlusOnes_apply, one_mul])
+  intro h
+  have h15 := (Hades.mem_inactiveSpace_singleton_iff _ (diagPlusOnes_dotProduct 1 _) 0 16 krylov
+    hu witness15).mp h 15
+  exact (by decide : krylov 15 ⬝ᵥ witness15 ≠ 0) h15
 
 /-! ### The Montgomery factor -/
 
@@ -421,9 +503,17 @@ end Poseidon2.KoalaBear.Checks
 #guard_msgs in
 #print axioms Poseidon2.KoalaBear.values_eq_roundValues
 
+/-- info: 'Poseidon2.KoalaBear.rounds_apply_prefix' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.rounds_apply_prefix
+
 /-- info: 'Poseidon2.KoalaBear.rounds_apply_partial' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.KoalaBear.rounds_apply_partial
+
+/-- info: 'Poseidon2.KoalaBear.rounds_apply_suffix' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.rounds_apply_suffix
 
 /-- info: 'Poseidon2.KoalaBear.permutation_bijective' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
@@ -488,6 +578,18 @@ end Poseidon2.KoalaBear.Checks
 /-- info: 'Poseidon2.KoalaBear.Checks.witness15_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.KoalaBear.Checks.witness15_mem
+
+/-- info: 'Poseidon2.KoalaBear.Checks.witness15_not_mem_sixteen' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.Checks.witness15_not_mem_sixteen
+
+/-- info: 'Poseidon2.KoalaBear.Checks.sbox_not_uniform_one' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.Checks.sbox_not_uniform_one
+
+/-- info: 'Poseidon2.KoalaBear.Checks.external_not_branch_nine' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.Checks.external_not_branch_nine
 
 /-- info: 'Poseidon2.KoalaBear.Checks.internal_ne_unscaled' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in

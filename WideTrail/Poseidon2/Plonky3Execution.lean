@@ -195,7 +195,9 @@ def addSums (y : Dense R) : Dense R :=
 def externalDense (x : Dense R) : Dense R := addSums (mat4Dense x)
 
 /-- The internal layer: coordinate `i` becomes `c (d_i x_i + s)` with `s = x0 + ⋯ + x15` and
-`d = (-2, 1, 2, 4, …, 2^13, 2^15)`. -/
+`d = (-2, 1, 2, 4, …, 2^13, 2^15)` (`p3-koala-bear` `0.4.3-succinct` `src/poseidon2.rs:37-58`,
+`p3-baby-bear` `0.2.3-succinct` `src/poseidon2.rs:29-49`; equal to `Plonky3.sp1Diag` by
+`internalDense_toState_apply`). -/
 def internalDense (c : R) (x : Dense R) : Dense R :=
   let s := x.x0 + x.x1 + x.x2 + x.x3 + x.x4 + x.x5 + x.x6 + x.x7 + x.x8 + x.x9 + x.x10 +
     x.x11 + x.x12 + x.x13 + x.x14 + x.x15

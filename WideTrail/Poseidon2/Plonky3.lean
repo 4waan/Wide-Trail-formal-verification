@@ -33,17 +33,21 @@ coordinate `4 b + c` (`blockIndex`, Mathlib's `finProdFinEquiv`; `blockIndex_val
 * `internal c hc h2 hs`: `x_i ↦ c (d_i x_i + ∑_j x_j)` with `d = sp1Diag = (-2, 1, 2, 4, …, 2^13,
   2^15)` (`p3-koala-bear` `0.4.3-succinct` `src/poseidon2.rs:37-58`; the same vector in
   `p3-baby-bear` `0.2.3-succinct` `src/poseidon2.rs:29-49`). The code works on Montgomery
-  representatives and returns `R^{-1} (d_i x_i + ∑_j x_j)` with `R = 2^32` (`p3-koala-bear`
-  `src/poseidon2.rs:95-113`, `p3-baby-bear` `src/poseidon2.rs:85-103`). The scale `c` is a
-  parameter whose intended value is `R^{-1}`, i.e. `c * 2^32 = 1`; only `c ≠ 0` is used. The
-  layer is invertible under `2 ≠ 0` and `81917 ≠ 0`, where `81917 = 11^2 * 677 =
+  representatives and returns `R^{-1} (d_i x_i + ∑_j x_j)` with `R = 2^32` (`MONTY_BITS = 32`,
+  `p3-koala-bear` `src/koala_bear.rs:21`, `p3-baby-bear` `src/baby_bear.rs:17`; the layer at
+  `p3-koala-bear` `src/poseidon2.rs:95-113`, `p3-baby-bear` `src/poseidon2.rs:85-103`). The
+  scale `c` is a parameter whose intended value is `R^{-1}`, i.e. `c * 2^32 = 1`; only `c ≠ 0`
+  is used. The layer is invertible under `2 ≠ 0` and `81917 ≠ 0`, where `81917 = 11^2 * 677 =
   2^15 (1 + ∑ 1/d_i)`, and `internal_injective_iff` shows the second condition is exact.
 * `rounds hK rP sbox values = Hades.hadesSchedule 4 rP 4 {0} (fun _ _ => sbox) (linear hK rP)
   values`: four full rounds, `rP` partial rounds with the S-box on coordinate `0`, four full
   rounds, the same S-box `sbox` everywhere (intended: `x ↦ x^D`), the external layer in full
-  rounds and the internal layer in partial rounds. SP1 uses `rP = 20` for KoalaBear
-  (`slop-koala-bear` `6.10.0` `src/koala_bear_poseidon2.rs:50`) and `rP = 13` for BabyBear
-  (`sp1-primitives` `5.2.4` `src/lib.rs:1106-1124`).
+  rounds and the internal layer in partial rounds. The code runs `rounds_f_half = rounds_f / 2`
+  full rounds on each side (`p3-poseidon2` `src/lib.rs:182`), and SP1 sets `ROUNDS_F = 8`
+  (`slop-koala-bear` `6.10.0` `src/koala_bear_poseidon2.rs:49`; `sp1-primitives` `5.2.4`
+  `src/lib.rs:1108`), hence four. SP1 sets `ROUNDS_P = 20` for KoalaBear
+  (`slop-koala-bear` `6.10.0` `src/koala_bear_poseidon2.rs:50`) and `ROUNDS_P = 13` for BabyBear
+  (`sp1-primitives` `5.2.4` `src/lib.rs:1109`).
 * `permutation hK rP sbox values x = Hades.execute (rounds hK rP sbox values) (external x)
   (8 + rP)`: the initial external layer (`p3-poseidon2` `src/lib.rs:179`), then the three loops
   of `src/lib.rs:182-201`.
@@ -58,7 +62,9 @@ partial-round constant to `state[0]` only (`p3-poseidon2` `src/lib.rs:191`). Tab
 rows vanish off coordinate `0` (`PartialRowsAtZero`) model exactly that: `rounds_apply_middle`
 shows such a round is the code's round `internal (update x 0 (sbox (x 0 + v)))`. `roundValues`
 builds such a table from the code's two arrays (eight external rows, `rP` internal scalars).
-`rounds_apply_prefix` and `rounds_apply_suffix` give the full rounds.
+`rounds_apply_prefix` and `rounds_apply_suffix` give the full rounds. A raw constant table need
+not have this form: SP1 `5.2.4`'s BabyBear table `RC_16_30` is not `PartialRowsAtZero`, and the
+code's table is `roundValues 13 ext int` built from parts of it (see `roundValues`).
 
 ## Results, for every round-constant table
 
@@ -66,18 +72,18 @@ builds such a table from the code's two arrays (eight external rows, `rP` intern
 * `external_isBranchBound`: under the `m4Primes` hypothesis the external layer has branch number
   at least `8`.
 * `activity`: two distinct inputs incur at least `32` charged S-box applications, all counted in
-  the full rounds. `activity_with_middle` adds `rP / w` when no nonzero difference stays off
-  coordinate `0` for `w` applications of the unscaled `diag d + J`; by `inactiveSpace_internal`
-  the scale does not matter, so a Krylov certificate
+  the full rounds. `activity_with_middle` adds `rP / w` when no nonzero difference stays
+  inactive through `w` consecutive partial rounds with the unscaled layer `diag d + J`; by
+  `inactiveSpace_internal` the scale does not matter, so a Krylov certificate
   (`Hades.inactiveSpace_diagPlusOnes_eq_bot`) need not mention `c`.
 * `independent_key_probability`, `independent_key_probability_with_middle`: if `sbox` has
   differential uniformity at most `u` and `u * 2^dd ≤ |K|`, then for every nonzero trail `T`,
   `keyCount * 2^(dd * 32) ≤ |K^16|^(8 + rP)`, and with exponent `dd * (32 + rP / w)` under the
   inactive-space hypothesis.
-* `finrank_inactiveSpace_internal`: at least `16 - r` dimensions of differences avoid the S-box
-  for `r` internal rounds (at least `3` for `r = 13`). A difference entering the partial rounds in
-  that space crosses them with no charged S-box (`Hades.IsTrail.free_window`), and
-  `middle_term_eq_zero` shows that for `rP < 16` the middle term `rP / w` is `0`.
+* `finrank_inactiveSpace_internal`: at least `16 - r` dimensions of differences stay inactive
+  through `r` consecutive partial rounds (at least `3` for `r = 13`). A difference entering the
+  partial rounds in that space crosses them with no charged S-box (`Hades.IsTrail.free_window`),
+  and `middle_term_eq_zero` shows that for `rP < 16` the middle term `rP / w` is `0`.
 
 ## What is not claimed
 
@@ -285,7 +291,9 @@ theorem one_add_sum_inv_ne_zero_iff (h2 : (2 : K) ≠ 0) :
 
 /-- **The internal layer** `x ↦ c (diag d + J) x` with the SP1 diagonal: coordinate `i` of the
 image is `c (d_i x_i + ∑_j x_j)` (`internal_apply`). The code's value of `c` is
-`R^{-1}` for `R = 2^32`; here `c` is any nonzero scalar. -/
+`R^{-1}` for `R = 2^32` (`MONTY_BITS = 32`, `p3-koala-bear` `0.4.3-succinct`
+`src/koala_bear.rs:21`, `p3-baby-bear` `0.2.3-succinct` `src/baby_bear.rs:17`); here `c` is any
+nonzero scalar. -/
 def internal (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0) (hs : (81917 : K) ≠ 0) :
     (Fin 16 → K) ≃ₗ[K] (Fin 16 → K) :=
   diagPlusOnesEquiv c (sp1Diag K) hc (sp1Diag_ne_zero h2)
@@ -318,9 +326,9 @@ theorem inactiveSpace_internal (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0)
       Hades.inactiveSpace (diagPlusOnes (1 : K) (sp1Diag K)) mask r :=
   Hades.inactiveSpace_diagPlusOnes hc _ mask r
 
-/-- **At least `16 - r` dimensions avoid the S-box for `r` internal rounds** (rank–nullity,
-`Hades.card_sub_le_finrank_inactiveSpace`). For `13` partial rounds this is at least `3`. It is
-a lower bound only. -/
+/-- **At least `16 - r` dimensions of differences stay inactive through `r` consecutive partial
+rounds** (rank–nullity, `Hades.card_sub_le_finrank_inactiveSpace`). For `r = 13` this is at
+least `3`. It is a lower bound only. -/
 theorem finrank_inactiveSpace_internal (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0)
     (hs : (81917 : K) ≠ 0) (r : ℕ) :
     16 - r ≤ Module.finrank K
@@ -329,15 +337,15 @@ theorem finrank_inactiveSpace_internal (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 
     ({0} : Finset (Fin 16)) r
   rwa [Fintype.card_fin, Finset.card_singleton, mul_one] at h
 
-/-- Fewer than `16` internal rounds leave a nonzero difference that avoids the S-box in all of
-them. -/
+/-- For `r < 16`, some nonzero difference stays inactive through `r` consecutive partial
+rounds. -/
 theorem inactiveSpace_internal_ne_bot (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0)
     (hs : (81917 : K) ≠ 0) {r : ℕ} (hr : r < 16) :
     Hades.inactiveSpace (internal c hc h2 hs).toLinearMap ({0} : Finset (Fin 16)) r ≠ ⊥ :=
   Hades.inactiveSpace_ne_bot _ _ r (by simpa using hr)
 
-/-- Thirteen internal rounds, as in SP1's BabyBear instance, leave at least three dimensions of
-differences that avoid the S-box in every one of them. -/
+/-- At least three dimensions of differences stay inactive through thirteen consecutive partial
+rounds, the number of partial rounds in SP1's BabyBear instance. -/
 theorem three_le_finrank_inactiveSpace_thirteen (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0)
     (hs : (81917 : K) ≠ 0) :
     3 ≤ Module.finrank K
@@ -392,7 +400,12 @@ def linear (hK : Conditions c) (rP n : ℕ) : (Fin 16 → K) ≃ₗ[K] (Fin 16 �
   else internal c hK.scale hK.two hK.shermanMorrison
 
 /-- The rounds: four full, `rP` partial with the S-box on coordinate `0`, four full, with the
-same S-box everywhere and an arbitrary table of round constants. -/
+same S-box everywhere and an arbitrary table of round constants. Four is the code's
+`rounds_f_half = rounds_f / 2` (`p3-poseidon2` `src/lib.rs:182`) for SP1's `ROUNDS_F = 8`
+(`slop-koala-bear` `6.10.0` `src/koala_bear_poseidon2.rs:49`; `sp1-primitives` `5.2.4`
+`src/lib.rs:1108`). SP1's `rP` is `ROUNDS_P`: `20` for KoalaBear (`slop-koala-bear` `6.10.0`
+`src/koala_bear_poseidon2.rs:50`) and `13` for BabyBear (`sp1-primitives` `5.2.4`
+`src/lib.rs:1109`). -/
 def rounds (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K) (values : ℕ → Fin 16 → K) :
     ℕ → Hades.RoundSpec (Fin 16) K :=
   Hades.hadesSchedule 4 rP 4 {0} (fun _ _ => sbox) (linear hK rP) values
@@ -447,7 +460,8 @@ theorem rounds_apply_suffix (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
 
 /-- The partial rows of a round-constant table vanish off the S-box coordinate. Plonky3 adds a
 partial-round constant to `state[0]` only (`p3-poseidon2` `src/lib.rs:190-191`), and a HADES round
-adds the whole row, so tables with this property are the ones the code can realise. -/
+adds the whole row, so tables with this property are the ones the code can realise. A raw
+constant table from a source need not have it; see `roundValues`. -/
 def PartialRowsAtZero (rP : ℕ) (values : ℕ → Fin 16 → K) : Prop :=
   ∀ j < rP, ∀ i : Fin 16, i ≠ 0 → values (4 + j) i = 0
 
@@ -472,7 +486,14 @@ theorem rounds_apply_middle (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
 (the code's `external_constants`, read in order by the two full-round loops,
 `p3-poseidon2` `src/lib.rs:183-184`, `:197-198`), and `int` the `rP` internal scalars
 (`internal_constants`, line 191). Partial rows carry their scalar at coordinate `0` and zero
-elsewhere. -/
+elsewhere.
+
+SP1 `5.2.4`'s BabyBear table `RC_16_30` cannot be used directly as `values`: columns `1-15` of
+its rows `4-16` are nonzero, so it is not `PartialRowsAtZero`, and the eight external rows that
+the code reads are rows `0-3` and `17-20`, not a contiguous block. The code's table is
+`roundValues 13 ext int` with `ext` rows `0-3` and `17-20` of `RC_16_30` and `int` column `0` of
+rows `4-16` (`sp1-primitives` `5.2.4` `src/lib.rs:1110-1115`); `BabyBear.values_eq_roundValues`
+states this for the pinned table. -/
 def roundValues (rP : ℕ) (ext : Fin 8 → Fin 16 → K) (int : Fin rP → K) (n : ℕ) : Fin 16 → K :=
   if h : n < 4 then ext ⟨n, by omega⟩
   else if h' : n < 4 + rP then Pi.single 0 (int ⟨n - 4, by omega⟩)
@@ -552,12 +573,12 @@ theorem activity (hK : Conditions c) (hprimes : ∀ p ∈ m4Primes, (p : K) ≠ 
   rw [show 8 + rP = 4 + rP + 4 by omega]
   exact le_trans (le_of_eq (by norm_num)) h
 
-/-- **The partial rounds charged.** If no nonzero difference stays off coordinate `0` for `w`
-consecutive applications of `diag d + J`, then each of the `rP / w` disjoint windows of `w`
-partial rounds charges at least one S-box. The hypothesis does not mention the scale `c`
-(`inactiveSpace_internal`); for a concrete field it is a Krylov certificate
-(`Hades.inactiveSpace_diagPlusOnes_eq_bot`). With `w = 16`: `33` for `rP = 20`, and `32` for
-`rP = 13`, where the middle term vanishes. -/
+/-- **The partial rounds charged.** If no nonzero difference stays inactive through `w`
+consecutive partial rounds with the unscaled layer `diag d + J` (`htriv`), then each of the
+`rP / w` disjoint windows of `w` partial rounds charges at least one S-box. The hypothesis does
+not mention the scale `c` (`inactiveSpace_internal`); for a concrete field it is a Krylov
+certificate (`Hades.inactiveSpace_diagPlusOnes_eq_bot`). With `w = 16`: `33` for `rP = 20`, and
+`32` for `rP = 13`, where the middle term vanishes. -/
 theorem activity_with_middle (hK : Conditions c) (hprimes : ∀ p ∈ m4Primes, (p : K) ≠ 0)
     (rP : ℕ) (sbox : K ≃ K) (values : ℕ → Fin 16 → K) {w : ℕ}
     (htriv : Hades.inactiveSpace (diagPlusOnes (1 : K) (sp1Diag K)) ({0} : Finset (Fin 16)) w = ⊥)

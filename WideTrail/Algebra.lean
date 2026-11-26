@@ -13,5 +13,6 @@ import WideTrail.Algebra.BlockCirculant
 import WideTrail.Algebra.DiagPlusOnes
 import WideTrail.Algebra.Checks.MDS4
 import WideTrail.Algebra.Checks.BlockCirculant
+import WideTrail.Algebra.Checks.Axioms
 
 /-! Concrete finite-field arithmetic and MDS branch bounds. -/

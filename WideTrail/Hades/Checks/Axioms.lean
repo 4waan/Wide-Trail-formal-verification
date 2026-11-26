@@ -4,13 +4,18 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Awaan Siddiqui
 -/
 import WideTrail.Hades.Checks.Toy
+import WideTrail.Hades.Subspace
+import WideTrail.Hades.Krylov
 
 /-!
 # Pinned axiom footprints for the HADES model and its checks
 
 These guards cover actual execution semantics, activity bounds, finite witnesses,
-and missing-assumption counterexamples. The module-based CI audit additionally
-checks every project declaration, including generated declarations.
+missing-assumption counterexamples, the independent-key trail bounds of `Probability.lean`, and
+the inactive-space results of `Subspace.lean` and `Krylov.lean`. `card_sub_le_finrank_inactiveSpace`
+is pinned in `WideTrail.Poseidon2.Checks.Plonky3`, and `inactiveSpace_eq_bot_of_krylov` and
+`inactiveSpace_diagPlusOnes_eq_bot` in `WideTrail.Hades.Checks.Krylov`. The module-based CI
+audit additionally checks every project declaration, including generated declarations.
 -/
 
 /-- info: 'Hades.masked_support' depends on axioms: [propext, Classical.choice, Quot.sound] -/
@@ -116,3 +121,39 @@ checks every project declaration, including generated declarations.
 /-- info: 'Hades.Toy.omitted_final_mix' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Hades.Toy.omitted_final_mix
+
+/-! ### Independent-key trail bounds -/
+
+/-- info: 'Hades.keyCount_weight_bound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.keyCount_weight_bound
+
+/-- info: 'Hades.hades_probability' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.hades_probability
+
+/-! ### Inactive propagation through partial rounds -/
+
+/-- info: 'Hades.IsTrail.free_window' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.IsTrail.free_window
+
+/-- info: 'Hades.inactiveSpace_ne_bot' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.inactiveSpace_ne_bot
+
+/-- info: 'Hades.outer_middle_bound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.outer_middle_bound
+
+/-- info: 'Hades.hades_probability_with_middle' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.hades_probability_with_middle
+
+/-- info: 'Hades.mem_inactiveSpace_singleton_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.mem_inactiveSpace_singleton_iff
+
+/-- info: 'Hades.inactiveSpace_diagPlusOnes' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.inactiveSpace_diagPlusOnes
