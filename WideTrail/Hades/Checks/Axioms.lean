@@ -13,9 +13,10 @@ import WideTrail.Hades.Krylov
 These guards cover actual execution semantics, activity bounds, finite witnesses,
 missing-assumption counterexamples, the independent-key trail bounds of `Probability.lean`, and
 the inactive-space results of `Subspace.lean` and `Krylov.lean`. `card_sub_le_finrank_inactiveSpace`
-is pinned in `WideTrail.Poseidon2.Checks.Plonky3`, and `inactiveSpace_eq_bot_of_krylov` and
-`inactiveSpace_diagPlusOnes_eq_bot` in `WideTrail.Hades.Checks.Krylov`. The module-based CI
-audit additionally checks every project declaration, including generated declarations.
+is pinned in `WideTrail.Poseidon2.Checks.Plonky3`, `inactiveSpace_eq_bot_of_krylov` and
+`inactiveSpace_diagPlusOnes_eq_bot` in `WideTrail.Hades.Checks.Krylov`, and the results of
+`Dimension.lean` in `WideTrail.Hades.Checks.Dimension`. The module-based CI audit additionally
+checks every project declaration, including generated declarations.
 -/
 
 /-- info: 'Hades.masked_support' depends on axioms: [propext, Classical.choice, Quot.sound] -/

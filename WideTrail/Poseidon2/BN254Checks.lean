@@ -1,5 +1,4 @@
 import WideTrail.Poseidon2.BN254
-import WideTrail.Poseidon2.BN254Middle
 
 /-! A checked execution trace for the pinned upstream known-answer vector. -/
 
@@ -248,21 +247,3 @@ end Poseidon2.BN254.Checks
 /-- info: 'Poseidon2.BN254.Checks.sharp_exponent_succ_fails' depends on axioms: [propext] -/
 #guard_msgs in
 #print axioms Poseidon2.BN254.Checks.sharp_exponent_succ_fails
-
-/-! ### The internal matrix as `diag (1, 1, 2) + J`, and the diagonal criterion -/
-
-/-- info: 'Poseidon2.BN254.internal_toLinearMap_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in
-#print axioms Poseidon2.BN254.internal_toLinearMap_eq
-
-/-- info: 'Poseidon2.BN254.internalDiag_injOn' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in
-#print axioms Poseidon2.BN254.internalDiag_injOn
-
-/-- info: 'Poseidon2.BN254.internal_inactive_trivial_by_criterion' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in
-#print axioms Poseidon2.BN254.internal_inactive_trivial_by_criterion
-
-/-- info: 'Poseidon2.BN254.finrank_internal_inactive' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in
-#print axioms Poseidon2.BN254.finrank_internal_inactive

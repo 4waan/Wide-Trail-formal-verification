@@ -65,6 +65,11 @@ every hypothesis of its theorems by `decide`.
   (`u j = A^j e_0` for `A = diag d + J`) and `krylovInv` (a left inverse of the matrix with rows
   `u j`) were computed outside Lean, and `decide` checks the recurrence and the inverse. By
   `Plonky3.inactiveSpace_internal` the factor `R^{-1}` plays no role.
+* `internal_inactive_trivial_by_criterion`, `inactive_trivial_by_criterion`: the same statement
+  for the code's layer and for `diag d + J`, proved a second way with no table: the diagonal
+  entries off coordinate `0` are pairwise distinct in `F` (`diag_injOn`, by `decide`), and
+  `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff` applies. `finrank_inactive_eq`: exactly
+  `16 - r` dimensions of differences stay inactive through `r ≤ 16` consecutive partial rounds.
 * `activity`, `activity_general`: two distinct inputs incur at least `33` charged S-box
   applications, `32` in the full rounds and `20 / 16 = 1` in the partial rounds.
 * `independent_key_probability`, `independent_key_probability_general`: for every nonzero

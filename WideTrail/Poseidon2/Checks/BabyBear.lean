@@ -640,6 +640,10 @@ info: 'Poseidon2.BabyBear.independent_key_probability_sharp_general' depends on 
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.diag_injOn
 
+/-- info: 'Poseidon2.BabyBear.inactive_trivial_by_criterion' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.inactive_trivial_by_criterion
+
 /-- info: 'Poseidon2.BabyBear.inactive_sixteen' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.inactive_sixteen

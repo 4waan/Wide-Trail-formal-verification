@@ -14,9 +14,11 @@ Each `#guard_msgs` below fixes the exact output of `#print axioms` for one resul
 `WideTrail.Poseidon2` that is not pinned elsewhere: the headline theorems of the BN254
 certificate (`BN254.lean`, `BN254Middle.lean`), and the results of the generic Plonky3 model and
 of the KoalaBear and BabyBear instances that the pins at the ends of `Checks/Plonky3.lean`,
-`Checks/KoalaBear.lean` and `Checks/BabyBear.lean` do not cover. Every footprint is
-`[propext, Classical.choice, Quot.sound]`, so none of these results uses `sorryAx` or
-`Lean.ofReduceBool`.
+`Checks/KoalaBear.lean` and `Checks/BabyBear.lean` do not cover. The BN254 pins include the
+internal matrix as `diag (1, 1, 2) + J` and the diagonal-criterion results of
+`BN254Middle.lean`. Every footprint is `[propext, Classical.choice, Quot.sound]` or a subset of
+it (`BN254.sharp_exponent_bound` uses `propext` only), so none of these results uses `sorryAx`
+or `Lean.ofReduceBool`.
 
 These guards record which axioms the proofs use; they say nothing about the statements
 themselves, and nothing here strengthens the claims of the certificate files. The module-based
@@ -60,6 +62,22 @@ namespace Poseidon2.AxiomChecks
 /-- info: 'Poseidon2.BN254.independent_key_probability_with_partial' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.BN254.independent_key_probability_with_partial
+
+/-- info: 'Poseidon2.BN254.internal_toLinearMap_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.internal_toLinearMap_eq
+
+/-- info: 'Poseidon2.BN254.internalDiag_injOn' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.internalDiag_injOn
+
+/-- info: 'Poseidon2.BN254.internal_inactive_trivial_by_criterion' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.internal_inactive_trivial_by_criterion
+
+/-- info: 'Poseidon2.BN254.finrank_internal_inactive' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BN254.finrank_internal_inactive
 
 /-! ### The generic Plonky3 model -/
 

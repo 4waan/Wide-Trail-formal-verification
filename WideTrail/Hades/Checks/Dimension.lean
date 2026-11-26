@@ -32,7 +32,8 @@ and that its bounds are attained.
   coordinate. The chain is `⊥` from two rounds on (`swap_inactive_eq_bot`), again earlier than
   `card Idx = 4`.
 
-The axiom footprints of the general results and of the checks are pinned at the end of the file.
+The axiom footprints of every theorem of `WideTrail.Hades.Dimension` and of this file are pinned
+at the end of the file.
 -/
 
 set_option autoImplicit false
@@ -186,6 +187,14 @@ theorem swap_inactive_eq_bot {r : ℕ} (hr : 2 ≤ r) : inactiveSpace swap mask 
 
 end Hades.DimensionToy
 
+/-- info: 'Hades.inactiveSpace_zero' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.inactiveSpace_zero
+
+/-- info: 'Hades.mem_inactiveSpace_one' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.mem_inactiveSpace_one
+
 /-- info: 'Hades.inactiveSpace_succ' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Hades.inactiveSpace_succ
@@ -242,13 +251,37 @@ end Hades.DimensionToy
 #guard_msgs in
 #print axioms Hades.finrank_inactiveSpace_diagPlusOnes
 
+/-- info: 'Hades.DimensionToy.collision_not_injOn' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.DimensionToy.collision_not_injOn
+
 /-- info: 'Hades.DimensionToy.collision_inactive_ne_bot' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Hades.DimensionToy.collision_inactive_ne_bot
 
+/-- info: 'Hades.DimensionToy.L_witness' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.DimensionToy.L_witness
+
 /-- info: 'Hades.DimensionToy.collision_witness_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Hades.DimensionToy.collision_witness_mem
+
+/-- info: 'Hades.DimensionToy.single_zero_not_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.DimensionToy.single_zero_not_mem
+
+/-- info: 'Hades.DimensionToy.single_one_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.DimensionToy.single_one_mem
+
+/-- info: 'Hades.DimensionToy.single_one_not_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.DimensionToy.single_one_not_mem
+
+/-- info: 'Hades.DimensionToy.collision_chain_strict' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.DimensionToy.collision_chain_strict
 
 /-- info: 'Hades.DimensionToy.collision_chain_stable' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
@@ -257,6 +290,10 @@ end Hades.DimensionToy
 /-- info: 'Hades.DimensionToy.collision_finrank_stable' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Hades.DimensionToy.collision_finrank_stable
+
+/-- info: 'Hades.DimensionToy.swap_inactive_two' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.DimensionToy.swap_inactive_two
 
 /-- info: 'Hades.DimensionToy.swap_finrank_drop' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in

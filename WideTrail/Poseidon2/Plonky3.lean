@@ -86,6 +86,13 @@ constant table need not have this form: SP1 `5.2.4`'s BabyBear table `RC_16_30` 
   through `r` consecutive partial rounds (at least `3` for `r = 13`). A difference entering the
   partial rounds in that space crosses them with no charged S-box (`Hades.IsTrail.free_window`),
   and `middle_term_eq_zero` shows that for `rP < 16` the middle term `rP / w` is `0`.
+* `inactiveSpace_sixteen_eq_bot_iff`: no nonzero difference stays inactive through sixteen
+  consecutive partial rounds with `diag d + J` exactly when the diagonal entries `d i`, `i ≠ 0`,
+  are pairwise distinct in `K` (`Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`). Under that
+  condition `inactiveSpace_internal_sixteen_eq_bot` states the same for the scaled layer, and
+  `finrank_inactiveSpace_internal_eq` makes `finrank_inactiveSpace_internal` exact: `16 - r`
+  dimensions for `r ≤ 16`. This is a second route to the inactive-space hypothesis of
+  `activity_with_middle` with `w = 16`, with no Krylov table.
 
 ## What is not claimed
 
@@ -730,8 +737,8 @@ namespace Poseidon2.Plonky3
 
 variable {K : Type*} [Field K]
 
-/-- The injectivity hypothesis below from a statement that `decide` can check for a concrete
-field. -/
+/-- Derives the injectivity hypothesis below from a `∀ i j : Fin 16` statement that `decide` can
+check for a concrete field. -/
 theorem injOn_sp1Diag_of_forall
     (h : ∀ i j : Fin 16, i ≠ 0 → j ≠ 0 → sp1Diag K i = sp1Diag K j → i = j) :
     Set.InjOn (sp1Diag K) {i | i ≠ 0} :=

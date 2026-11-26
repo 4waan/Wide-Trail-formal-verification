@@ -16,6 +16,13 @@ The internal matrix leaves no nonzero difference inactive for three consecutive
 rounds, so every window of three internal rounds applies the S-box to a nonzero
 difference at least once. Fifty-six rounds hold eighteen disjoint windows.
 
+The internal matrix is `diag (1, 1, 2) + J` (`internal_toLinearMap_eq`), and its diagonal
+entries off coordinate `0` are distinct (`internalDiag_injOn`). So the general criterion
+`Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff` gives a second proof of the three-round
+statement (`internal_inactive_trivial_by_criterion`), and exactly `3 - r` dimensions of
+differences stay inactive through `r ≤ 3` consecutive internal rounds
+(`finrank_internal_inactive`).
+
 The same count is carried into the independently keyed trail bound. As in
 `BN254.lean`, that bound concerns one trail and an additional independent uniform
 key per round. It says nothing about the fixed public constants alone, nor about

@@ -72,8 +72,9 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
   `6 * 2^28 ≤ p`, so `dd = 28`, and `28 * 32 = 896`, `probability_exponent`).
   `independent_key_probability_general` is the same for every round-constant table.
 * **The partial rounds contribute nothing to this argument.** A nonzero space of differences,
-  of dimension at least `3`, stays inactive through the thirteen consecutive partial rounds
-  (`partial_inactive_ne_bot`, `three_le_finrank_partial_inactive`); every window `w` for
+  of dimension exactly `3` (`finrank_partial_inactive`; the lower bound
+  `three_le_finrank_partial_inactive` is from rank–nullity), stays inactive through the thirteen
+  consecutive partial rounds (`partial_inactive_ne_bot`); every window `w` for
   which `Plonky3.activity_with_middle` applies has `13 / w = 0`
   (`partial_window_term_eq_zero`); and there are distinct inputs whose actual difference
   charges no S-box in any of the thirteen partial rounds (`exists_pair_partial_free`).
@@ -84,6 +85,12 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
   `src/round_numbers.rs:6-11`) states that, for these parameters, the statistical constraint
   it uses reduces to `RF ≥ 6`, a condition on the full rounds alone; that analysis is not
   checked here.
+* `finrank_inactive_eq`: exactly `16 - r` dimensions of differences stay inactive through
+  `r ≤ 16` consecutive partial rounds. For `r = 16` the space is `⊥`: `inactive_sixteen` for
+  the code's layer, and `inactive_trivial_by_criterion` for `diag d + J`, which is the
+  hypothesis of `Plonky3.activity_with_middle` with `w = 16`. The proofs use that the diagonal
+  entries off coordinate `0` are pairwise distinct in `F` (`diag_injOn`, by `decide`) and the
+  criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`; no Krylov table is used.
 
 ## What is not claimed
 
@@ -493,8 +500,9 @@ entries off coordinate `0`, namely `1, 2, 4, …, 2^13, 2^15`, are pairwise dist
 (`diag_injOn`, by `decide`), so the criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`
 makes it exact: the differences that stay inactive through the thirteen consecutive partial
 rounds form a space of dimension exactly `3` (`finrank_partial_inactive`), and no nonzero
-difference would stay inactive through sixteen (`inactive_sixteen`). So the hypothesis of
-`Plonky3.activity_with_middle` holds with `w = 16` over `F`, and `13 / 16 = 0`, as
+difference would stay inactive through sixteen (`inactive_sixteen`). For the unscaled layer
+`diag d + J` this is `inactive_trivial_by_criterion`, the hypothesis of
+`Plonky3.activity_with_middle` with `w = 16` over `F`; there `13 / 16 = 0`, as
 `partial_window_term_eq_zero` states for every admissible `w`. No Krylov table is used here.
 
 These are statements about inactive differences of the partial rounds only: they are the
@@ -509,6 +517,13 @@ open Plonky3
 /-- The diagonal entries `d 1, …, d 15` are pairwise distinct in `F`, by `decide`. -/
 theorem diag_injOn : Set.InjOn (sp1Diag F) {i | i ≠ 0} :=
   injOn_sp1Diag_of_forall (by decide)
+
+/-- **No nonzero difference stays inactive through sixteen consecutive partial rounds**, for
+the unscaled layer `diag d + J`, by the diagonal criterion. This is the hypothesis of
+`Plonky3.activity_with_middle` with `w = 16` over `F`. -/
+theorem inactive_trivial_by_criterion :
+    Hades.inactiveSpace (diagPlusOnes (1 : F) (sp1Diag F)) ({0} : Finset (Fin 16)) 16 = ⊥ :=
+  inactiveSpace_sixteen_eq_bot_iff.mpr diag_injOn
 
 /-- **No nonzero difference stays inactive through sixteen consecutive partial rounds** of the
 code's internal layer, by the diagonal criterion. BabyBear has only thirteen partial rounds. -/
