@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Awaan Siddiqui. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Awaan Siddiqui
+-/
 import WideTrail.Hades.Probability
 import Mathlib.Algebra.Module.LinearMap.End
 import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
