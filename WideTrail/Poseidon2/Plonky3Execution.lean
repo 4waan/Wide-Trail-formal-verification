@@ -12,10 +12,13 @@ import WideTrail.Poseidon2.Plonky3
 equivalences and finite sums over `Fin 16`. That form suits the proofs there. This file gives a
 second implementation of the same function in which every coordinate is a named field and every
 layer is written out coordinate by coordinate, with no `LinearEquiv`, `Matrix` or `Finset` inside
-the computation. The runner is defined over any commutative ring. Over a field it computes the
-specification state for every scale `c` with `Conditions c`, every S-box `sbox : K ≃ K`, every
-round-constant table, every number `rP` of partial rounds, every input and every number of rounds.
-`Checks/Plonky3KAT.lean` evaluates it by `decide`.
+the computation. The runner is defined over any commutative ring and takes the internal diagonal
+as sixteen ring elements (`Diag.internalDense`). Over a field it computes the specification state
+of `Plonky3.Diag.permutation` for every diagonal `d` and scale `c` with
+`Diag.Conditions d.toState c`, every S-box `sbox : K ≃ K`, every round-constant table, every
+number `rP` of partial rounds, every input and every number of rounds. The SP1 runner is the case
+`d = sp1DiagDense`, by definition. `Checks/Plonky3KAT.lean` evaluates the SP1 runner by `decide`,
+and `Checks/Plonky3.lean` the runner with another diagonal.
 
 ## The runner
 
@@ -26,32 +29,45 @@ round-constant table, every number `rP` of partial rounds, every input and every
   `0.4.3-succinct` `src/matrix.rs:43-57`; the `0.2.3-succinct` file is byte-identical) with its
   additions in the code's order, `mat4Dense` applies it to the four blocks `state[4b..4b+4]`
   (`:113-123`), and `addSums` adds `sums[i % 4]` to coordinate `i` (`:127-138`).
-* `internalDense c`: coordinate `i` becomes `c (d_i x_i + s)`, `s = x0 + ⋯ + x15`, with the
-  diagonal `d = (-2, 1, 2, 4, …, 2^13, 2^15)` of `Plonky3.sp1Diag` written as numerals. This is
-  the field-level layer of the generic model, with scale `c` (intended `R^{-1}`, `R = 2^32`).
-* `roundDense c rP sbox values n`: round `n` of `Plonky3.rounds`. It adds the row `values n` to
-  every coordinate; then, for `n < 4` and `4 + rP ≤ n < 8 + rP`, applies `sbox` to every
-  coordinate and the external layer; for `4 ≤ n < 4 + rP`, applies `sbox` to coordinate `0` and
-  the internal layer; for `n ≥ 8 + rP`, where `Hades.hadesMask` is empty, applies the external
+* `Diag.internalDense d c`: coordinate `i` becomes `c (d_i x_i + s)`, `s = x0 + ⋯ + x15`, for
+  a diagonal `d : Dense R` given as sixteen ring elements. This is the field-level layer
+  `Plonky3.Diag.internal` with scale `c`.
+* `Diag.roundDense d c rP sbox values n`: round `n` of `Plonky3.Diag.rounds`. It adds the row
+  `values n` to every coordinate; then, for `n < 4` and `4 + rP ≤ n < 8 + rP`, applies `sbox` to
+  every coordinate and the external layer; for `4 ≤ n < 4 + rP`, applies `sbox` to coordinate `0`
+  and the internal layer; for `n ≥ 8 + rP`, where `Hades.hadesMask` is empty, applies the external
   layer alone.
-* `executeDense c rP sbox values x n`: the first `n` rounds from `x`. `permutationDense`: the
-  initial external layer, then `8 + rP` rounds.
+* `Diag.executeDense d c rP sbox values x n`: the first `n` rounds from `x`.
+  `Diag.permutationDense`: the initial external layer, then `8 + rP` rounds.
+* The SP1 runner: `sp1DiagDense` is the diagonal `(-2, 1, 2, 4, …, 2^13, 2^15)` of
+  `Plonky3.sp1Diag` written as numerals (`sp1DiagDense_toState`), and `internalDense c`,
+  `roundDense c`, `executeDense c` and `permutationDense c` are the `Diag` functions at
+  `d = sp1DiagDense`. The scale `c` is intended to be `R^{-1}`, `R = 2^32`.
 
 ## Results
 
 * `mat4_eq`: the addition chain of `apply_mat4` computes the rows of `circ(2, 3, 1, 1)`.
 * `externalDense_toState`: `externalDense` is `Plonky3.mdsLight`, the transcription of
   `mds_light_permutation`; `externalDense_toState_external`: it is `Plonky3.external`.
-* `internalDense_toState`: `internalDense c` is `Plonky3.internal c`.
-* `roundDense_toState`: each round is the specification's round
-  `(rounds hK rP sbox values n).apply`.
-* `executeDense_toState`: for every `n`, the runner's state after `n` rounds is the
-  specification state `Hades.execute (rounds hK rP sbox values) x n`.
-* `permutationDense_toState`, `permutation_eq_permutationDense`: the runner's permutation is
-  `Plonky3.permutation hK rP sbox values`.
-* `permutation_eq_of_dense`, `permutation_ne_of_dense`, `execute_eq_of_dense`,
-  `execute_ne_of_dense`: an equality or inequality of runner states, checked by `decide`, gives
-  the same statement for the specification.
+* For every diagonal `d : Dense K` and every `hD : Plonky3.Diag.Conditions d.toState c`:
+  `Diag.internalDense_toState` (`Diag.internalDense d c` is `Plonky3.Diag.internal d.toState c`);
+  `Diag.roundDense_toState` (each round is the specification's round
+  `(Plonky3.Diag.rounds hD rP sbox values n).apply`); `Diag.executeDense_toState` (for every `n`,
+  the runner's state after `n` rounds is
+  `Hades.execute (Plonky3.Diag.rounds hD rP sbox values) x n`); `Diag.permutationDense_toState`
+  and `Diag.permutation_eq_permutationDense` (the runner's permutation is
+  `Plonky3.Diag.permutation hD rP sbox values`); and the transfers
+  `Diag.permutation_eq_of_dense`, `Diag.permutation_ne_of_dense`, `Diag.execute_eq_of_dense`,
+  `Diag.execute_ne_of_dense`: an equality or inequality of runner states, checked by `decide`,
+  gives the same statement for the specification.
+* The same results for the SP1 runner with `hK : Plonky3.Conditions c`, under the same names
+  without `Diag.`: `internalDense_toState` (`internalDense c` is `Plonky3.internal c`),
+  `roundDense_toState`, `executeDense_toState`, `execute_eq_executeDense`,
+  `permutationDense_toState`, `permutation_eq_permutationDense` (the runner's permutation is
+  `Plonky3.permutation hK rP sbox values`), `permutation_eq_of_dense`, `permutation_ne_of_dense`,
+  `execute_eq_of_dense`, `execute_ne_of_dense`. Each is the `Diag` result at `d = sp1DiagDense`,
+  with `hK.toDiagDense : Plonky3.Diag.Conditions sp1DiagDense.toState c` obtained from
+  `hK.toDiag` and `sp1DiagDense_toState`.
 
 The runner adds the whole row `values n` in every round, as a HADES round does, so it agrees
 with the specification for every table. For tables with `PartialRowsAtZero`, such as
@@ -63,12 +79,13 @@ with the specification for every table. For tables with `PartialRowsAtZero`, suc
 This file is a second implementation of the model of `WideTrail.Poseidon2.Plonky3`, proved equal
 to it. It adds no claim about the Rust code beyond the transcriptions cited: `mat4` follows the
 additions of `apply_mat4`, while the internal layer is the field-level reading of the Montgomery
-code described in the generic model, not a transcription of that code. No security statement is
-made here. The activity counts of the generic model are lower bounds on charged S-boxes for actual
-input pairs, and its probability statements concern one trail in the model with an additional
-independent uniform key per round, not the permutation with fixed constants and not a
-differential. Nothing is said about subspace-trail resistance, algebraic attacks, sponge or duplex
-constructions, or equivalence with the Rust code or the AIR.
+code described in the generic model, not a transcription of that code. The only diagonal
+identified with source code is `sp1DiagDense`. No security statement is made here. The activity
+counts of the generic model are lower bounds on charged S-boxes for actual input pairs, and its
+probability statements concern one trail in the model with an additional independent uniform key
+per round, not the permutation with fixed constants and not a differential. Nothing is said
+about subspace-trail resistance, algebraic attacks, sponge or duplex constructions, or
+equivalence with the Rust code or the AIR.
 -/
 
 set_option autoImplicit false
@@ -194,39 +211,67 @@ def addSums (y : Dense R) : Dense R :=
 /-- The external layer, `mds_light_permutation::<_, MDSMat4, 16>` (`src/matrix.rs:110-139`). -/
 def externalDense (x : Dense R) : Dense R := addSums (mat4Dense x)
 
-/-- The internal layer: coordinate `i` becomes `c (d_i x_i + s)` with `s = x0 + ⋯ + x15` and
-`d = (-2, 1, 2, 4, …, 2^13, 2^15)` (`p3-koala-bear` `0.4.3-succinct` `src/poseidon2.rs:37-58`,
-`p3-baby-bear` `0.2.3-succinct` `src/poseidon2.rs:29-49`; equal to `Plonky3.sp1Diag` by
-`internalDense_toState_apply`). -/
-def internalDense (c : R) (x : Dense R) : Dense R :=
+namespace Diag
+
+/-- The internal layer for a diagonal `d` given as sixteen ring elements: coordinate `i`
+becomes `c (d_i x_i + s)` with `s = x0 + ⋯ + x15` (`Diag.internalDense_toState_apply`). -/
+def internalDense (d : Dense R) (c : R) (x : Dense R) : Dense R :=
   let s := x.x0 + x.x1 + x.x2 + x.x3 + x.x4 + x.x5 + x.x6 + x.x7 + x.x8 + x.x9 + x.x10 +
     x.x11 + x.x12 + x.x13 + x.x14 + x.x15
-  ⟨c * (-2 * x.x0 + s), c * (x.x1 + s), c * (2 * x.x2 + s), c * (4 * x.x3 + s),
-    c * (8 * x.x4 + s), c * (16 * x.x5 + s), c * (32 * x.x6 + s), c * (64 * x.x7 + s),
-    c * (128 * x.x8 + s), c * (256 * x.x9 + s), c * (512 * x.x10 + s), c * (1024 * x.x11 + s),
-    c * (2048 * x.x12 + s), c * (4096 * x.x13 + s), c * (8192 * x.x14 + s),
-    c * (32768 * x.x15 + s)⟩
+  ⟨c * (d.x0 * x.x0 + s), c * (d.x1 * x.x1 + s), c * (d.x2 * x.x2 + s), c * (d.x3 * x.x3 + s),
+    c * (d.x4 * x.x4 + s), c * (d.x5 * x.x5 + s), c * (d.x6 * x.x6 + s), c * (d.x7 * x.x7 + s),
+    c * (d.x8 * x.x8 + s), c * (d.x9 * x.x9 + s), c * (d.x10 * x.x10 + s),
+    c * (d.x11 * x.x11 + s), c * (d.x12 * x.x12 + s), c * (d.x13 * x.x13 + s),
+    c * (d.x14 * x.x14 + s), c * (d.x15 * x.x15 + s)⟩
 
-/-- Round `n` of `Plonky3.rounds`: add the row `values n`, then the S-box layer of
-`Hades.hadesMask 4 rP 4 {0} n` and the linear layer of `Plonky3.linear`. -/
-def roundDense (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R) (n : ℕ)
+/-- Round `n` of `Plonky3.Diag.rounds`: add the row `values n`, then the S-box layer of
+`Hades.hadesMask 4 rP 4 {0} n` and the linear layer of `Plonky3.Diag.linear`. -/
+def roundDense (d : Dense R) (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R) (n : ℕ)
     (x : Dense R) : Dense R :=
   if n < 4 then externalDense (sboxAll sbox (addRow x (values n)))
-  else if n < 4 + rP then internalDense c (sboxFirst sbox (addRow x (values n)))
+  else if n < 4 + rP then internalDense d c (sboxFirst sbox (addRow x (values n)))
   else if n < 4 + rP + 4 then externalDense (sboxAll sbox (addRow x (values n)))
   else externalDense (addRow x (values n))
 
 /-- The first `n` rounds, from `x`. -/
-def executeDense (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R) (x : Dense R) :
-    ℕ → Dense R
+def executeDense (d : Dense R) (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R)
+    (x : Dense R) : ℕ → Dense R
   | 0 => x
-  | n + 1 => roundDense c rP sbox values n (executeDense c rP sbox values x n)
+  | n + 1 => roundDense d c rP sbox values n (executeDense d c rP sbox values x n)
 
 /-- The initial external layer (`p3-poseidon2` `src/lib.rs:179`), then the `8 + rP` rounds
 (`src/lib.rs:182-201`). -/
+def permutationDense (d : Dense R) (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R)
+    (x : Dense R) : Dense R :=
+  executeDense d c rP sbox values (externalDense x) (8 + rP)
+
+end Diag
+
+/-- The SP1 diagonal `d = (-2, 1, 2, 4, …, 2^13, 2^15)` as sixteen numerals (`p3-koala-bear`
+`0.4.3-succinct` `src/poseidon2.rs:37-58`, `p3-baby-bear` `0.2.3-succinct`
+`src/poseidon2.rs:29-49`); over a field it is `Plonky3.sp1Diag` (`sp1DiagDense_toState`). -/
+def sp1DiagDense : Dense R :=
+  ⟨-2, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 32768⟩
+
+/-- The SP1 internal layer: coordinate `i` becomes `c (d_i x_i + s)` with `s = x0 + ⋯ + x15` and
+`d = sp1DiagDense`; equal to `Plonky3.internal` by `internalDense_toState`. -/
+def internalDense (c : R) (x : Dense R) : Dense R := Diag.internalDense sp1DiagDense c x
+
+/-- Round `n` of `Plonky3.rounds`: `Diag.roundDense` at `d = sp1DiagDense`. -/
+def roundDense (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R) (n : ℕ)
+    (x : Dense R) : Dense R :=
+  Diag.roundDense sp1DiagDense c rP sbox values n x
+
+/-- The first `n` rounds of the SP1 runner, from `x`. -/
+def executeDense (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R) (x : Dense R) :
+    ℕ → Dense R :=
+  Diag.executeDense sp1DiagDense c rP sbox values x
+
+/-- The SP1 runner's permutation: the initial external layer (`p3-poseidon2` `src/lib.rs:179`),
+then the `8 + rP` rounds (`src/lib.rs:182-201`). -/
 def permutationDense (c : R) (rP : ℕ) (sbox : R → R) (values : ℕ → Fin 16 → R)
     (x : Dense R) : Dense R :=
-  executeDense c rP sbox values (externalDense x) (8 + rP)
+  Diag.permutationDense sp1DiagDense c rP sbox values x
 
 end Runner
 
@@ -309,11 +354,129 @@ theorem externalDense_toState_external (h35 : (35 : K) ≠ 0) (x : Dense K) :
     (externalDense x).toState = external h35 x.toState := by
   rw [externalDense_toState, external_eq_mdsLight]
 
-/-- **The internal layer is `Plonky3.internal c`**, coordinate by coordinate. -/
+namespace Diag
+
+/-- **The internal layer is `Plonky3.Diag.internal`**, coordinate by coordinate, for every
+diagonal. -/
+theorem internalDense_toState_apply (d : Dense K) (c : K) (x : Dense K) (i : Fin 16) :
+    (internalDense d c x).toState i = c * (d.toState i * x.toState i + ∑ j, x.toState j) := by
+  rw [Dense.sum_toState]
+  fin_cases i <;> rfl
+
+theorem internalDense_toState (d : Dense K) (c : K) (hc : c ≠ 0) (hd : ∀ i, d.toState i ≠ 0)
+    (hs : 1 + ∑ i, (d.toState i)⁻¹ ≠ 0) (x : Dense K) :
+    (internalDense d c x).toState = internal d.toState c hc hd hs x.toState := by
+  funext i
+  rw [internalDense_toState_apply, internal_apply]
+
+variable {d : Dense K} {c : K}
+
+/-- **Each round of the runner is the specification's round**, for every diagonal and every round
+index `n`, including the indices `n ≥ 8 + rP` past the schedule, where the mask is empty. -/
+theorem roundDense_toState (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) (n : ℕ) (x : Dense K) :
+    (roundDense d c rP sbox values n x).toState = (rounds hD rP sbox values n).apply x.toState := by
+  simp only [rounds, Hades.hadesSchedule, Hades.RoundSpec.apply, linear, Hades.hadesMask,
+    roundDense]
+  by_cases h1 : n < 4
+  · simp only [h1, if_true, true_or]
+    rw [externalDense_toState_external hD.thirtyFive, maskedEquiv_univ, sboxAll_toState,
+      addRow_toState]
+  by_cases h2 : n < 4 + rP
+  · simp only [h1, h2, if_true, if_false, false_or, show ¬(4 + rP ≤ n) by omega]
+    rw [internalDense_toState d c hD.scale hD.diag hD.shermanMorrison, maskedEquiv_zero,
+      sboxFirst_toState, addRow_toState]
+  by_cases h3 : n < 4 + rP + 4
+  · simp only [h1, h2, h3, if_true, if_false, show 4 + rP ≤ n by omega, or_true]
+    rw [externalDense_toState_external hD.thirtyFive, maskedEquiv_univ, sboxAll_toState,
+      addRow_toState]
+  · simp only [h1, h2, h3, if_true, if_false, show 4 + rP ≤ n by omega, or_true]
+    rw [externalDense_toState_external hD.thirtyFive, maskedEquiv_empty, addRow_toState]
+
+/-- **The runner computes the specification state, for every diagonal.** For every input, every
+round-constant table and every number `n` of rounds, the runner's state after `n` rounds is
+`Hades.execute (Plonky3.Diag.rounds hD rP sbox values) x n`. -/
+theorem executeDense_toState (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) (x : Dense K) (n : ℕ) :
+    (executeDense d c rP sbox values x n).toState =
+      Hades.execute (rounds hD rP sbox values) x.toState n := by
+  induction n with
+  | zero => rfl
+  | succ n ih => rw [executeDense, roundDense_toState hD, ih, Hades.execute_succ]
+
+/-- The same, starting from a specification state. -/
+theorem execute_eq_executeDense (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) (x : Fin 16 → K) (n : ℕ) :
+    Hades.execute (rounds hD rP sbox values) x n =
+      (executeDense d c rP sbox values (Dense.ofState x) n).toState := by
+  rw [executeDense_toState hD, Dense.toState_ofState]
+
+/-- **The runner's permutation is the specification's permutation, for every diagonal.** -/
+theorem permutationDense_toState (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) (x : Dense K) :
+    (permutationDense d c rP sbox values x).toState =
+      permutation hD rP sbox values x.toState := by
+  rw [permutationDense, executeDense_toState hD, externalDense_toState_external hD.thirtyFive]
+  rfl
+
+/-- The same, starting from a specification state. -/
+theorem permutation_eq_permutationDense (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) (x : Fin 16 → K) :
+    permutation hD rP sbox values x =
+      (permutationDense d c rP sbox values (Dense.ofState x)).toState := by
+  rw [permutationDense_toState hD, Dense.toState_ofState]
+
+/-- **Transfer of a computed value, for every diagonal.** If the runner sends `Dense.ofState x`
+to `Dense.ofState y`, then the specification's permutation sends `x` to `y`. -/
+theorem permutation_eq_of_dense (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) {x y : Fin 16 → K}
+    (h : permutationDense d c rP sbox values (Dense.ofState x) = Dense.ofState y) :
+    permutation hD rP sbox values x = y := by
+  rw [permutation_eq_permutationDense hD, h, Dense.toState_ofState]
+
+/-- **Transfer of a computed inequality, for every diagonal.** If the runner does not send
+`Dense.ofState x` to `Dense.ofState y`, neither does the specification's permutation. -/
+theorem permutation_ne_of_dense (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) {x y : Fin 16 → K}
+    (h : permutationDense d c rP sbox values (Dense.ofState x) ≠ Dense.ofState y) :
+    permutation hD rP sbox values x ≠ y := by
+  intro h'
+  apply h
+  apply Dense.toState_injective
+  rw [← permutation_eq_permutationDense hD, h', Dense.toState_ofState]
+
+/-- The transfer for a prefix of `n` rounds. -/
+theorem execute_eq_of_dense (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) {x y : Fin 16 → K} {n : ℕ}
+    (h : executeDense d c rP sbox values (Dense.ofState x) n = Dense.ofState y) :
+    Hades.execute (rounds hD rP sbox values) x n = y := by
+  rw [execute_eq_executeDense hD, h, Dense.toState_ofState]
+
+/-- The transfer of an inequality for a prefix of `n` rounds. -/
+theorem execute_ne_of_dense (hD : Conditions d.toState c) (rP : ℕ) (sbox : K ≃ K)
+    (values : ℕ → Fin 16 → K) {x y : Fin 16 → K} {n : ℕ}
+    (h : executeDense d c rP sbox values (Dense.ofState x) n ≠ Dense.ofState y) :
+    Hades.execute (rounds hD rP sbox values) x n ≠ y := by
+  intro h'
+  apply h
+  apply Dense.toState_injective
+  rw [← execute_eq_executeDense hD, h', Dense.toState_ofState]
+
+end Diag
+
+/-! ### The SP1 runner against the specification -/
+
+/-- `sp1DiagDense` is the SP1 diagonal `Plonky3.sp1Diag`. -/
+theorem sp1DiagDense_toState : (sp1DiagDense : Dense K).toState = sp1Diag K := by
+  funext i
+  fin_cases i <;> rfl
+
+/-- **The internal layer is `Plonky3.internal c`**, coordinate by coordinate
+(`Diag.internalDense_toState_apply` at `d = sp1DiagDense`). -/
 theorem internalDense_toState_apply (c : K) (x : Dense K) (i : Fin 16) :
     (internalDense c x).toState i = c * (sp1Diag K i * x.toState i + ∑ j, x.toState j) := by
-  rw [Dense.sum_toState]
-  fin_cases i <;> simp [internalDense, Dense.toState, sp1Diag]
+  rw [← sp1DiagDense_toState]
+  exact Diag.internalDense_toState_apply sp1DiagDense c x i
 
 theorem internalDense_toState (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0) (hs : (81917 : K) ≠ 0)
     (x : Dense K) : (internalDense c x).toState = internal c hc h2 hs x.toState := by
@@ -322,27 +485,18 @@ theorem internalDense_toState (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0) (hs : 
 
 variable {c : K}
 
+/-- The SP1 conditions, as the conditions of the generic runner at `d = sp1DiagDense`. -/
+theorem Conditions.toDiagDense (hK : Conditions c) :
+    Diag.Conditions (sp1DiagDense : Dense K).toState c := by
+  rw [sp1DiagDense_toState]
+  exact hK.toDiag
+
 /-- **Each round of the runner is the specification's round**, for every round index `n`,
 including the indices `n ≥ 8 + rP` past the schedule, where the mask is empty. -/
 theorem roundDense_toState (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) (n : ℕ) (x : Dense K) :
-    (roundDense c rP sbox values n x).toState = (rounds hK rP sbox values n).apply x.toState := by
-  simp only [rounds, Hades.hadesSchedule, Hades.RoundSpec.apply, linear, Hades.hadesMask,
-    roundDense]
-  by_cases h1 : n < 4
-  · simp only [h1, if_true, true_or]
-    rw [externalDense_toState_external hK.thirtyFive, maskedEquiv_univ, sboxAll_toState,
-      addRow_toState]
-  by_cases h2 : n < 4 + rP
-  · simp only [h1, h2, if_true, if_false, false_or, show ¬(4 + rP ≤ n) by omega]
-    rw [internalDense_toState c hK.scale hK.two hK.shermanMorrison, maskedEquiv_zero,
-      sboxFirst_toState, addRow_toState]
-  by_cases h3 : n < 4 + rP + 4
-  · simp only [h1, h2, h3, if_true, if_false, show 4 + rP ≤ n by omega, or_true]
-    rw [externalDense_toState_external hK.thirtyFive, maskedEquiv_univ, sboxAll_toState,
-      addRow_toState]
-  · simp only [h1, h2, h3, if_true, if_false, show 4 + rP ≤ n by omega, or_true]
-    rw [externalDense_toState_external hK.thirtyFive, maskedEquiv_empty, addRow_toState]
+    (roundDense c rP sbox values n x).toState = (rounds hK rP sbox values n).apply x.toState :=
+  Diag.roundDense_toState hK.toDiagDense rP sbox values n x
 
 /-! ### The runner against the specification -/
 
@@ -352,31 +506,28 @@ table and every number `n` of rounds, the runner's state after `n` rounds is
 theorem executeDense_toState (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) (x : Dense K) (n : ℕ) :
     (executeDense c rP sbox values x n).toState =
-      Hades.execute (rounds hK rP sbox values) x.toState n := by
-  induction n with
-  | zero => rfl
-  | succ n ih => rw [executeDense, roundDense_toState hK, ih, Hades.execute_succ]
+      Hades.execute (rounds hK rP sbox values) x.toState n :=
+  Diag.executeDense_toState hK.toDiagDense rP sbox values x n
 
 /-- The same, starting from a specification state. -/
 theorem execute_eq_executeDense (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) (x : Fin 16 → K) (n : ℕ) :
     Hades.execute (rounds hK rP sbox values) x n =
-      (executeDense c rP sbox values (Dense.ofState x) n).toState := by
-  rw [executeDense_toState hK, Dense.toState_ofState]
+      (executeDense c rP sbox values (Dense.ofState x) n).toState :=
+  Diag.execute_eq_executeDense hK.toDiagDense rP sbox values x n
 
 /-- **The runner's permutation is the specification's permutation.** -/
 theorem permutationDense_toState (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) (x : Dense K) :
-    (permutationDense c rP sbox values x).toState = permutation hK rP sbox values x.toState := by
-  rw [permutationDense, executeDense_toState hK, externalDense_toState_external hK.thirtyFive]
-  rfl
+    (permutationDense c rP sbox values x).toState = permutation hK rP sbox values x.toState :=
+  Diag.permutationDense_toState hK.toDiagDense rP sbox values x
 
 /-- The same, starting from a specification state. -/
 theorem permutation_eq_permutationDense (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) (x : Fin 16 → K) :
     permutation hK rP sbox values x =
-      (permutationDense c rP sbox values (Dense.ofState x)).toState := by
-  rw [permutationDense_toState hK, Dense.toState_ofState]
+      (permutationDense c rP sbox values (Dense.ofState x)).toState :=
+  Diag.permutation_eq_permutationDense hK.toDiagDense rP sbox values x
 
 /-- **Transfer of a computed value.** If the runner sends `Dense.ofState x` to `Dense.ofState y`,
 then the specification's permutation sends `x` to `y`. This is how `decide` on the runner yields
@@ -384,36 +535,30 @@ statements about `Plonky3.permutation`. -/
 theorem permutation_eq_of_dense (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) {x y : Fin 16 → K}
     (h : permutationDense c rP sbox values (Dense.ofState x) = Dense.ofState y) :
-    permutation hK rP sbox values x = y := by
-  rw [permutation_eq_permutationDense hK, h, Dense.toState_ofState]
+    permutation hK rP sbox values x = y :=
+  Diag.permutation_eq_of_dense hK.toDiagDense rP sbox values h
 
 /-- **Transfer of a computed inequality.** If the runner does not send `Dense.ofState x` to
 `Dense.ofState y`, neither does the specification's permutation. -/
 theorem permutation_ne_of_dense (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) {x y : Fin 16 → K}
     (h : permutationDense c rP sbox values (Dense.ofState x) ≠ Dense.ofState y) :
-    permutation hK rP sbox values x ≠ y := by
-  intro h'
-  apply h
-  apply Dense.toState_injective
-  rw [← permutation_eq_permutationDense hK, h', Dense.toState_ofState]
+    permutation hK rP sbox values x ≠ y :=
+  Diag.permutation_ne_of_dense hK.toDiagDense rP sbox values h
 
 /-- The transfer for a prefix of `n` rounds. -/
 theorem execute_eq_of_dense (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) {x y : Fin 16 → K} {n : ℕ}
     (h : executeDense c rP sbox values (Dense.ofState x) n = Dense.ofState y) :
-    Hades.execute (rounds hK rP sbox values) x n = y := by
-  rw [execute_eq_executeDense hK, h, Dense.toState_ofState]
+    Hades.execute (rounds hK rP sbox values) x n = y :=
+  Diag.execute_eq_of_dense hK.toDiagDense rP sbox values h
 
 /-- The transfer of an inequality for a prefix of `n` rounds. -/
 theorem execute_ne_of_dense (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) {x y : Fin 16 → K} {n : ℕ}
     (h : executeDense c rP sbox values (Dense.ofState x) n ≠ Dense.ofState y) :
-    Hades.execute (rounds hK rP sbox values) x n ≠ y := by
-  intro h'
-  apply h
-  apply Dense.toState_injective
-  rw [← execute_eq_executeDense hK, h', Dense.toState_ofState]
+    Hades.execute (rounds hK rP sbox values) x n ≠ y :=
+  Diag.execute_ne_of_dense hK.toDiagDense rP sbox values h
 
 end Field
 
