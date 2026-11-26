@@ -44,3 +44,9 @@ jobs:
 
       - name: Audit every project declaration by defining module
         run: lake env lean scripts/AuditAxioms.lean
+
+      # The build and the audit above cover only modules that WideTrail.lean
+      # imports. A file that nothing imports would be neither compiled nor
+      # audited, and no step would notice.
+      - name: Check that every module is imported
+        run: python3 scripts/check_imports.py
