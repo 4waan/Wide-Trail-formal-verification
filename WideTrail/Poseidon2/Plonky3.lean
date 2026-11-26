@@ -84,6 +84,10 @@ constant table need not have this form: SP1 `5.2.4`'s BabyBear table `RC_16_30` 
   differential uniformity at most `u` and `u * 2^dd ≤ |K|`, then for every nonzero trail `T`,
   `keyCount * 2^(dd * 32) ≤ |K^16|^(8 + rP)`, and with exponent `dd * (32 + rP / w)` under the
   inactive-space hypothesis.
+* `independent_key_probability_exact`, `independent_key_probability_with_middle_exact`: the same
+  bounds with the ratio `|K| / u` kept exact and no relation between `u` and `|K|` assumed:
+  `keyCount * |K|^32 ≤ u^32 * |K^16|^(8 + rP)`, and with `32 + rP / w` in place of `32` under the
+  inactive-space hypothesis.
 * `finrank_inactiveSpace_internal`: at least `16 - r` dimensions of differences stay inactive
   through `r` consecutive partial rounds (at least `3` for `r = 13`). A difference entering the
   partial rounds in that space crosses them with no charged S-box (`Hades.IsTrail.free_window`),
@@ -102,6 +106,19 @@ constant table need not have this form: SP1 `5.2.4`'s BabyBear table `RC_16_30` 
   `diffKeyCount * |K|^7 ≤ u^7 * |K^16|^(8 + rP)`. Only `7` S-boxes of the first two full rounds are
   charged, one fewer than the branch number `8` (`Hades.hades_differential_bound`).
 
+## Structure of the linear layers
+
+* `blockSumZeroFlat`: the states whose four blocks of four coordinates sum to zero, a subspace
+  of dimension `12` (`finrank_blockSumZeroFlat`). Under `35 ≠ 0`, `external h35 x = mat4Blocks x`
+  (`M4` on each block, with no mixing between blocks) exactly when `x` lies in it
+  (`external_eq_mat4Blocks_iff`), and `external h35 x` lies in it exactly when `x` does
+  (`external_mem_blockSumZeroFlat_iff`). Over every commutative ring the position sums of
+  `mdsLight x` are `5` times `M4` applied to those of `x` (`positionSums_mdsLight`).
+* `external_dotProduct`: the transpose of the external layer is `circ(2 m4ᵀ, m4ᵀ, m4ᵀ, m4ᵀ)`, and
+  under the `m4Primes` hypothesis it has branch number at least `8`
+  (`external_transpose_isBranchBound`). `internal_dotProduct`: the internal layer is its own
+  transpose.
+
 ## What is not claimed
 
 The activity counts are lower bounds on charged S-boxes for actual input pairs; they are not claimed
@@ -113,7 +130,10 @@ statement about the permutation with its fixed constants, or about any one key. 
 about subspace-trail resistance beyond the inactive-space statements here, about algebraic attacks,
 about sponge or duplex constructions built on the permutation, or about equivalence with the Rust
 code or the AIR beyond the transcriptions stated here (`external_eq_mdsLight` and the round lemmas).
-The inactive-space hypothesis can fail for some fields (`Checks/Plonky3.lean`, `ZMod 23`).
+The inactive-space hypothesis can fail for some fields (`Checks/Plonky3.lean`, `ZMod 23`). The
+block-sum and transpose statements concern the two linear layers alone: they say nothing about the
+S-box or whole rounds, and no correlation, linear trail, linear hull or linear-attack bound is
+proved.
 -/
 
 set_option autoImplicit false

@@ -41,13 +41,24 @@ The same files keep the ratio `|K| / u` per charged S-box exact instead of round
 down to a whole number of bits: for `A` charged S-boxes,
 `keyCount * |K|^A <= u^A * N`, where `N` is the number of key sequences
 (`hades_probability_exact`, `hades_probability_with_middle_exact`), and
-`mul_le_of_ratio` turns such a ratio into a power of two. `Hades/Hull.lean` bounds a differential, the sum over all trails from one
-input difference to one output difference, in the same sample space: if two adjacent full
-rounds have S-boxes of uniformity at most `u` and the linear layer of the first has branch
-number at least `B`, the key-averaged probability of every differential with a nonzero
-input difference is at most `(u / |K|)^(B - 1)` (`diffKeyCount_bound_of_two_full_rounds`;
-`hades_differential_bound` for the first two rounds of a HADES schedule). Only those two
-rounds are charged; the other rounds enter only through bijectivity.
+`mul_le_of_ratio` turns such a ratio into a power of two.
+
+`Hades/Hull.lean` bounds a differential, the sum over all trails from one input
+difference to one output difference, in the same sample space: if two adjacent full
+rounds have S-boxes of uniformity at most `u` and the linear layer of the first has
+branch number at least `B`, the key-averaged probability of every differential with a
+nonzero input difference is at most `(u / |K|)^(B - 1)`
+(`diffKeyCount_bound_of_two_full_rounds`; `hades_differential_bound` for the first two
+rounds of a HADES schedule). Only those two rounds are charged; the other rounds enter
+only through bijectivity.
+
+`Hades/Dimension.lean` concerns the differences that stay inactive through `r`
+consecutive partial rounds with one S-box coordinate `i0`. For an internal layer
+`c • (diag d + J)` with `c ≠ 0`, no nonzero difference stays inactive through `width`
+consecutive partial rounds exactly when the diagonal entries `d i`, `i ≠ i0`, are
+pairwise distinct (`Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`), and under that
+condition those differences form a space of dimension exactly `width - r` for
+`r <= width` (`Hades.finrank_inactiveSpace_diagPlusOnes`).
 
 ## Pinned BN254 instance
 
@@ -100,10 +111,11 @@ attained.
 
 The internal matrix is `diag (1, 1, 2) + J` (`internal_toLinearMap_eq`), and its
 diagonal entries off coordinate zero, `1` and `2`, are distinct
-(`internalDiag_injOn`). The general criterion of `Hades/Dimension.lean` therefore
-proves the three-round statement a second time
-(`internal_inactive_trivial_by_criterion`), and the differences that stay inactive
-through `r <= 3` consecutive partial rounds form a space of dimension exactly `3 - r`
+(`internalDiag_injOn`). The criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`
+therefore proves the three-round statement a second time
+(`internal_inactive_trivial_by_criterion`), and by
+`Hades.finrank_inactiveSpace_diagPlusOnes` the differences that stay inactive through
+`r <= 3` consecutive partial rounds form a space of dimension exactly `3 - r`
 (`finrank_internal_inactive`).
 
 The independently keyed variant has individual-trail probability at most
@@ -126,9 +138,9 @@ the ratio `p / 4` exact for each of the 34 charged S-boxes gives
 (`independent_key_probability_sharp`, with `sharp_exponent_bound`).
 `BN254Checks.lean` shows that `2^8555 * 4^34 <= p^34` fails
 (`Checks.sharp_exponent_succ_fails`), so 8554 is the largest exponent this
-arithmetic gives. It is still an upper bound on the key-averaged probability of one trail, in the
-same sample space, and it is not claimed to be attained. No exact-ratio form of the
-16-S-box bound `independent_key_probability` is stated.
+arithmetic gives. It is still an upper bound on the key-averaged probability of one
+trail, in the same sample space, and it is not claimed to be attained. No exact-ratio
+form of the 16-S-box bound `independent_key_probability` is stated.
 
 `BN254Middle.lean` also bounds a differential, the sum over all trails from a nonzero
 input difference `a` to an output difference `b`, in the same additional-independent-key
@@ -248,10 +260,12 @@ KoalaBear:
 - No nonzero difference stays off the S-box coordinate through sixteen consecutive
   partial rounds (`internal_inactive_trivial`, a Krylov certificate checked by
   `decide`), and some difference does through fifteen
-  (`Checks.inactive_fifteen_ne_bot`; an explicit one is `Checks.witness15`), so the
-  window is exactly 16. The sixteen-round statement is proved a second time, with no
-  table, by the diagonal criterion: the diagonal entries off coordinate zero are
-  pairwise distinct in the field (`diag_injOn`), which gives
+  (`Checks.inactive_fifteen_ne_bot`), so the window is exactly 16. The explicit
+  difference `Checks.witness15` stays inactive through fifteen consecutive partial
+  rounds with `diag d + J` (`Checks.witness15_mem`) and not through sixteen
+  (`Checks.witness15_not_mem_sixteen`). The sixteen-round statement is proved a second
+  time, with no table, by the diagonal criterion: the diagonal entries off coordinate
+  zero are pairwise distinct in the field (`diag_injOn`), which gives
   `internal_inactive_trivial_by_criterion`. Exactly `16 - r` dimensions of differences
   stay inactive through `r <= 16` consecutive partial rounds (`finrank_inactive_eq`).
 - Every distinct input pair incurs at least 33 active S-box applications: 32 in
@@ -304,11 +318,12 @@ BabyBear:
   S-boxes of the full rounds. With the same internal layer, no nonzero difference
   would stay inactive through sixteen consecutive partial rounds (`inactive_sixteen`,
   by the diagonal criterion with `diag_injOn`; `Checks.inactive_sixteen`, by a Krylov
-  certificate for `diag d + J`), and some does through fifteen
-  (`Checks.inactive_fifteen_ne_bot`): the window is exactly 16 here as well, and
-  `13 / 16 = 0` (`partial_window_term_eq_zero`). Exactly `16 - r` dimensions of
-  differences stay inactive through `r <= 16` consecutive partial rounds
-  (`finrank_inactive_eq`).
+  certificate for `diag d + J`). Exactly `16 - r` dimensions of differences stay
+  inactive through `r <= 16` consecutive partial rounds (`finrank_inactive_eq`), so
+  with `r = 15` some nonzero difference does stay inactive through fifteen
+  (`Checks.inactive_fifteen_ne_bot` states this for `diag d + J`). The window is
+  exactly 16 here as well, and every window `w` that satisfies the hypothesis of the
+  window theorem gives `13 / w = 0` (`partial_window_term_eq_zero`).
 - Each round of the schedule is the code's round with the selected constants
   (`rounds_apply_prefix`, `rounds_apply_partial`, `rounds_apply_suffix`).
 
@@ -397,15 +412,16 @@ KoalaBear's diagonal is also checked against the gnark recursion chip
 These boundaries apply to every instance above. The certificate does not prove
 that the selected round counts provide a claimed security level against every
 attack. The internal-round count is a window argument giving a lower bound on
-activity; it does not prove absence of subspace trails, algebraic attack resistance, sponge indifferentiability, collision or
-preimage resistance, Rust machine-code equivalence, AIR equivalence, or zkVM
-soundness. The inactive-dimension and criterion results concern only the
-differences that avoid the partial-round S-box coordinate, not subspace trails in
-general. The trail and differential exponents are upper bounds on probabilities
-averaged over an additional independent uniform key per round; the differential
-bounds charge only the first two full rounds, and none of these results establishes,
-for the permutation with its fixed constants, the Poseidon designers' criterion that
-every differential has probability at most `p^(-t)`. No linear-cryptanalysis bound is
+activity; it does not prove absence of subspace trails, algebraic attack
+resistance, sponge indifferentiability, collision or preimage resistance, Rust
+machine-code equivalence, AIR equivalence, or zkVM soundness. The
+inactive-dimension and criterion results concern only the differences that avoid
+the partial-round S-box coordinate, not subspace trails in general. The trail and
+differential exponents are upper bounds on probabilities averaged over an
+additional independent uniform key per round; the differential bounds charge only
+the first two full rounds, and none of these results establishes, for the
+permutation with its fixed constants, the Poseidon designers' criterion that every
+differential has probability at most `p^(-t)`. No linear-cryptanalysis bound is
 proved. Checking a reference vector is narrower than proving universal Rust
 implementation equivalence. The immutable source, constants, model conventions,
 and these boundaries are part of the certificate's meaning.

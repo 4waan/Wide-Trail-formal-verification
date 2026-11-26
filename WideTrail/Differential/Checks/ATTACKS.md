@@ -133,12 +133,6 @@ a construction of an inverse, not an assumption about a cipher.
 
 ## What is still assumed
 
-* **The AES S-box's differential uniformity is `4`.** A hypothesis of the generic
-  `AESProb.lean` theorems, exactly as `IsColBranchBound` was a hypothesis in Propagation layer.
-  A kernel `decide` over the difference distribution table is `256 · 256` differentials each
-  scanning `256` inputs, and `Algebra/GF256.lean` records that enumerations of that size do not
-  finish. It is discharged instead by a root count for inversion in `GF(2⁸)`
-  (`Polynomial.lean`, `AESConcrete.lean`).
 * **Round keys are independent and uniform.** Attack 4. Real AES has a key schedule.
 * **The cipher is round-uniform.** The same `θ ∘ π` in every round; real AES omits
   `MixColumns` in the last one. The count is over the inputs to rounds `0 … r-1`, so the last
@@ -149,3 +143,11 @@ a construction of an inverse, not an assumption about a cipher.
 * **The bound is not claimed to be tight.** `toy_bound_holds` promises `2⁻³` on a trail whose
   true key-averaged probability is `2⁻⁶`, because the toy S-box's actual differential counts
   are `1` where its uniformity allows `2`. A lower bound on a lower bound, as in Propagation layer.
+
+The AES S-box's differential uniformity `4` is no longer assumed for the concrete S-box. It
+remains a hypothesis of the generic `AESProb.lean` theorems, as `IsColBranchBound` was in
+Propagation layer. A kernel `decide` over the difference distribution table is `256 · 256`
+differentials each scanning `256` inputs, and `Algebra/GF256.lean` records that enumerations
+of that size do not finish. For the concrete S-box the hypothesis is discharged instead by a
+root count for inversion in `GF(2⁸)` (`Sbox.inv_uniform` in `Polynomial.lean`, transported
+through the affine map by `AES.sbox_uniform` in `AESConcrete.lean`).

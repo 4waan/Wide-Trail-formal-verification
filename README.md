@@ -57,11 +57,12 @@ unconditionally, that a differential is a *sum* over trails and exhibits a two-r
 differential worth twice its best trail, which is the hull effect that caveats every
 wide-trail figure in the literature. `Differential/Hull.lean` then bounds the differential
 itself, the whole sum, in the same independent-key model: over two bricklayer rounds with
-bijective S-boxes of uniformity at most `u` and a first linear layer of branch number `B`,
-every differential with a nonzero input difference has key-averaged probability at most
-`(u / |K|)^(B - 1)` (`Scheduled.bricklayer_two_round_bound`). Only those two rounds are
-charged, and the bound concerns the keys averaged over: `Differential/Checks/Hull.lean`
-gives a toy cipher on which it fails with the keys fixed to zero.
+bijective S-boxes of uniformity at most `u` and a first linear layer of branch number at
+least `B`, every differential with a nonzero input difference has key-averaged
+probability at most `(u / |K|)^(B - 1)` (`Scheduled.bricklayer_two_round_bound`). Only
+those two rounds are charged, and the bound concerns the keys averaged over:
+`Differential/Checks/Hull.lean` gives a toy cipher on which it fails with the keys fixed
+to zero.
 
 Differential layer also demotes one of Propagation layer's hypotheses to a theorem. `PreserveSupport` was a claim
 about a function on differences, and a real S-box layer has no such function; what it really
@@ -375,12 +376,13 @@ differential exponents 209 (KoalaBear) and 198 (BabyBear).
 Why each exponent and margin is what it is, which hypotheses cannot be dropped, and
 end-to-end runs. The uniformity (2 and 6), the external branch number (8) and the window
 (16) are each shown to be exact, and each sharp exponent fails when increased by one
-(for BN254 in `BN254Checks.lean`). `Plonky3KAT.lean` shows that the models of both instances reproduce the known-answer
-vectors of the upstream `p3-koala-bear` and `p3-baby-bear` crates, with those tests' own
-constants, and that each vector fails without the Montgomery factor, without the initial
-external layer, or with the raw samples read as canonical values. The pinned-constant
-outputs are regression values from an outside model, since no published vector exists
-for either SP1 instance. `Axioms.lean` pins the axiom footprints of the certificates.
+(for BN254 in `BN254Checks.lean`). `Plonky3KAT.lean` shows that the models of both
+instances reproduce the known-answer vectors of the upstream `p3-koala-bear` and
+`p3-baby-bear` crates, with those tests' own constants, and that each vector fails
+without the Montgomery factor, without the initial external layer, or with the raw
+samples read as canonical values. The pinned-constant outputs are regression values from
+an outside model, since no published vector exists for either SP1 instance.
+`Axioms.lean` pins the axiom footprints of the certificates.
 
 ---
 

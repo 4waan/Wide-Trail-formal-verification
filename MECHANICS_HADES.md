@@ -179,9 +179,10 @@ distinct (`diag_injOn`, by `decide`), so exactly `16 - r` dimensions stay inacti
 partial rounds leave exactly three (`finrank_partial_inactive`). BN254's internal matrix
 is `diag (1, 1, 2) + J`, which gives `3 - r` (`finrank_internal_inactive`). Over
 `ZMod 23`, `2^11 = 1` makes two entries coincide, and the criterion leaves a nonzero
-inactive difference for every window
-(`Plonky3.Checks.twentyThree_inactive_ne_bot_by_criterion`). These statements concern
-the differences that avoid the partial-round S-boxes only, not subspace trails in general.
+difference inactive through sixteen consecutive partial rounds
+(`Plonky3.Checks.twentyThree_inactive_ne_bot_by_criterion`), hence forever
+(`no_infinite_inactive_trail`). These statements concern the differences that avoid the
+partial-round S-boxes only, not subspace trails in general.
 
 ## The differential over two full rounds
 
@@ -224,9 +225,9 @@ over `ZMod 5` where the bound allows `100` of `625` key pairs and the maximum is
 both keys fixed to zero, one differential is realised by `5` of the `25` inputs, above the
 bound (`Scheduled.HullChecks.toy_fixed_exceeds`). Only two rounds are charged, so for the
 Poseidon2 instances the exponents are far below the trail exponents: 209 for KoalaBear,
-198 for BabyBear and 754 for BN254, each the largest that the ratio allows. They do not establish, for the
-permutation with its fixed constants, the designers' criterion that every differential
-has probability at most `p ^ (-t)`.
+198 for BabyBear and 754 for BN254, each the largest that the ratio allows. They do not
+establish, for the permutation with its fixed constants, the designers' criterion that
+every differential has probability at most `p ^ (-t)`.
 
 The pinned BN254 width-three Poseidon2 certificate and the two SP1 width-sixteen
 certificates use these results. See [the certificate](PRODUCTION_CERTIFICATE.md) for
