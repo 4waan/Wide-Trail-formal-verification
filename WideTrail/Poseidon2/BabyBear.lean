@@ -57,14 +57,15 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
 ## Results
 
 * `permutation_bijective`.
-* `activity`: two distinct inputs incur at least `32` charged S-box applications, all in the
-  eight full rounds. `activity_of_values` is the same for every round-constant table.
+* `activity`: two distinct inputs incur at least `32` charged S-box applications, all counted
+  in the eight full rounds. `activity_of_values` is the same for every round-constant table.
 * `independent_key_probability`: for every nonzero trail, `keyCount * 2^896 ≤ |F^16|^21` in
   the model with an additional independent uniform key per round (`u = 6`,
   `6 * 2^28 ≤ p`, so `dd = 28`, and `28 * 32 = 896`, `probability_exponent`).
   `independent_key_probability_of_values` is the same for every round-constant table.
 * **The partial rounds contribute nothing to this argument.** Thirteen internal rounds leave a
-  nonzero space of differences, of dimension at least `3`, that never reaches coordinate `0`
+  nonzero space of differences, of dimension at least `3`, that stays off coordinate `0`
+  throughout the thirteen partial rounds
   (`partial_inactive_ne_bot`, `three_le_finrank_partial_inactive`); every window `w` for
   which `Plonky3.activity_with_middle` applies has `13 / w = 0`
   (`partial_window_term_eq_zero`); and there are distinct inputs whose actual difference
@@ -237,7 +238,8 @@ theorem partialRowsAtZero : PartialRowsAtZero 13 values := by
 
 /-! ### The permutation -/
 
-/-- The `21` rounds with the pinned constants. -/
+/-- The `21` rounds with the pinned constants: four full, thirteen partial and four full
+(`ROUNDS_F = 8`, `ROUNDS_P = 13`, `sp1-primitives` `5.2.4` `src/lib.rs:1108-1109`). -/
 def rounds : ℕ → Hades.RoundSpec (Fin 16) F := Plonky3.rounds conditions 13 sbox values
 
 /-- **The permutation**: the initial external layer, then the `8 + 13` rounds. -/

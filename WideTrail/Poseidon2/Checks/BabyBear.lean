@@ -14,8 +14,8 @@ import Mathlib.Tactic.IntervalCases
 parameters. The checks below test that instance from the outside: they show why the exponent
 is `7`, that `28` is the largest per-S-box exponent the margin `6 * 2^dd ≤ p` allows, that the
 zero partial-round contribution comes from the round count and not from the field or the
-scale, and that the model with the pinned constants computes a known output. All finite
-checks are kernel `decide`.
+scale, and that the model with the pinned constants computes the reference output of an
+outside model. All finite checks are kernel `decide`.
 
 * **Why `D = 7`.** No even power permutes `F` (`even_power_not_injective`: `1` and `-1`
   collide). `gcd(3, p - 1) = 3` and `gcd(5, p - 1) = 5` (`gcd_three`, `gcd_five`), and explicit
@@ -98,7 +98,9 @@ theorem fifth_not_injective : ¬ Function.Injective (fun x : F => x ^ 5) := by
   exact fifthRoot_spec.2
     (h (show fifthRoot ^ 5 = (1 : F) ^ 5 by rw [fifthRoot_spec.1, one_pow]))
 
-/-- **`7` is the least exponent above `1` whose power map permutes `F`.** -/
+/-- **`7` is the least exponent above `1` whose power map permutes `F`.** This theorem shows
+that the exponents `2` to `6` fail; that `7` itself permutes `F` is `BabyBear.sbox`
+(see also `gcd_seven`). -/
 theorem least_permutation_exponent (d : ℕ) (h1 : 1 < d) (h7 : d < 7) :
     ¬ Function.Injective (fun x : F => x ^ d) := by
   interval_cases d
