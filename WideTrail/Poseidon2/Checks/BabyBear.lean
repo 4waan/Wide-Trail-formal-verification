@@ -300,7 +300,8 @@ theorem inactive_sixteen :
   Hades.inactiveSpace_diagPlusOnes_eq_bot one_ne_zero (sp1Diag F) 0 16 krylov krylov_zero
     krylov_succ krylovInv krylovInv_mul
 
-/-- Fifteen rounds are not enough, so the window `16` cannot be shortened. -/
+/-- Some nonzero difference stays inactive through fifteen consecutive partial rounds, so the
+window `16` cannot be shortened. -/
 theorem inactive_fifteen_ne_bot :
     Hades.inactiveSpace (diagPlusOnes (1 : F) (sp1Diag F)) ({0} : Finset (Fin 16)) 15 ≠ ⊥ :=
   Hades.inactiveSpace_ne_bot _ _ 15 (by simp)

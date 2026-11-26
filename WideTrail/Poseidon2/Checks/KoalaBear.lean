@@ -407,23 +407,22 @@ theorem witness15_orthogonal : ∀ j : Fin 15, krylov j.castSucc ⬝ᵥ witness1
 theorem witness15_ne_zero : witness15 ≠ 0 := by
   decide
 
+theorem krylov_eq_pow (j : Fin 16) :
+    krylov j = (diagPlusOnes (1 : F) (Plonky3.sp1Diag F) ^ (j : ℕ)) (Pi.single 0 1) :=
+  Hades.eq_pow_apply_of_recurrence _ _ krylov krylov_zero
+    (fun j k hjk => by
+      rw [krylov_succ j k hjk]
+      funext i
+      rw [diagPlusOnes_apply, one_mul]) j
+
 /-- **An explicit difference that stays inactive through fifteen consecutive partial
 rounds.** -/
 theorem witness15_mem :
     witness15 ∈ Hades.inactiveSpace (diagPlusOnes (1 : F) (Plonky3.sp1Diag F))
-      ({0} : Finset (Fin 16)) 15 := by
-  have hstep : ∀ j k : Fin 15, (k : ℕ) = j + 1 →
-      krylov k.castSucc = diagPlusOnes (1 : F) (Plonky3.sp1Diag F) (krylov j.castSucc) := by
-    intro j k hjk
-    rw [krylov_succ j.castSucc k.castSucc hjk]
-    funext i
-    rw [diagPlusOnes_apply, one_mul]
-  have hu : ∀ j : Fin 15, krylov j.castSucc =
-      (diagPlusOnes (1 : F) (Plonky3.sp1Diag F) ^ (j : ℕ)) (Pi.single 0 1) :=
-    Hades.eq_pow_apply_of_recurrence _ _ (fun j : Fin 15 => krylov j.castSucc)
-      (fun j hj => krylov_zero j.castSucc hj) hstep
-  rw [Hades.mem_inactiveSpace_singleton_iff _ (diagPlusOnes_dotProduct 1 _) 0 15 _ hu]
-  exact witness15_orthogonal
+      ({0} : Finset (Fin 16)) 15 :=
+  (Hades.mem_inactiveSpace_singleton_iff _ (diagPlusOnes_dotProduct 1 _) 0 15
+    (fun j : Fin 15 => krylov j.castSucc) (fun j => krylov_eq_pow j.castSucc) witness15).mpr
+    witness15_orthogonal
 
 /-- `witness15` does not stay inactive through sixteen consecutive partial rounds: with
 `diag d + J`, coordinate `0` of the sixteenth S-box input is `krylov 15 ⬝ᵥ witness15 ≠ 0`. So
@@ -431,16 +430,9 @@ fifteen is exactly how far it travels unseen. -/
 theorem witness15_not_mem_sixteen :
     witness15 ∉ Hades.inactiveSpace (diagPlusOnes (1 : F) (Plonky3.sp1Diag F))
       ({0} : Finset (Fin 16)) 16 := by
-  have hu : ∀ j : Fin 16, krylov j =
-      (diagPlusOnes (1 : F) (Plonky3.sp1Diag F) ^ (j : ℕ)) (Pi.single 0 1) :=
-    Hades.eq_pow_apply_of_recurrence _ _ krylov krylov_zero
-      (fun j k hjk => by
-        rw [krylov_succ j k hjk]
-        funext i
-        rw [diagPlusOnes_apply, one_mul])
   intro h
   have h15 := (Hades.mem_inactiveSpace_singleton_iff _ (diagPlusOnes_dotProduct 1 _) 0 16 krylov
-    hu witness15).mp h 15
+    krylov_eq_pow witness15).mp h 15
   exact (by decide : krylov 15 ⬝ᵥ witness15 ≠ 0) h15
 
 /-! ### The Montgomery factor -/

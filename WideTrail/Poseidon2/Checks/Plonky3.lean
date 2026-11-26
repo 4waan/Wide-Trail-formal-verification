@@ -25,8 +25,8 @@ finite checks are kernel `decide`.
   A Krylov certificate (`toy_inactive`) shows that no nonzero difference stays inactive through
   sixteen consecutive partial rounds with `diag d + J`. With `rP = 20`, as for KoalaBear, the
   theorems give `33` charged S-boxes (`toy_activity`) and the trail exponent `3 * 33`
-  (`toy_probability`), for every round-constant table. Fifteen rounds are not enough
-  (`toy_fifteen_ne_bot`).
+  (`toy_probability`), for every round-constant table. Some nonzero difference stays inactive
+  through fifteen consecutive partial rounds (`toy_fifteen_ne_bot`).
 * **An execution over `ZMod 29`.** With a constant table built by `roundValues`, the whole
   permutation on `(0, 1, …, 15)` is checked round by round against a trace computed outside
   Lean by an independent model of the code's loops (`toy_permutation`). This exercises the
@@ -148,7 +148,8 @@ theorem toy_inactive :
   Hades.inactiveSpace_diagPlusOnes_eq_bot one_ne_zero (sp1Diag F) 0 16 toyKrylov
     (by decide) (by decide) toyKrylovInv (by decide)
 
-/-- Fifteen rounds are not enough, so the window `16` cannot be shortened. -/
+/-- Some nonzero difference stays inactive through fifteen consecutive partial rounds, so the
+window `16` cannot be shortened. -/
 theorem toy_fifteen_ne_bot :
     Hades.inactiveSpace (diagPlusOnes (1 : F) (sp1Diag F)) ({0} : Finset (Fin 16)) 15 ≠ ⊥ :=
   Hades.inactiveSpace_ne_bot _ _ 15 (by simp)

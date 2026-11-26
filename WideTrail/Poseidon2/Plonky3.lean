@@ -61,10 +61,11 @@ field whose characteristic is none of `2, 3, 5, 7, 11, 17, 677`, for every nonze
 partial-round constant to `state[0]` only (`p3-poseidon2` `src/lib.rs:191`). Tables whose partial
 rows vanish off coordinate `0` (`PartialRowsAtZero`) model exactly that: `rounds_apply_middle`
 shows such a round is the code's round `internal (update x 0 (sbox (x 0 + v)))`. `roundValues`
-builds such a table from the code's two arrays (eight external rows, `rP` internal scalars).
-`rounds_apply_prefix` and `rounds_apply_suffix` give the full rounds. A raw constant table need
-not have this form: SP1 `5.2.4`'s BabyBear table `RC_16_30` is not `PartialRowsAtZero`, and the
-code's table is `roundValues 13 ext int` built from parts of it (see `roundValues`).
+builds such a table from the eight external rows the full-round loops read and the `rP`
+internal scalars. `rounds_apply_prefix` and `rounds_apply_suffix` give the full rounds. A raw
+constant table need not have this form: SP1 `5.2.4`'s BabyBear table `RC_16_30` is not
+`PartialRowsAtZero`, and the code's table is `roundValues 13 ext int` built from parts of it
+(see `roundValues`).
 
 ## Results, for every round-constant table
 
@@ -482,8 +483,8 @@ theorem rounds_apply_middle (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     simp
   · simp [hi, hv j hj i hi]
 
-/-- The round-constant table of the code's two arrays: `ext` holds the eight external rows
-(the code's `external_constants`, read in order by the two full-round loops,
+/-- The round-constant table the code reads: `ext` holds the eight external rows (the first
+eight entries of the code's `external_constants`, read in order by the two full-round loops,
 `p3-poseidon2` `src/lib.rs:183-184`, `:197-198`), and `int` the `rP` internal scalars
 (`internal_constants`, line 191). Partial rows carry their scalar at coordinate `0` and zero
 elsewhere.
@@ -522,7 +523,7 @@ theorem roundValues_partialRowsAtZero (rP : ℕ) (ext : Fin 8 → Fin 16 → K)
   intro j hj i hi
   rw [roundValues_middle rP ext int hj, Pi.single_apply, if_neg hi]
 
-/-- With the table of the code's two arrays, partial round `j` adds `int j` to `x 0`, applies
+/-- With a table built by `roundValues`, partial round `j` adds `int j` to `x 0`, applies
 the S-box there, then the internal layer (`p3-poseidon2` `src/lib.rs:190-194`). -/
 theorem rounds_roundValues_apply_middle (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (ext : Fin 8 → Fin 16 → K) (int : Fin rP → K) {j : ℕ} (hj : j < rP) (x : Fin 16 → K) :

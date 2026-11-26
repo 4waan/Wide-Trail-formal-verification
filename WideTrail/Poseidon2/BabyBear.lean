@@ -49,13 +49,17 @@ SP1 `5.2.4` builds its width-sixteen permutation in `poseidon2_init` (`sp1-primi
   rows `0` to `3` and `17` to `20`. So round `n < 21` of the schedule reads row `n` of
   `RC_16_30`, only column `0` for the partial rounds `4 ≤ n < 17`. Columns `1` to `15` of rows
   `4` to `16` are nonzero in `RC_16_30` but never read; they are `0` here
-  (`partialRowsAtZero`, by `decide`). `externalConstants` (rows `0` to `3`, then `17` to `20`)
-  and `internalConstants` (column `0` of rows `4` to `16`) are the code's two arrays,
-  `values_eq_roundValues` shows `values = Plonky3.roundValues 13 externalConstants
-  internalConstants`, and `rounds_apply_prefix`, `rounds_apply_partial` and
-  `rounds_apply_suffix` state each round as the code's round with those arrays. The values were
-  checked against the crate source outside Lean (re-extracted from `src/lib.rs`, with the
-  `drain` selection emulated); inside Lean, the table is only related to the two arrays, which
+  (`partialRowsAtZero`, by `decide`). With `externalConstants` (rows `0` to `3`, then `17` to
+  `20`: the eight rows of the code's `external_round_constants` that the full-round loops read)
+  and `internalConstants` (column `0` of rows `4` to `16`, the code's
+  `internal_round_constants`), `values_eq_roundValues` shows `values = Plonky3.roundValues 13
+  externalConstants internalConstants`, and `rounds_apply_prefix`, `rounds_apply_partial` and
+  `rounds_apply_suffix` state each round as the code's round with those constants. After
+  `drain(4..17)` the code's `external_round_constants` has `17` rows (rows `0` to `3`, then `17`
+  to `29`); `Poseidon2::new` (`p3-poseidon2` `0.2.3-succinct` `src/lib.rs:62-79`) does not check
+  its length, and rows `21` to `29` are never read. The values were checked against the crate
+  source outside Lean (re-extracted from `src/lib.rs`, with the `drain` selection emulated);
+  inside Lean, the table is only related to `externalConstants` and `internalConstants`, which
   are read off the same literals, and its unread entries are shown to vanish.
 
 ## Results
@@ -239,8 +243,9 @@ theorem partialRowsAtZero : PartialRowsAtZero 13 values := by
   intro j hj i hi
   exact h ⟨j, hj⟩ i hi
 
-/-- The code's `external_round_constants`: the rows of `RC_16_30` left after `drain(4..17)`,
-of which the two full-round loops read the first eight, rows `0` to `3` and `17` to `20`
+/-- The eight rows of the code's `external_round_constants` that the full-round loops read.
+That vector holds the rows of `RC_16_30` left after `drain(4..17)`; the two full-round loops
+read its first eight, rows `0` to `3` and `17` to `20`
 (`sp1-primitives` `5.2.4` `src/lib.rs:1110-1115`; `p3-poseidon2` `0.2.3-succinct`
 `src/lib.rs:183-184`, `:197-198`). -/
 def externalConstants (r : Fin 8) : State :=
@@ -255,8 +260,9 @@ theorem values_eq_roundValues_lt : ∀ n : Fin 21, ∀ i : Fin 16,
     values n.val i = Plonky3.roundValues 13 externalConstants internalConstants n.val i := by
   decide
 
-/-- **The table is the code's two arrays.** `values` is the table that `Plonky3.roundValues`
-builds from `external_round_constants` and `internal_round_constants`. -/
+/-- **The table is built from the constants the code reads.** `values` is the table that
+`Plonky3.roundValues` builds from the eight external rows the code reads and
+`internal_round_constants`. -/
 theorem values_eq_roundValues :
     values = Plonky3.roundValues 13 externalConstants internalConstants := by
   funext n i
