@@ -568,3 +568,48 @@ theorem independent_key_probability_sharp {T : ℕ → State} (h0 : T 0 ≠ 0) (
   independent_key_probability_sharp_general values h0 x
 
 end Poseidon2.KoalaBear
+
+/-! ### Exact inactive dimensions through the diagonal criterion
+
+`internal_inactive_trivial` is proved by a Krylov certificate: the literal tables `krylov` and
+`krylovInv`, computed outside Lean and checked by `decide`. The results below are a second,
+general route to the same statement. The fifteen diagonal entries off coordinate `0`, namely
+`1, 2, 4, …, 2^13, 2^15`, are pairwise distinct in `F` (`diag_injOn`, by `decide`), so the
+criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff` applies with no table
+(`inactive_trivial_by_criterion`, `internal_inactive_trivial_by_criterion`), and the space of
+differences that stay inactive through `r ≤ 16` consecutive partial rounds has dimension exactly
+`16 - r` (`finrank_inactive_eq`).
+
+These are statements about inactive differences of the partial rounds only: they are the
+linear-algebra fact behind "at most `15` consecutive partial rounds can be linearized", not a
+proof of resistance to subspace trails in general, and they say nothing about the full
+rounds. -/
+
+namespace Poseidon2.KoalaBear
+
+/-- The diagonal entries `d 1, …, d 15` are pairwise distinct in `F`, by `decide`. -/
+theorem diag_injOn : Set.InjOn (Plonky3.sp1Diag F) {i | i ≠ 0} :=
+  Plonky3.injOn_sp1Diag_of_forall (by decide)
+
+/-- **No nonzero difference stays inactive through sixteen consecutive partial rounds**, for
+the unscaled layer `diag d + J`: the statement of `inactive_trivial`, proved by the diagonal
+criterion instead of the Krylov certificate. -/
+theorem inactive_trivial_by_criterion :
+    Hades.inactiveSpace (diagPlusOnes (1 : F) (Plonky3.sp1Diag F)) ({0} : Finset (Fin 16)) 16 =
+      ⊥ :=
+  Plonky3.inactiveSpace_sixteen_eq_bot_iff.mpr diag_injOn
+
+/-- **The same for the code's internal layer**: the statement of `internal_inactive_trivial`,
+proved by the diagonal criterion instead of the Krylov certificate. -/
+theorem internal_inactive_trivial_by_criterion :
+    Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) 16 = ⊥ :=
+  Plonky3.inactiveSpace_internal_sixteen_eq_bot _ _ _ _ diag_injOn
+
+/-- **Exactly `16 - r` dimensions of differences stay inactive through `r` consecutive partial
+rounds**, for `r ≤ 16`. For `r = 15` one dimension remains; for `r = 16` none. -/
+theorem finrank_inactive_eq {r : ℕ} (hr : r ≤ 16) :
+    Module.finrank F (Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) r) =
+      16 - r :=
+  Plonky3.finrank_inactiveSpace_internal_eq _ _ _ _ diag_injOn hr
+
+end Poseidon2.KoalaBear

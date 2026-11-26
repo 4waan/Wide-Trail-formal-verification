@@ -6,6 +6,7 @@ Authors: Awaan Siddiqui
 import WideTrail.Algebra.BlockCirculant
 import WideTrail.Algebra.MDS4
 import WideTrail.Hades.Krylov
+import WideTrail.Hades.Dimension
 import Mathlib.Tactic.FinCases
 
 /-!
@@ -706,6 +707,66 @@ theorem independent_key_probability_with_middle_exact (hK : Conditions c)
     htriv' h0 x
   rw [show (4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2 + rP / w = 32 + rP / w by norm_num] at h
   rw [show 8 + rP = 4 + rP + 4 by omega]
+  exact h
+
+end Poseidon2.Plonky3
+
+/-! ### Exact inactive dimensions through the diagonal criterion
+
+`finrank_inactiveSpace_internal` is a lower bound: at least `16 - r` dimensions of differences
+stay inactive through `r` consecutive partial rounds. The results below make it exact when the
+fifteen diagonal entries off coordinate `0`, namely `1, 2, 4, …, 2^13, 2^15`, are pairwise
+distinct in `K`, by the general criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`.
+Under that condition the hypothesis of `activity_with_middle` holds with `w = 16`, with no
+Krylov table. This is a second route to that hypothesis; the first, a Krylov certificate
+(`Hades.inactiveSpace_diagPlusOnes_eq_bot`), checks literal tables for one concrete field.
+
+These are statements about inactive differences of the partial rounds only: they are the
+linear-algebra fact behind "at most `15` consecutive partial rounds can be linearized", not a
+proof of resistance to subspace trails in general, and they say nothing about the full
+rounds. -/
+
+namespace Poseidon2.Plonky3
+
+variable {K : Type*} [Field K]
+
+/-- The injectivity hypothesis below from a statement that `decide` can check for a concrete
+field. -/
+theorem injOn_sp1Diag_of_forall
+    (h : ∀ i j : Fin 16, i ≠ 0 → j ≠ 0 → sp1Diag K i = sp1Diag K j → i = j) :
+    Set.InjOn (sp1Diag K) {i | i ≠ 0} :=
+  fun i hi j hj hij => h i j hi hj hij
+
+/-- **Criterion for sixteen partial rounds.** No nonzero difference stays inactive through
+sixteen consecutive partial rounds with `diag d + J` exactly when the diagonal entries `d i`,
+`i ≠ 0`, are pairwise distinct in `K`. No hypothesis on `K` is needed. -/
+theorem inactiveSpace_sixteen_eq_bot_iff :
+    Hades.inactiveSpace (diagPlusOnes (1 : K) (sp1Diag K)) ({0} : Finset (Fin 16)) 16 = ⊥ ↔
+      Set.InjOn (sp1Diag K) {i | i ≠ 0} := by
+  have h := Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff (one_ne_zero : (1 : K) ≠ 0)
+    (sp1Diag K) (0 : Fin 16)
+  rwa [Fintype.card_fin] at h
+
+/-- **Sixteen partial rounds leave no inactive difference**, for the scaled internal layer,
+when the diagonal entries off coordinate `0` are pairwise distinct in `K`. -/
+theorem inactiveSpace_internal_sixteen_eq_bot (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0)
+    (hs : (81917 : K) ≠ 0) (hinj : Set.InjOn (sp1Diag K) {i | i ≠ 0}) :
+    Hades.inactiveSpace (internal c hc h2 hs).toLinearMap ({0} : Finset (Fin 16)) 16 = ⊥ := by
+  rw [inactiveSpace_internal]
+  exact inactiveSpace_sixteen_eq_bot_iff.mpr hinj
+
+/-- **Exactly `16 - r` dimensions stay inactive through `r` consecutive partial rounds**, for
+`r ≤ 16`, when the diagonal entries off coordinate `0` are pairwise distinct in `K`. This makes
+`finrank_inactiveSpace_internal` exact under that hypothesis. -/
+theorem finrank_inactiveSpace_internal_eq (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0)
+    (hs : (81917 : K) ≠ 0) (hinj : Set.InjOn (sp1Diag K) {i | i ≠ 0}) {r : ℕ} (hr : r ≤ 16) :
+    Module.finrank K
+      (Hades.inactiveSpace (internal c hc h2 hs).toLinearMap ({0} : Finset (Fin 16)) r) =
+        16 - r := by
+  have h := Hades.finrank_inactiveSpace_diagPlusOnes hc (sp1Diag K) (0 : Fin 16) hinj (r := r)
+    (by rw [Fintype.card_fin]; exact hr)
+  rw [Fintype.card_fin] at h
+  rw [internal_toLinearMap]
   exact h
 
 end Poseidon2.Plonky3

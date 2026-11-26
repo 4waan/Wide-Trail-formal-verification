@@ -572,3 +572,62 @@ info: 'Poseidon2.Plonky3.independent_key_probability_with_middle_exact' depends 
 /-- info: 'Poseidon2.Plonky3.Checks.toy_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.Plonky3.Checks.toy_probability_exact
+
+/-! ### The diagonal criterion over `ZMod 29` and `ZMod 23`
+
+`Plonky3.inactiveSpace_sixteen_eq_bot_iff` reduces the inactive-space hypothesis of
+`activity_with_middle` with `w = 16` to the distinctness of the diagonal entries off
+coordinate `0`. Over `ZMod 29` they are distinct (`2` has order `28` there), which gives a
+second proof of `toy_inactive`, without the Krylov tables. Over `ZMod 23`, `d 1 = 1 = 2^11 =
+d 12`, so the criterion says that the inactive space for sixteen consecutive partial rounds is
+nonzero, in agreement with `twentyThree_inactive_ne_bot`. -/
+
+namespace Poseidon2.Plonky3.Checks
+
+/-- The diagonal entries off coordinate `0` are pairwise distinct in `ZMod 29`. -/
+theorem toy_injOn : Set.InjOn (sp1Diag F) {i | i ≠ 0} :=
+  injOn_sp1Diag_of_forall (by decide)
+
+/-- **`toy_inactive` by the diagonal criterion**, without the Krylov tables. -/
+theorem toy_inactive_by_criterion :
+    Hades.inactiveSpace (diagPlusOnes (1 : F) (sp1Diag F)) ({0} : Finset (Fin 16)) 16 = ⊥ :=
+  inactiveSpace_sixteen_eq_bot_iff.mpr toy_injOn
+
+/-- In `ZMod 23`, `d 1 = 1` and `d 12 = 2^11 = 1` coincide. -/
+theorem twentyThree_not_injOn : ¬ Set.InjOn (sp1Diag (ZMod 23)) {i | i ≠ 0} := by
+  intro h
+  have h112 : (1 : Fin 16) = 12 := h (by decide) (by decide) (by decide)
+  exact absurd h112 (by decide)
+
+/-- **The criterion agrees with `twentyThree_inactive_ne_bot`**: over `ZMod 23` some nonzero
+difference stays inactive through sixteen consecutive partial rounds. -/
+theorem twentyThree_inactive_ne_bot_by_criterion :
+    Hades.inactiveSpace (diagPlusOnes (1 : ZMod 23) (sp1Diag (ZMod 23)))
+      ({0} : Finset (Fin 16)) 16 ≠ ⊥ :=
+  fun h => twentyThree_not_injOn (inactiveSpace_sixteen_eq_bot_iff.mp h)
+
+end Poseidon2.Plonky3.Checks
+
+/-- info: 'Poseidon2.Plonky3.inactiveSpace_sixteen_eq_bot_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.inactiveSpace_sixteen_eq_bot_iff
+
+/-- info: 'Poseidon2.Plonky3.inactiveSpace_internal_sixteen_eq_bot' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.inactiveSpace_internal_sixteen_eq_bot
+
+/-- info: 'Poseidon2.Plonky3.finrank_inactiveSpace_internal_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.finrank_inactiveSpace_internal_eq
+
+/-- info: 'Poseidon2.Plonky3.Checks.toy_inactive_by_criterion' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toy_inactive_by_criterion
+
+/--
+info: 'Poseidon2.Plonky3.Checks.twentyThree_inactive_ne_bot_by_criterion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.twentyThree_inactive_ne_bot_by_criterion

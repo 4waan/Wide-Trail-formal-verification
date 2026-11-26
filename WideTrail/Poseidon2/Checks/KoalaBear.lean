@@ -649,3 +649,21 @@ info: 'Poseidon2.KoalaBear.independent_key_probability_sharp_general' depends on
 -/
 #guard_msgs in
 #print axioms Poseidon2.KoalaBear.independent_key_probability_sharp_general
+
+/-! ### The inactive dimensions through the diagonal criterion -/
+
+/-- info: 'Poseidon2.KoalaBear.diag_injOn' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.diag_injOn
+
+/-- info: 'Poseidon2.KoalaBear.inactive_trivial_by_criterion' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.inactive_trivial_by_criterion
+
+/-- info: 'Poseidon2.KoalaBear.internal_inactive_trivial_by_criterion' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.internal_inactive_trivial_by_criterion
+
+/-- info: 'Poseidon2.KoalaBear.finrank_inactive_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.finrank_inactive_eq

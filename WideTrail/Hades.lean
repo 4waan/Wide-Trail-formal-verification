@@ -10,9 +10,11 @@ import WideTrail.Hades.Counting
 import WideTrail.Hades.Probability
 import WideTrail.Hades.Subspace
 import WideTrail.Hades.Krylov
+import WideTrail.Hades.Dimension
 import WideTrail.Hades.Checks.Toy
 import WideTrail.Hades.Checks.Counting
 import WideTrail.Hades.Checks.Krylov
+import WideTrail.Hades.Checks.Dimension
 import WideTrail.Hades.Checks.Axioms
 
 /-! Scheduled masked rounds, activity bounds for full outer blocks, and inactive

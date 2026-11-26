@@ -485,3 +485,48 @@ theorem independent_key_probability_sharp {T : ℕ → State} (h0 : T 0 ≠ 0) (
   independent_key_probability_sharp_general values h0 x
 
 end Poseidon2.BabyBear
+
+/-! ### Exact inactive dimensions through the diagonal criterion
+
+`three_le_finrank_partial_inactive` is a lower bound from rank–nullity. The fifteen diagonal
+entries off coordinate `0`, namely `1, 2, 4, …, 2^13, 2^15`, are pairwise distinct in `F`
+(`diag_injOn`, by `decide`), so the criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`
+makes it exact: the differences that stay inactive through the thirteen consecutive partial
+rounds form a space of dimension exactly `3` (`finrank_partial_inactive`), and no nonzero
+difference would stay inactive through sixteen (`inactive_sixteen`). So the hypothesis of
+`Plonky3.activity_with_middle` holds with `w = 16` over `F`, and `13 / 16 = 0`, as
+`partial_window_term_eq_zero` states for every admissible `w`. No Krylov table is used here.
+
+These are statements about inactive differences of the partial rounds only: they are the
+linear-algebra fact behind "at most `15` consecutive partial rounds can be linearized", not a
+proof of resistance to subspace trails in general, and they say nothing about the full
+rounds. -/
+
+namespace Poseidon2.BabyBear
+
+open Plonky3
+
+/-- The diagonal entries `d 1, …, d 15` are pairwise distinct in `F`, by `decide`. -/
+theorem diag_injOn : Set.InjOn (sp1Diag F) {i | i ≠ 0} :=
+  injOn_sp1Diag_of_forall (by decide)
+
+/-- **No nonzero difference stays inactive through sixteen consecutive partial rounds** of the
+code's internal layer, by the diagonal criterion. BabyBear has only thirteen partial rounds. -/
+theorem inactive_sixteen :
+    Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) 16 = ⊥ :=
+  inactiveSpace_internal_sixteen_eq_bot _ _ _ _ diag_injOn
+
+/-- **Exactly `16 - r` dimensions of differences stay inactive through `r` consecutive partial
+rounds**, for `r ≤ 16`. -/
+theorem finrank_inactive_eq {r : ℕ} (hr : r ≤ 16) :
+    Module.finrank F (Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) r) =
+      16 - r :=
+  finrank_inactiveSpace_internal_eq _ _ _ _ diag_injOn hr
+
+/-- **Exactly three dimensions of differences stay inactive through the thirteen consecutive
+partial rounds.** This makes `three_le_finrank_partial_inactive` exact. -/
+theorem finrank_partial_inactive :
+    Module.finrank F (Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 16)) 13) = 3 :=
+  finrank_inactive_eq (by norm_num)
+
+end Poseidon2.BabyBear

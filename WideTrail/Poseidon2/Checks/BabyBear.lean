@@ -633,3 +633,21 @@ info: 'Poseidon2.BabyBear.independent_key_probability_sharp_general' depends on 
 -/
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.independent_key_probability_sharp_general
+
+/-! ### The inactive dimensions through the diagonal criterion -/
+
+/-- info: 'Poseidon2.BabyBear.diag_injOn' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.diag_injOn
+
+/-- info: 'Poseidon2.BabyBear.inactive_sixteen' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.inactive_sixteen
+
+/-- info: 'Poseidon2.BabyBear.finrank_inactive_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.finrank_inactive_eq
+
+/-- info: 'Poseidon2.BabyBear.finrank_partial_inactive' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.finrank_partial_inactive

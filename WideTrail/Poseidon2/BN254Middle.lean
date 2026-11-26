@@ -5,6 +5,7 @@ Authors: Awaan Siddiqui
 -/
 import WideTrail.Poseidon2.BN254
 import WideTrail.Hades.Subspace
+import WideTrail.Hades.Dimension
 
 /-! Partial-round activity for the pinned BN254 width-three permutation.
 
@@ -158,5 +159,61 @@ theorem independent_key_probability_sharp {T : Nat → State} (h0 : T 0 ≠ 0) (
       ≤ Fintype.card (Fin 3 → F) ^ (4 + 56 + 4) :=
   Hades.mul_le_of_ratio (independent_key_probability_exact h0 x) sharp_exponent_bound
     (pow_pos (by norm_num) _)
+
+end Poseidon2.BN254
+
+/-! ### The internal matrix as `diag (1, 1, 2) + J`, and the diagonal criterion
+
+`internal_inactive_trivial` is proved by combining the three conditions with explicit ring
+identities. The internal matrix `[[2, 1, 1], [1, 2, 1], [1, 1, 3]]` is `diag (1, 1, 2) + J`
+(`internal_toLinearMap_eq`), the Poseidon2 internal-layer form `diagPlusOnes 1 internalDiag`.
+Its diagonal entries off coordinate `0`, namely `1` and `2`, are distinct in `F`
+(`internalDiag_injOn`), so the general criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff`
+gives a second proof of the same statement (`internal_inactive_trivial_by_criterion`), and the
+space of differences that stay inactive through `r ≤ 3` consecutive internal rounds has
+dimension exactly `3 - r` (`finrank_internal_inactive`).
+
+These are statements about inactive differences of the internal rounds only: they are the
+linear-algebra fact behind "at most `2` consecutive internal rounds can be linearized", not a
+proof of resistance to subspace trails in general, and they say nothing about the external
+rounds. -/
+
+namespace Poseidon2.BN254
+
+/-- The diagonal `(1, 1, 2)` of the internal matrix, written as `diag (1, 1, 2) + J`. -/
+def internalDiag : Fin 3 → F := ![1, 1, 2]
+
+/-- **The internal layer is `diag (1, 1, 2) + J`.** -/
+theorem internal_toLinearMap_eq : internal.toLinearMap = diagPlusOnes (1 : F) internalDiag := by
+  refine LinearMap.ext fun x => ?_
+  funext i
+  rw [diagPlusOnes_apply, Fin.sum_univ_three]
+  fin_cases i <;> simp [internal, internalDiag] <;> ring
+
+/-- The entries `1` and `2` of the diagonal off coordinate `0` are distinct in `F`. -/
+theorem internalDiag_injOn : Set.InjOn internalDiag {i | i ≠ 0} := fun i hi j hj h =>
+  (by decide : ∀ i j : Fin 3, i ≠ 0 → j ≠ 0 → internalDiag i = internalDiag j → i = j)
+    i j hi hj h
+
+/-- **No nonzero difference stays off the S-box coordinate through three internal rounds**:
+the statement of `internal_inactive_trivial`, proved by the diagonal criterion. -/
+theorem internal_inactive_trivial_by_criterion :
+    Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 3)) 3 = ⊥ := by
+  have h := (Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff (one_ne_zero : (1 : F) ≠ 0)
+    internalDiag (0 : Fin 3)).mpr internalDiag_injOn
+  rw [Fintype.card_fin] at h
+  rw [internal_toLinearMap_eq]
+  exact h
+
+/-- **Exactly `3 - r` dimensions of differences stay off the S-box coordinate through `r`
+consecutive internal rounds**, for `r ≤ 3`. -/
+theorem finrank_internal_inactive {r : ℕ} (hr : r ≤ 3) :
+    Module.finrank F (Hades.inactiveSpace internal.toLinearMap ({0} : Finset (Fin 3)) r) =
+      3 - r := by
+  have h := Hades.finrank_inactiveSpace_diagPlusOnes (one_ne_zero : (1 : F) ≠ 0) internalDiag
+    (0 : Fin 3) internalDiag_injOn (r := r) (by rw [Fintype.card_fin]; exact hr)
+  rw [Fintype.card_fin] at h
+  rw [internal_toLinearMap_eq]
+  exact h
 
 end Poseidon2.BN254
