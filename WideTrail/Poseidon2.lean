@@ -14,5 +14,7 @@ import WideTrail.Poseidon2.KoalaBear
 import WideTrail.Poseidon2.Checks.KoalaBear
 import WideTrail.Poseidon2.BabyBear
 import WideTrail.Poseidon2.Checks.BabyBear
+import WideTrail.Poseidon2.Plonky3Execution
+import WideTrail.Poseidon2.Checks.Plonky3KAT
 
 /-! Pinned concrete Poseidon2 parameter certificates. -/
