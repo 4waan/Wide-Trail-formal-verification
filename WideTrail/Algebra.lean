@@ -9,6 +9,8 @@ import WideTrail.Algebra.AESMix
 import WideTrail.Algebra.AESSbox
 import WideTrail.Algebra.PowerSbox
 import WideTrail.Algebra.MDS4
+import WideTrail.Algebra.BlockCirculant
 import WideTrail.Algebra.Checks.MDS4
+import WideTrail.Algebra.Checks.BlockCirculant
 
 /-! Concrete finite-field arithmetic and MDS branch bounds. -/
