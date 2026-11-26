@@ -80,8 +80,14 @@ See [the HADES mechanics](MECHANICS_HADES.md) and [the implementation plan](HADE
 width-three instance: field primality, the actual fifth-power S-box, both linear
 inverses, external MDS mixing, permutation bijectivity, and at least 34 active
 S-boxes per distinct input pair, 16 from the outer rounds and 18 from the partial
-rounds. Its checked execution trace matches the pinned upstream known-answer vector.
-See [the concrete certificate and its scope](PRODUCTION_CERTIFICATE.md).
+rounds. Its checked execution traces match the pinned upstream known-answer vector
+and the vector of SP1's gnark test for the same permutation, which SP1 uses for its
+outer recursion and wrap stages. It also certifies the two width-sixteen
+permutations SP1 uses for its main proof system, through one generic model of the
+Plonky3 code: KoalaBear (SP1 6.10.0, `x^3`, twenty partial rounds) with at least 33
+active S-boxes per distinct input pair, and BabyBear (SP1 5.2.4, `x^7`, thirteen
+partial rounds) with at least 32.
+See [the concrete certificates and their scope](PRODUCTION_CERTIFICATE.md).
 
 Named theorem footprints are pinned by `#print axioms`. The complete module audit
 in `scripts/AuditAxioms.lean` checks every project declaration, including names in
@@ -149,6 +155,15 @@ The general theorem: if every square submatrix of a matrix `M` is nonsingular (t
 #### [`WideTrail/Algebra/AESMix.lean`](WideTrail/Algebra/AESMix.lean)
 The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Propagation layer's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete` (25 and 55), plus the same for AES-192 and AES-256 (75 and 80).
 
+#### [`WideTrail/Algebra/MDS4.lean`](WideTrail/Algebra/MDS4.lean)
+Plonky3's `4×4` matrix `circ(2, 3, 1, 1)` over any field. It is MDS exactly when `2, 3, 5, 7, 11` and `17` are nonzero (`m4_isMDS_iff`), so its branch number is then `5`. Its determinant is `-35`, which gives an explicit inverse.
+
+#### [`WideTrail/Algebra/BlockCirculant.lean`](WideTrail/Algebra/BlockCirculant.lean)
+The Poseidon2 external layer as a block circulant `circ(2N, N, …, N)`: block `i` of the output is `N (xᵢ + ∑ⱼ xⱼ)`. If `N` has branch number `p + 1` on blocks of size `p`, and `1, …, b + 1` are nonzero for `b` blocks, the whole layer has branch number at least `min(b + p, 2(p + 1))`. At width sixteen that is `8`. The checks show the characteristic hypothesis cannot be dropped, and that the bound is attained in a small case over `ZMod 7`.
+
+#### [`WideTrail/Algebra/DiagPlusOnes.lean`](WideTrail/Algebra/DiagPlusOnes.lean)
+The Poseidon2 internal layer `c (diag d + J)` as a linear equivalence, with the Sherman–Morrison inverse. It needs `c ≠ 0`, every `dᵢ ≠ 0` and `1 + ∑ 1/dᵢ ≠ 0`. The map is self-adjoint for the dot product, which `Hades/Krylov.lean` uses.
+
 ### Differential layer: from active S-boxes to a probability
 
 #### [`WideTrail/Differential/Counts.lean`](WideTrail/Differential/Counts.lean)
@@ -165,6 +180,9 @@ The arithmetic, once: `trailKeyCount · 2 ^ (d·W) ≤ |X| ^ r`. Plus the bridge
 
 #### [`WideTrail/Differential/AESProb.lean`](WideTrail/Differential/AESProb.lean)
 The numbers. `|K| = 256`, `|Idx| = 16`, S-box uniformity `4`, and `4 · 2⁶ = 256`, so each active S-box costs `2⁻⁶`: `2⁻¹⁵⁰` over four rounds, `2⁻³³⁰` over ten, `2⁻⁴⁵⁰` over twelve, `2⁻⁴⁸⁰` over fourteen. The generic theorem retains explicit S-box hypotheses. `AESConcrete.lean` now discharges them for the actual AES S-box, using its proved inverse and a structural differential-uniformity proof.
+
+#### [`WideTrail/Differential/PowerMap.lean`](WideTrail/Differential/PowerMap.lean)
+The power map `x ↦ x^d` over any field has differential uniformity at most `d - 1` when `d` is nonzero in the field: for a nonzero input difference, the equation is a polynomial of degree `d - 1`. The checks show the bound is attained for `x^3` over `ZMod 7` and `x^7` over `ZMod 29`, and fails over `ZMod 3`, where `3 = 0`.
 
 #### [`WideTrail/Differential/Checks/Toy.lean`](WideTrail/Differential/Checks/Toy.lean)
 A sixteen-state cipher the kernel enumerates in full. Recomputes the bundle product and the Markov product by brute force, shows the S-box uniformity constant is exactly attained, exhibits a fixed key under which the product formula is false, and exhibits a two-round differential worth twice its best trail.
@@ -199,10 +217,58 @@ it cross the window for free. Combines the outer and middle counts, carries them
 into the independent-key trail bound, and proves by rank-nullity that too short a
 window always leaves a nonzero inactive difference.
 
+#### [`Krylov.lean`](WideTrail/Hades/Krylov.lean)
+Turns "no nonzero difference stays off the S-box coordinate for `r` rounds" into
+finite checks. For a self-adjoint internal map, the conditions are dot products with
+the vectors `Lʲ e₀`. A table of those vectors and a left inverse, both checked by
+`decide`, prove the inactive space trivial. A nonzero scalar in front of the map does
+not matter.
+
 #### [`Checks`](WideTrail/Hades/Checks/Toy.lean)
 A 25-state cipher over `ZMod 5` checks the count, exhibits a tight witness, and
 shows why identity coordinates must be excluded. Weak mixing and a collapsing
 middle map refute bounds stated without their required assumptions.
+
+---
+
+### Poseidon2 layer: concrete permutations
+
+#### [`BN254Parameters.lean`](WideTrail/Poseidon2/BN254Parameters.lean), [`BN254Primality.lean`](WideTrail/Poseidon2/BN254Primality.lean), [`BN254.lean`](WideTrail/Poseidon2/BN254.lean)
+The reference BN254 width-three permutation: its 192 constants, primality by Lucas
+certificates, the fifth-power S-box, both linear layers with inverses, bijectivity,
+and 16 active S-boxes in the outer rounds.
+
+#### [`BN254Middle.lean`](WideTrail/Poseidon2/BN254Middle.lean)
+Charges the 56 internal rounds: three rounds always activate the S-box, so every
+distinct input pair incurs at least 34 active S-boxes.
+
+#### [`BN254Execution.lean`](WideTrail/Poseidon2/BN254Execution.lean), [`BN254Checks.lean`](WideTrail/Poseidon2/BN254Checks.lean)
+A materialised runner proved equal to the specification, a checked 64-round
+trace, and the upstream `[0, 1, 2]` known-answer vector.
+
+#### [`Checks/BN254SP1.lean`](WideTrail/Poseidon2/Checks/BN254SP1.lean)
+SP1's gnark test vector for its BN254 outer permutation, input `(0, 0, 0)`, proved
+for the same Lean permutation.
+
+#### [`Plonky3.lean`](WideTrail/Poseidon2/Plonky3.lean)
+The width-sixteen Plonky3 permutation over any field, as SP1 configures it. The
+external layer is proved equal to a transcription of the code's
+`mds_light_permutation`; the internal layer is `R⁻¹ (diag d + J)` with SP1's diagonal.
+Bijectivity, at least 32 active S-boxes from the full rounds, the partial-round
+term, and the independent-key trail bound hold for every round-constant table.
+
+#### [`KoalaBear.lean`](WideTrail/Poseidon2/KoalaBear.lean), [`BabyBear.lean`](WideTrail/Poseidon2/BabyBear.lean)
+The SP1 instances, with primality, the S-box, the Montgomery factor and the
+pinned constants. KoalaBear: no difference stays inactive through sixteen
+consecutive partial rounds, so at least 33 active S-boxes and exponent 957. BabyBear: at least 32 and exponent
+896; its thirteen partial rounds add nothing, and the checks exhibit input pairs
+that cross them without activating an S-box.
+
+#### [`Checks`](WideTrail/Poseidon2/Checks/)
+Why each exponent and margin is what it is, which hypotheses cannot be dropped, and
+end-to-end runs. KoalaBear's model reproduces the upstream crate's own known-answer
+vector with that test's constants. The pinned-constant outputs are regression values
+from an outside model, since no published vector exists for either SP1 instance.
 
 ---
 
