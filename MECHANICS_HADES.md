@@ -130,8 +130,9 @@ A power of two is recovered at the end. `mul_le_of_ratio` turns `n * q <= v * N`
 is the closed inequality `2 ^ E * u ^ A <= p ^ A`, which the kernel decides. For the pinned
 instances the largest such `E` is 989 for KoalaBear (`A = 33`, `u = 2`), 906 for BabyBear
 (`A = 32`, `u = 6`) and 8554 for BN254 (`A = 34`, `u = 4`); each certificate's checks show
-that `E + 1` fails. The whole-bit route gives 957, 896 and 8534. These are still bounds on
-one trail with an additional independent uniform key per round.
+that `E + 1` fails. Rounding to whole bits per S-box gives the weaker 957, 896 and 8534,
+which the earlier theorems state. All of these are bounds on one trail with an additional
+independent uniform key per round.
 
 ## Exact dimensions, and a criterion for `diag d + J`
 

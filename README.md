@@ -365,9 +365,9 @@ round count, so `decide` on the runner proves statements about the model.
 #### [`KoalaBear.lean`](WideTrail/Poseidon2/KoalaBear.lean), [`BabyBear.lean`](WideTrail/Poseidon2/BabyBear.lean)
 The SP1 instances, with primality, the S-box, the Montgomery factor and the
 pinned constants. KoalaBear: no nonzero difference stays inactive through sixteen
-consecutive partial rounds, so at least 33 active S-boxes; trail exponent 957, or 989
-with the exact ratio. BabyBear: at least 32, trail exponent 896, or 906 with the exact
-ratio; its thirteen partial rounds add nothing, exactly 3 dimensions of differences stay
+consecutive partial rounds, so at least 33 active S-boxes and a trail exponent of 989
+(957 with whole bits per S-box). BabyBear: at least 32 and a trail exponent of 906 (896
+with whole bits); its thirteen partial rounds add nothing, exactly 3 dimensions of differences stay
 inactive through them, and some input pairs cross them without activating an S-box.
 Both: the diagonal criterion, exactly `16 - r` inactive dimensions, and key-averaged
 differential exponents 209 (KoalaBear) and 198 (BabyBear).
