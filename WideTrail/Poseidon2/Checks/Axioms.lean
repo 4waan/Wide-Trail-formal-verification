@@ -146,3 +146,25 @@ end Poseidon2.AxiomChecks
 /-- info: 'Poseidon2.Plonky3.external_eq_mat4Blocks_of_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.Plonky3.external_eq_mat4Blocks_of_mem
+
+/-- info: 'Poseidon2.Plonky3.positionSums_mat4Blocks_eq_zero_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.positionSums_mat4Blocks_eq_zero_iff
+
+/-- info: 'Poseidon2.Plonky3.external_eq_mat4Blocks_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.external_eq_mat4Blocks_iff
+
+/-! ### Plonky3: transposes of the two layers -/
+
+/-- info: 'Poseidon2.Plonky3.external_dotProduct' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.external_dotProduct
+
+/-- info: 'Poseidon2.Plonky3.external_transpose_isBranchBound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.external_transpose_isBranchBound
+
+/-- info: 'Poseidon2.Plonky3.internal_dotProduct' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.internal_dotProduct

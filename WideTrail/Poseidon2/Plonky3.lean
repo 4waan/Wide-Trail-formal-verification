@@ -5,6 +5,7 @@ Authors: Awaan Siddiqui
 -/
 import WideTrail.Algebra.BlockCirculant
 import WideTrail.Algebra.MDS4
+import WideTrail.Algebra.Transpose
 import WideTrail.Hades.Krylov
 import WideTrail.Hades.Dimension
 import WideTrail.Hades.Hull
@@ -821,14 +822,19 @@ end Poseidon2.Plonky3
 
 /-! ### States whose four blocks sum to zero
 
-A flat state lies in `blockSumZeroFlat` when its four blocks `x_0, …, x_3` (`blockOf`) sum to
-zero, that is, when the code's position sums `sums[k] = x[k] + x[4 + k] + x[8 + k] + x[12 + k]`
-all vanish (`mem_blockSumZeroFlat`). This is `BlockCirculant.blockSumZero` on the flat state, and
-the results below specialise `BlockCirculant.blockMix_of_blockSum_eq_zero` and its companions to
-the external layer:
+A flat state `x` lies in `blockSumZeroFlat` when its four blocks `x_0, …, x_3` (`blockOf`) sum
+to zero, that is, when the position sums of the input, `positionSums x`
+(`x[k] + x[4 + k] + x[8 + k] + x[12 + k]`), all vanish (`mem_blockSumZeroFlat`). The code computes
+its `sums` from the state after the `M4` step, which is `M4` applied to these
+(`positionSums_mat4Blocks`), so under `35 ≠ 0` the two vanish together
+(`positionSums_mat4Blocks_eq_zero_iff`). This is `BlockCirculant.blockSumZero` on the flat state,
+and the results below specialise `BlockCirculant.blockMix_of_blockSum_eq_zero` and its companions
+to the external layer:
 
 * `blockOf_external_of_mem`, `external_eq_mat4Blocks_of_mem`: on such a state the external layer
   is `M4` applied to each block separately, with no mixing between blocks;
+* `external_eq_mat4Blocks_iff`: under `35 ≠ 0`, the states on which the external layer equals
+  `mat4Blocks` are exactly the states of `blockSumZeroFlat`;
 * `external_mem_blockSumZeroFlat_iff`: a state lies in the subspace exactly when its image under
   the external layer does, so the layer maps the subspace onto itself and every state outside it
   to a state outside it;
@@ -841,12 +847,14 @@ At the level of the code, over every commutative ring: the position sums after t
 `M4` applied to the input position sums (`positionSums_mdsLight`).
 
 Why this subspace is singled out: recent round-skipping work on Poseidon2 (IACR ePrint 2026/306)
-exploits structure of this kind in the linear layers, and its authors state that their attacks do
-not mean that the primitive falls short of its claimed security level. No source cited here shows
-that SP1's parameter sets are affected, and nothing here is a statement about any attack. These
-are facts about the external layer alone: the S-box layer of a full round acts on every coordinate
-and need not keep a state in the subspace, and nothing is said about the internal layer, about
-whole rounds or about the permutation. -/
+exploits the structure of the linear-layer matrices; the zero-block-sum subspace is one
+structural property of the external matrix, and no claim is made here about which properties
+that work uses. Its authors state that their attacks do not mean that the primitive falls short of
+its claimed security level. No source cited here shows that SP1's parameter sets are affected,
+and nothing here is a statement about any attack. These are facts about the external layer
+alone: the S-box layer of a full round acts on every coordinate and need not keep a state in the
+subspace, and nothing is said about the internal layer, about whole rounds or about the
+permutation. -/
 
 namespace Poseidon2.Plonky3
 
@@ -909,10 +917,18 @@ theorem positionSums_eq_blockSum (x : Fin 16 → K) :
 def blockSumZeroFlat : Submodule K (Fin 16 → K) :=
   blockSumZero.comap (LinearEquiv.funCongrLeft K K blockIndex).toLinearMap
 
-/-- **Membership is the vanishing of the code's position sums** `sums[k]`. -/
+/-- **Membership is the vanishing of the position sums `positionSums x` of the input.** -/
 theorem mem_blockSumZeroFlat {x : Fin 16 → K} : x ∈ blockSumZeroFlat ↔ positionSums x = 0 := by
   rw [positionSums_eq_blockSum, ← mem_blockSumZero]
   rfl
+
+/-- **The code's `sums` vanish exactly when the position sums of the input do**, under `35 ≠ 0`.
+The code computes `sums` from the state after the `M4` step, `positionSums (mat4Blocks x)`, which
+is `M4` applied to `positionSums x` (`positionSums_mat4Blocks`), and `M4` is injective. -/
+theorem positionSums_mat4Blocks_eq_zero_iff (h35 : (35 : K) ≠ 0) (x : Fin 16 → K) :
+    positionSums (mat4Blocks x) = 0 ↔ positionSums x = 0 := by
+  rw [positionSums_mat4Blocks, ← m4Equiv_apply h35]
+  exact map_eq_zero_iff _ (m4Equiv K h35).injective
 
 /-- **The subspace has dimension `12`**: `(4 - 1) * 4` (`BlockCirculant.finrank_blockSumZero`),
 unchanged by relabelling coordinates. -/
@@ -934,6 +950,21 @@ theorem blockOf_external_of_mem (h35 : (35 : K) ≠ 0) {x : Fin 16 → K}
   funext c
   rw [blockOf, external_eq_mat4Blocks_of_mem h35 hx, mat4Blocks_apply, Equiv.symm_apply_apply]
 
+/-- **The blockwise form holds exactly on `blockSumZeroFlat`.** Under `35 ≠ 0`,
+`external h35 x = mat4Blocks x` if and only if `x ∈ blockSumZeroFlat`. The external layer is the
+code's `mdsLight`, which adds the code's `sums[i % 4]`, `positionSums (mat4Blocks x)`, to
+coordinate `i` of `mat4Blocks x`; those vanish exactly when `x` lies in the subspace
+(`positionSums_mat4Blocks_eq_zero_iff`). -/
+theorem external_eq_mat4Blocks_iff (h35 : (35 : K) ≠ 0) (x : Fin 16 → K) :
+    external h35 x = mat4Blocks x ↔ x ∈ blockSumZeroFlat := by
+  refine ⟨fun h => ?_, external_eq_mat4Blocks_of_mem h35⟩
+  rw [mem_blockSumZeroFlat, ← positionSums_mat4Blocks_eq_zero_iff h35]
+  funext k
+  have hk := congrFun h ⟨k.val, by omega⟩
+  have hmod : (⟨k.val % 4, by omega⟩ : Fin 4) = k := Fin.ext (Nat.mod_eq_of_lt k.isLt)
+  rw [external_eq_mdsLight, mdsLight, hmod, add_eq_left] at hk
+  exact hk
+
 /-- `external h35 x` written through `BlockCirculant.blockMix` on the state indexed by
 `blockIndex`. -/
 theorem external_comp_blockIndex (h35 : (35 : K) ≠ 0) (x : Fin 16 → K) :
@@ -951,5 +982,59 @@ theorem external_mem_blockSumZeroFlat_iff (h35 : (35 : K) ≠ 0) (x : Fin 16 →
   rw [mem_blockSumZeroFlat, mem_blockSumZeroFlat, positionSums_eq_blockSum,
     positionSums_eq_blockSum, external_comp_blockIndex, ← mem_blockSumZero, ← mem_blockSumZero]
   exact blockMix_mem_blockSumZero_iff (m4Equiv K h35).injective (five_ne_zero_of_thirtyFive h35) _
+
+end Poseidon2.Plonky3
+
+/-! ### Transposes of the two layers
+
+In linear (correlation) cryptanalysis a mask is carried through a linear map by its transpose.
+`WideTrail.Algebra.Transpose` takes the linear branch number of a layer, as a definition, to be
+the differential branch number of its transpose. The results below identify the transposes of the
+two layers of this file:
+
+* `external_dotProduct`: `external h35 x ⬝ᵥ y = x ⬝ᵥ T y` for all states `x, y`, where `T` is
+  `circ(2 m4ᵀ, m4ᵀ, m4ᵀ, m4ᵀ)` on the flat state and `m4ᵀ = circ(2, 1, 1, 3)`
+  (`Poseidon2.m4_transpose`);
+* `external_transpose_isBranchBound`: under the `m4Primes` hypothesis `T` has branch number at
+  least `8`, the bound `external_isBranchBound` gives for the external layer itself;
+* `internal_dotProduct`: the internal layer is its own transpose,
+  `internal c hc h2 hs x ⬝ᵥ y = x ⬝ᵥ internal c hc h2 hs y` (`Poseidon2.diagPlusOnes_dotProduct`).
+
+These are facts about the two linear layers alone. No correlation, linear trail, linear hull or
+linear-attack bound is proved, and nothing is said about the S-box or about whole rounds. -/
+
+namespace Poseidon2.Plonky3
+
+open BlockCirculant
+open scoped Matrix
+
+variable {K : Type*} [Field K]
+
+/-- **The transpose of the external layer.** For all states `x, y`,
+`external h35 x ⬝ᵥ y = x ⬝ᵥ T y`, where `T` is `circ(2 m4ᵀ, m4ᵀ, m4ᵀ, m4ᵀ)` on the flat state:
+`Poseidon2.blockMix_m4_sixteen_dotProduct` applied to `external_apply`. -/
+theorem external_dotProduct (h35 : (35 : K) ≠ 0) (x y : Fin 16 → K) :
+    external h35 x ⬝ᵥ y =
+      x ⬝ᵥ (blockMix (B := Fin 4) (Matrix.mulVecLin (m4 K)ᵀ) (y ∘ blockIndex) ∘
+        blockIndex.symm) := by
+  rw [external_apply, m4Equiv_toLinearMap]
+  exact blockMix_m4_sixteen_dotProduct x y
+
+/-- **Branch number `8` for the transpose of the external layer.** Under the `m4Primes`
+hypothesis, the map `T` of `external_dotProduct` has branch number at least `8`
+(`Poseidon2.isBranchBound_blockMix_m4_transpose_sixteen`). -/
+theorem external_transpose_isBranchBound [DecidableEq K]
+    (hprimes : ∀ p ∈ m4Primes, (p : K) ≠ 0) :
+    isBranchBound id
+      (fun y : Fin 16 → K =>
+        blockMix (B := Fin 4) (Matrix.mulVecLin (m4 K)ᵀ) (y ∘ blockIndex) ∘ blockIndex.symm) 8 :=
+  isBranchBound_blockMix_m4_transpose_sixteen hprimes
+
+/-- **The internal layer is its own transpose.** For all states `x, y`,
+`internal c hc h2 hs x ⬝ᵥ y = x ⬝ᵥ internal c hc h2 hs y` (`Poseidon2.diagPlusOnes_dotProduct`). -/
+theorem internal_dotProduct (c : K) (hc : c ≠ 0) (h2 : (2 : K) ≠ 0) (hs : (81917 : K) ≠ 0)
+    (x y : Fin 16 → K) :
+    internal c hc h2 hs x ⬝ᵥ y = x ⬝ᵥ internal c hc h2 hs y :=
+  diagPlusOnes_dotProduct c (sp1Diag K) x y
 
 end Poseidon2.Plonky3

@@ -499,11 +499,13 @@ in `K`, a state lies in it exactly when its image does (`blockMix_mem_blockSumZe
 dimension is `(t - 1) k` (`finrank_blockSumZero`).
 
 Why this subspace is singled out: recent round-skipping work on Poseidon2 (IACR ePrint 2026/306)
-exploits structure of the linear-layer matrices of this kind, and its authors state that their
-attacks do not mean that the primitive falls short of its claimed security level. Nothing here is
-a statement about any attack: these are facts about the linear map `blockMix N` alone. They say
-nothing about the S-box layer, which in a full round acts on every coordinate and need not keep a
-state in `blockSumZero`, and nothing about any concrete parameter set. -/
+exploits the structure of the linear-layer matrices; the zero-block-sum subspace is one
+structural property of the external matrix, and no claim is made here about which properties
+that work uses. Its authors state that their attacks do not mean that the primitive falls short
+of its claimed security level. Nothing here is a statement about any attack: these are facts
+about the linear map `blockMix N` alone. They say nothing about the S-box layer, which in a full
+round acts on every coordinate and need not keep a state in `blockSumZero`, and nothing about any
+concrete parameter set. -/
 
 namespace BlockCirculant
 
