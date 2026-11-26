@@ -68,12 +68,19 @@ and `s` full rounds, its execution theorem gives
 Whole-state MDS mixing supplies `B = t + 1`. The activity result applies to actual pairs of
 distinct inputs. `Counting.lean` and `Probability.lean` now connect masked activity
 to exact differential trail counts in the explicitly independent-key model.
+`Subspace.lean` charges the middle rounds too: when no nonzero difference stays
+off the S-box coordinates for `w` consecutive rounds of the internal linear map,
+the `m` middle rounds add `m / w` active S-boxes (`outer_middle_bound`), and the
+same term enters the probability bridge (`hades_probability_with_middle`). Fewer
+than `width / mask size` rounds always leave a nonzero inactive difference
+(`inactiveSpace_ne_bot`).
 See [the HADES mechanics](MECHANICS_HADES.md) and [the implementation plan](HADES_PLAN.md).
 
 **Poseidon2 layer** (`WideTrail/Poseidon2/`) certifies the pinned reference BN254
 width-three instance: field primality, the actual fifth-power S-box, both linear
-inverses, external MDS mixing, permutation bijectivity, and outer-round activity.
-Its checked execution trace matches the pinned upstream known-answer vector.
+inverses, external MDS mixing, permutation bijectivity, and at least 34 active
+S-boxes per distinct input pair, 16 from the outer rounds and 18 from the partial
+rounds. Its checked execution trace matches the pinned upstream known-answer vector.
 See [the concrete certificate and its scope](PRODUCTION_CERTIFICATE.md).
 
 Named theorem footprints are pinned by `#print axioms`. The complete module audit
@@ -183,6 +190,14 @@ proved boundaries. Round additions remain deterministic parameters.
 Proves shifted full-window bounds and `outerRound_bound`. Pairs of full rounds
 cost a branch bound; an odd remaining full round costs one. The two outer blocks
 are counted separately. `hades_mds_bound` supplies the whole-state MDS corollary.
+
+#### [`Subspace.lean`](WideTrail/Hades/Subspace.lean)
+Shows that an inactive round acts on the difference by its linear map alone, so the
+differences surviving `r` inactive rounds form a subspace. If that subspace is
+trivial, every window of `r` middle rounds activates an S-box; differences inside
+it cross the window for free. Combines the outer and middle counts, carries them
+into the independent-key trail bound, and proves by rank-nullity that too short a
+window always leaves a nonzero inactive difference.
 
 #### [`Checks`](WideTrail/Hades/Checks/Toy.lean)
 A 25-state cipher over `ZMod 5` checks the count, exhibits a tight witness, and
