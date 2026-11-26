@@ -419,25 +419,39 @@ end Poseidon2.BabyBear
 `independent_key_probability` charges `28` bits per charged S-box, the largest `dd` with
 `6 * 2^dd ≤ p`, so `896` bits over the `32` charged S-boxes of the full rounds. Keeping the
 ratio `p / 6` exact (`independent_key_probability_exact`) gives `906` bits
-(`independent_key_probability_sharp`), since `32 * log2 (p / 6) ≈ 906.3`. The partial rounds
-still contribute nothing. The sample space is the same: one trail, an additional independent
-uniform key per round. -/
+(`independent_key_probability_sharp`), since `32 * log2 (p / 6) ≈ 906.3`. The `_general` forms
+state the same for every round-constant table. The partial rounds still contribute nothing. The
+sample space is the same: one trail, an additional independent uniform key per round. -/
 
 namespace Poseidon2.BabyBear
 
-/-- **Trail bound as an exact ratio**, in the model with an additional independent uniform key
-per round: for every nonzero trail `T`, the number of key sequences realising `T`, times
-`p^32` (`p = modulus`, `32 = (4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2`), is at most `6^32` times the
-number of all key sequences. Here `u = 6` (`sbox_uniform`), and the `32` charged S-boxes are
-those of the full rounds, as in `activity`. This concerns one trail in that model only: not the
-permutation with its fixed constants, and not a differential. -/
-theorem independent_key_probability_exact {T : ℕ → State} (h0 : T 0 ≠ 0) (x : State) :
-    Hades.keyCount rounds (8 + 13) T x * modulus ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2)
+/-- **Trail bound as an exact ratio, for every round-constant table**, in the model with an
+additional independent uniform key per round: for every nonzero trail `T`, the number of key
+sequences realising `T`, times `p^32` (`p = modulus`, `32 = (4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2`),
+is at most `6^32` times the number of all key sequences. Here `u = 6` (`sbox_uniform`), and the
+`32` charged S-boxes are those of the full rounds, as in `activity_general`. This concerns one
+trail in that model only: not the permutation with its fixed constants, and not a
+differential. -/
+theorem independent_key_probability_exact_general (v : ℕ → Fin 16 → F) {T : ℕ → State}
+    (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount (Plonky3.rounds conditions 13 sbox v) (8 + 13) T x
+        * modulus ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2)
       ≤ 6 ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2) * Fintype.card (Fin 16 → F) ^ (8 + 13) := by
-  have h := Plonky3.independent_key_probability_exact conditions m4Primes_ne_zero 13 sbox values
+  have h := Plonky3.independent_key_probability_exact conditions m4Primes_ne_zero 13 sbox v
     sbox_uniform h0 x
   rw [field_card, show (32 : ℕ) = (4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2 by norm_num] at h
   exact h
+
+/-- **Trail bound as an exact ratio** for the pinned constants, in the model with an additional
+independent uniform key per round: for every nonzero trail `T`, the number of key sequences
+realising `T`, times `p^32` (`p = modulus`, `32 = (4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2`), is at
+most `6^32` times the number of all key sequences. Here `u = 6` (`sbox_uniform`), and the `32`
+charged S-boxes are those of the full rounds, as in `activity`. This concerns one trail in that
+model only: not the permutation with its fixed constants, and not a differential. -/
+theorem independent_key_probability_exact {T : ℕ → State} (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount rounds (8 + 13) T x * modulus ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2)
+      ≤ 6 ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2) * Fintype.card (Fin 16 → F) ^ (8 + 13) :=
+  independent_key_probability_exact_general values h0 x
 
 set_option exponentiation.threshold 1000 in
 /-- `2^906 * 6^32 ≤ p^32`, by `decide`. `Checks/BabyBear.lean` shows that `2^907 * 6^32 ≤ p^32`
@@ -447,14 +461,27 @@ theorem sharp_exponent_bound :
       ≤ modulus ^ ((4 / 2 + 4 / 2) * 8 + 4 % 2 + 4 % 2) := by
   decide
 
-/-- **Trail bound with the sharp exponent**, in the same model: for every nonzero trail `T`, the
-number of key sequences realising `T`, times `2^906`, is at most the number of all key
-sequences. It follows from `independent_key_probability_exact` and `sharp_exponent_bound`, and
-`906` is the largest exponent that this arithmetic gives. This concerns one trail in that model
-only: not the permutation with its fixed constants, and not a differential. -/
+/-- **Trail bound with the sharp exponent, for every round-constant table**, in the same model:
+for every nonzero trail `T`, the number of key sequences realising `T`, times `2^906`, is at
+most the number of all key sequences. It follows from
+`independent_key_probability_exact_general` and `sharp_exponent_bound`, and `906` is the largest
+exponent that this arithmetic gives. This concerns one trail in that model only: not the
+permutation with its fixed constants, and not a differential. -/
+theorem independent_key_probability_sharp_general (v : ℕ → Fin 16 → F) {T : ℕ → State}
+    (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount (Plonky3.rounds conditions 13 sbox v) (8 + 13) T x * 2 ^ 906
+      ≤ Fintype.card (Fin 16 → F) ^ (8 + 13) :=
+  Hades.mul_le_of_ratio (independent_key_probability_exact_general v h0 x) sharp_exponent_bound
+    (pow_pos (by norm_num) _)
+
+/-- **Trail bound with the sharp exponent** for the pinned constants, in the same model: for
+every nonzero trail `T`, the number of key sequences realising `T`, times `2^906`, is at most
+the number of all key sequences. It follows from `independent_key_probability_exact` and
+`sharp_exponent_bound`, and `906` is the largest exponent that this arithmetic gives. This
+concerns one trail in that model only: not the permutation with its fixed constants, and not a
+differential. -/
 theorem independent_key_probability_sharp {T : ℕ → State} (h0 : T 0 ≠ 0) (x : State) :
     Hades.keyCount rounds (8 + 13) T x * 2 ^ 906 ≤ Fintype.card (Fin 16 → F) ^ (8 + 13) :=
-  Hades.mul_le_of_ratio (independent_key_probability_exact h0 x) sharp_exponent_bound
-    (pow_pos (by norm_num) _)
+  independent_key_probability_sharp_general values h0 x
 
 end Poseidon2.BabyBear

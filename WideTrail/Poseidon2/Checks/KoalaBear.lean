@@ -631,3 +631,21 @@ end Poseidon2.KoalaBear.Checks
 /-- info: 'Poseidon2.KoalaBear.Checks.sharp_exponent_succ_fails' depends on axioms: [propext] -/
 #guard_msgs in
 #print axioms Poseidon2.KoalaBear.Checks.sharp_exponent_succ_fails
+
+/-! ### The exact ratio and the sharp exponent for every round-constant table -/
+
+/--
+info: 'Poseidon2.KoalaBear.independent_key_probability_exact_general' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_probability_exact_general
+
+/--
+info: 'Poseidon2.KoalaBear.independent_key_probability_sharp_general' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.KoalaBear.independent_key_probability_sharp_general

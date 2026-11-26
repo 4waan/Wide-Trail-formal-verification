@@ -69,6 +69,16 @@ theorem IsTrail.outer_bound {rounds : Nat → RoundSpec Idx K} {T : Nat → Idx 
   rw [Nat.add_mul]
   omega
 
+/-- The first `R` rounds charge at most `R * card Idx` S-boxes:
+`scheduledWeight rounds T 0 R ≤ R * card Idx`. -/
+theorem scheduledWeight_le_mul_card (rounds : Nat → RoundSpec Idx K) (T : Nat → Idx → K)
+    (R : Nat) : scheduledWeight rounds T 0 R ≤ R * Fintype.card Idx := by
+  calc scheduledWeight rounds T 0 R
+      = ∑ n ∈ Finset.range R, sboxWeight (rounds n).mask (T n) := by simp [scheduledWeight]
+    _ ≤ ∑ _n ∈ Finset.range R, Fintype.card Idx := Finset.sum_le_sum fun n _ =>
+        (sboxWeight_le_weight _ _).trans (Finset.card_le_univ _)
+    _ = R * Fintype.card Idx := by simp
+
 variable [Fintype K]
 
 def roundGamma (R : RoundSpec Idx K) (x : Idx → K) : Idx → K :=
@@ -106,35 +116,40 @@ theorem isTrail_of_keyCount_ne_zero {rounds : Nat → RoundSpec Idx K} {R : Nat}
     · simpa only [if_neg hi] using (Function.injective_id : Function.Injective (id : K → K))
   · exact fun i hi => outside_eq_of_diffCount_ne_zero _ _ hc hi
 
+/-- The trail count, multiplied out over the rounds: if every S-box that the mask charges in the
+first `R` rounds has differential uniformity at most `u`, then with
+`W = scheduledWeight rounds T 0 R`, `keyCount ≤ u ^ W * card K ^ (R * card Idx - W)`. -/
+theorem keyCount_le_pow_mul_pow (rounds : Nat → RoundSpec Idx K) (R : Nat) {u : Nat}
+    (hu : ∀ n < R, ∀ i ∈ (rounds n).mask, IsDiffUniform ((rounds n).sbox i) u)
+    (T : Nat → Idx → K) (x : Idx → K) :
+    keyCount rounds R T x ≤ u ^ scheduledWeight rounds T 0 R
+      * Fintype.card K ^ (R * Fintype.card Idx - scheduledWeight rounds T 0 R) := by
+  let w := fun n => sboxWeight (rounds n).mask (T n)
+  have hw : ∀ n, w n ≤ Fintype.card Idx := fun n =>
+    (sboxWeight_le_weight _ _).trans (Finset.card_le_univ _)
+  have hW : scheduledWeight rounds T 0 R = ∑ n ∈ Finset.range R, w n := by
+    simp [scheduledWeight, w]
+  rw [keyCount_eq_prod]
+  calc _ ≤ ∏ n ∈ Finset.range R, (u ^ w n * Fintype.card K ^ (Fintype.card Idx - w n)) := by
+        apply Finset.prod_le_prod'
+        intro n hn
+        exact diffCount_masked_le _ (hu n (Finset.mem_range.mp hn)) _ _
+    _ = _ := by
+        rw [Finset.prod_mul_distrib, Finset.prod_pow_eq_pow_sum, Finset.prod_pow_eq_pow_sum,
+          sum_sub_of_le w hw R, ← hW]
+
 /-- Every charged S-box costs `2^d` in the independent-key sample space. -/
 theorem keyCount_weight_bound (rounds : Nat → RoundSpec Idx K) (R : Nat)
     {u d : Nat} (hu : ∀ n < R, ∀ i ∈ (rounds n).mask, IsDiffUniform ((rounds n).sbox i) u)
     (hd : u * 2 ^ d ≤ Fintype.card K) (T : Nat → Idx → K) (x : Idx → K) :
     keyCount rounds R T x * 2 ^ (d * scheduledWeight rounds T 0 R)
       ≤ Fintype.card (Idx → K) ^ R := by
-  let w := fun n => sboxWeight (rounds n).mask (T n)
-  have hw : ∀ n, w n ≤ Fintype.card Idx := fun n =>
-    (sboxWeight_le_weight _ _).trans (Finset.card_le_univ _)
-  have hW : scheduledWeight rounds T 0 R = ∑ n ∈ Finset.range R, w n := by
-    simp [scheduledWeight, w]
-  have hWle : scheduledWeight rounds T 0 R ≤ R * Fintype.card Idx := by
-    rw [hW]
-    calc _ ≤ ∑ _n ∈ Finset.range R, Fintype.card Idx := Finset.sum_le_sum (fun n _ => hw n)
-      _ = _ := by simp
-  have hc : keyCount rounds R T x ≤ u ^ scheduledWeight rounds T 0 R
-      * Fintype.card K ^ (R * Fintype.card Idx - scheduledWeight rounds T 0 R) := by
-    rw [keyCount_eq_prod]
-    calc _ ≤ ∏ n ∈ Finset.range R, (u ^ w n * Fintype.card K ^ (Fintype.card Idx - w n)) := by
-          apply Finset.prod_le_prod'
-          intro n hn
-          exact diffCount_masked_le _ (hu n (Finset.mem_range.mp hn)) _ _
-      _ = _ := by
-          rw [Finset.prod_mul_distrib, Finset.prod_pow_eq_pow_sum, Finset.prod_pow_eq_pow_sum,
-            sum_sub_of_le w hw R, ← hW]
+  have hWle := scheduledWeight_le_mul_card rounds T R
   calc keyCount rounds R T x * 2 ^ (d * scheduledWeight rounds T 0 R)
       ≤ (u ^ scheduledWeight rounds T 0 R * Fintype.card K ^
           (R * Fintype.card Idx - scheduledWeight rounds T 0 R))
-          * 2 ^ (d * scheduledWeight rounds T 0 R) := Nat.mul_le_mul_right _ hc
+          * 2 ^ (d * scheduledWeight rounds T 0 R) :=
+        Nat.mul_le_mul_right _ (keyCount_le_pow_mul_pow rounds R hu T x)
     _ = (u * 2 ^ d) ^ scheduledWeight rounds T 0 R * Fintype.card K ^
         (R * Fintype.card Idx - scheduledWeight rounds T 0 R) := by rw [mul_pow, pow_mul]; ring
     _ ≤ Fintype.card K ^ scheduledWeight rounds T 0 R * Fintype.card K ^
@@ -209,31 +224,13 @@ theorem keyCount_weight_bound_exact (rounds : Nat → RoundSpec Idx K) (R : Nat)
     (T : Nat → Idx → K) (x : Idx → K) :
     keyCount rounds R T x * Fintype.card K ^ scheduledWeight rounds T 0 R
       ≤ u ^ scheduledWeight rounds T 0 R * Fintype.card (Idx → K) ^ R := by
-  let w := fun n => sboxWeight (rounds n).mask (T n)
-  have hw : ∀ n, w n ≤ Fintype.card Idx := fun n =>
-    (sboxWeight_le_weight _ _).trans (Finset.card_le_univ _)
-  have hW : scheduledWeight rounds T 0 R = ∑ n ∈ Finset.range R, w n := by
-    simp [scheduledWeight, w]
-  have hWle : scheduledWeight rounds T 0 R ≤ R * Fintype.card Idx := by
-    rw [hW]
-    calc _ ≤ ∑ _n ∈ Finset.range R, Fintype.card Idx := Finset.sum_le_sum (fun n _ => hw n)
-      _ = _ := by simp
-  have hc : keyCount rounds R T x ≤ u ^ scheduledWeight rounds T 0 R
-      * Fintype.card K ^ (R * Fintype.card Idx - scheduledWeight rounds T 0 R) := by
-    rw [keyCount_eq_prod]
-    calc _ ≤ ∏ n ∈ Finset.range R, (u ^ w n * Fintype.card K ^ (Fintype.card Idx - w n)) := by
-          apply Finset.prod_le_prod'
-          intro n hn
-          exact diffCount_masked_le _ (hu n (Finset.mem_range.mp hn)) _ _
-      _ = _ := by
-          rw [Finset.prod_mul_distrib, Finset.prod_pow_eq_pow_sum, Finset.prod_pow_eq_pow_sum,
-            sum_sub_of_le w hw R, ← hW]
   calc keyCount rounds R T x * Fintype.card K ^ scheduledWeight rounds T 0 R
       ≤ (u ^ scheduledWeight rounds T 0 R * Fintype.card K ^
           (R * Fintype.card Idx - scheduledWeight rounds T 0 R))
-          * Fintype.card K ^ scheduledWeight rounds T 0 R := Nat.mul_le_mul_right _ hc
+          * Fintype.card K ^ scheduledWeight rounds T 0 R :=
+        Nat.mul_le_mul_right _ (keyCount_le_pow_mul_pow rounds R hu T x)
     _ = u ^ scheduledWeight rounds T 0 R * Fintype.card K ^ (R * Fintype.card Idx) := by
-        rw [mul_assoc, ← pow_add, Nat.sub_add_cancel hWle]
+        rw [mul_assoc, ← pow_add, Nat.sub_add_cancel (scheduledWeight_le_mul_card rounds T R)]
     _ = u ^ scheduledWeight rounds T 0 R * Fintype.card (Idx → K) ^ R := by
         rw [Fintype.card_fun, ← pow_mul, mul_comm (Fintype.card Idx) R]
 

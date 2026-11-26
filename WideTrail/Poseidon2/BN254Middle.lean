@@ -109,17 +109,24 @@ end Poseidon2.BN254
 `independent_key_probability_with_partial` charges `251` bits per charged S-box, the largest
 `d` with `4 * 2^d ≤ p`, so `8534` bits over the `34` charged S-boxes. Keeping the ratio `p / 4`
 exact (`independent_key_probability_exact`) gives `8554` bits
-(`independent_key_probability_sharp`), since `34 * log2 (p / 4) ≈ 8554.3`. The sample space is
-the same: one trail, an additional independent uniform key per round. -/
+(`independent_key_probability_sharp`), since `34 * log2 (p / 4) ≈ 8554.3`. Both charge the
+`34` S-boxes of `independent_key_probability_with_partial` (`16` in the external rounds and
+`56 / 3 = 18` in the internal rounds), of which `independent_key_probability_exact` is the
+exact-ratio form. No exact-ratio form of the `16`-S-box bound `independent_key_probability` of
+`BN254.lean` is stated. The sample space is the same: one trail, an additional independent
+uniform key per round. -/
 
 namespace Poseidon2.BN254
 
 /-- **Trail bound as an exact ratio**, for the additional-independent-key model only: for every
 nonzero trail `T`, the number of key sequences realising `T`, times `p^34` (`p = modulus`), is
 at most `4^34` times the number of all key sequences. Here `u = 4` (`sbox_uniform`), and the
-`34` charged S-boxes are counted as in `activity_with_partial`. The exponent keeps its
-round-count arithmetic, as in `independent_key_probability_with_partial`. This concerns one
-trail in that model: not the permutation with its fixed constants, and not a differential. -/
+`34` charged S-boxes (`16` in the external rounds, `56 / 3 = 18` in the internal rounds) are
+counted as in `activity_with_partial`: this is the exact-ratio form of
+`independent_key_probability_with_partial`, not of the `16`-S-box `independent_key_probability`.
+The exponent keeps its round-count arithmetic, as in `independent_key_probability_with_partial`.
+This concerns one trail in that model: not the permutation with its fixed constants, and not a
+differential. -/
 theorem independent_key_probability_exact {T : Nat → State} (h0 : T 0 ≠ 0) (x : State) :
     Hades.keyCount (Hades.hadesSchedule 4 56 4 {0} (fun _ _ => sbox) linear values)
         (4 + 56 + 4) T x * modulus ^ ((4 / 2 + 4 / 2) * 4 + 4 % 2 + 4 % 2 + 56 / 3)

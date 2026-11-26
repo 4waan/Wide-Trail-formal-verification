@@ -505,24 +505,38 @@ end Poseidon2.KoalaBear
 `independent_key_probability` charges `29` bits per charged S-box, the largest `dd` with
 `2 * 2^dd ≤ p`, so `957` bits over the `33` charged S-boxes. Keeping the ratio `p / 2` exact
 (`independent_key_probability_exact`) gives `989` bits (`independent_key_probability_sharp`),
-since `33 * log2 (p / 2) ≈ 989.6`. The sample space is the same: one trail, an additional
-independent uniform key per round. -/
+since `33 * log2 (p / 2) ≈ 989.6`. The `_general` forms state the same for every round-constant
+table. The sample space is the same: one trail, an additional independent uniform key per
+round. -/
 
 namespace Poseidon2.KoalaBear
 
-/-- **Trail bound as an exact ratio**, in the model with an additional independent uniform key
-per round: for every nonzero trail `T`, the number of key sequences realising `T`, times
-`p^(32 + 20 / 16) = p^33` (`p = modulus`), is at most `2^33` times the number of all key
-sequences. Here `u = 2` (`sbox_uniform`), and the `33` charged S-boxes are counted as in `activity`.
-This concerns one trail in that model only: not the permutation with its fixed constants, and
-not a differential. -/
-theorem independent_key_probability_exact {T : ℕ → State} (h0 : T 0 ≠ 0) (x : State) :
-    Hades.keyCount rounds (8 + 20) T x * modulus ^ (32 + 20 / 16)
+/-- **Trail bound as an exact ratio, for every round-constant table**, in the model with an
+additional independent uniform key per round: for every nonzero trail `T`, the number of key
+sequences realising `T`, times `p^(32 + 20 / 16) = p^33` (`p = modulus`), is at most `2^33` times
+the number of all key sequences. Here `u = 2` (`sbox_uniform`), and the `33` charged S-boxes are
+counted as in `activity_general`. This concerns one trail in that model only: not the
+permutation with its fixed constants, and not a differential. -/
+theorem independent_key_probability_exact_general (table : ℕ → State) {T : ℕ → State}
+    (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount (Plonky3.rounds conditions 20 sbox table) (8 + 20) T x
+        * modulus ^ (32 + 20 / 16)
       ≤ 2 ^ (32 + 20 / 16) * Fintype.card (Fin 16 → F) ^ (8 + 20) := by
   have h := Plonky3.independent_key_probability_with_middle_exact conditions m4Primes_ne_zero
-    20 sbox values sbox_uniform inactive_trivial h0 x
+    20 sbox table sbox_uniform inactive_trivial h0 x
   rw [field_card] at h
   exact h
+
+/-- **Trail bound as an exact ratio** for the pinned rounds, in the model with an additional
+independent uniform key per round: for every nonzero trail `T`, the number of key sequences
+realising `T`, times `p^(32 + 20 / 16) = p^33` (`p = modulus`), is at most `2^33` times the
+number of all key sequences. Here `u = 2` (`sbox_uniform`), and the `33` charged S-boxes are
+counted as in `activity`. This concerns one trail in that model only: not the permutation with
+its fixed constants, and not a differential. -/
+theorem independent_key_probability_exact {T : ℕ → State} (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount rounds (8 + 20) T x * modulus ^ (32 + 20 / 16)
+      ≤ 2 ^ (32 + 20 / 16) * Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  independent_key_probability_exact_general values h0 x
 
 set_option exponentiation.threshold 1000 in
 /-- `2^989 * 2^33 ≤ p^33`, by `decide`. `Checks/KoalaBear.lean` shows that `2^990 * 2^33 ≤ p^33`
@@ -530,14 +544,27 @@ fails, so `989` is the largest such exponent. -/
 theorem sharp_exponent_bound : 2 ^ 989 * 2 ^ (32 + 20 / 16) ≤ modulus ^ (32 + 20 / 16) := by
   decide
 
-/-- **Trail bound with the sharp exponent**, in the same model: for every nonzero trail `T`, the
-number of key sequences realising `T`, times `2^989`, is at most the number of all key
-sequences. It follows from `independent_key_probability_exact` and `sharp_exponent_bound`, and
-`989` is the largest exponent that this arithmetic gives. This concerns one trail in that model
-only: not the permutation with its fixed constants, and not a differential. -/
+/-- **Trail bound with the sharp exponent, for every round-constant table**, in the same model:
+for every nonzero trail `T`, the number of key sequences realising `T`, times `2^989`, is at
+most the number of all key sequences. It follows from
+`independent_key_probability_exact_general` and `sharp_exponent_bound`, and `989` is the largest
+exponent that this arithmetic gives. This concerns one trail in that model only: not the
+permutation with its fixed constants, and not a differential. -/
+theorem independent_key_probability_sharp_general (table : ℕ → State) {T : ℕ → State}
+    (h0 : T 0 ≠ 0) (x : State) :
+    Hades.keyCount (Plonky3.rounds conditions 20 sbox table) (8 + 20) T x * 2 ^ 989
+      ≤ Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  Hades.mul_le_of_ratio (independent_key_probability_exact_general table h0 x)
+    sharp_exponent_bound (pow_pos (by norm_num) _)
+
+/-- **Trail bound with the sharp exponent** for the pinned rounds, in the same model: for every
+nonzero trail `T`, the number of key sequences realising `T`, times `2^989`, is at most the
+number of all key sequences. It follows from `independent_key_probability_exact` and
+`sharp_exponent_bound`, and `989` is the largest exponent that this arithmetic gives. This
+concerns one trail in that model only: not the permutation with its fixed constants, and not a
+differential. -/
 theorem independent_key_probability_sharp {T : ℕ → State} (h0 : T 0 ≠ 0) (x : State) :
     Hades.keyCount rounds (8 + 20) T x * 2 ^ 989 ≤ Fintype.card (Fin 16 → F) ^ (8 + 20) :=
-  Hades.mul_le_of_ratio (independent_key_probability_exact h0 x) sharp_exponent_bound
-    (pow_pos (by norm_num) _)
+  independent_key_probability_sharp_general values h0 x
 
 end Poseidon2.KoalaBear

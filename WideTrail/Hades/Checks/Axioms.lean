@@ -183,3 +183,13 @@ audit additionally checks every project declaration, including generated declara
 /-- info: 'Hades.hades_probability_with_middle_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Hades.hades_probability_with_middle_exact
+
+/-! ### The per-round count behind both trail bounds -/
+
+/-- info: 'Hades.scheduledWeight_le_mul_card' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.scheduledWeight_le_mul_card
+
+/-- info: 'Hades.keyCount_le_pow_mul_pow' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Hades.keyCount_le_pow_mul_pow
