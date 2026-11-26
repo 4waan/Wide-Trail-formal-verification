@@ -39,8 +39,9 @@ An additional independent uniform key per round is the sample space.
 
 ## Pinned production-sized parameter instance
 
-The selected instance is the reference BN254 width-three Poseidon2 permutation,
-not SP1's distinct BabyBear configuration. Its parameters are:
+The selected instance is the reference BN254 width-three Poseidon2 permutation.
+It is not either of the 31-bit-field configurations SP1 uses for its main proof
+system (BabyBear in SP1 v5, KoalaBear in SP1 v6). Its parameters are:
 
 - Prime modulus: `21888242871839275222246405745257275088548364400416034343698204186575808495617`.
 - Width three, S-box `x^5`, four full rounds, 56 partial rounds, four full rounds.
@@ -76,12 +77,26 @@ The complete permutation is bijective, and every distinct input pair incurs at
 least 16 active S-box applications in the outer rounds. No S-box, primality,
 matrix, or branch-number premise remains for these concrete results.
 
+`Poseidon2/BN254Middle.lean` charges the 56 internal rounds as well. The internal
+matrix leaves no nonzero difference off the S-box coordinate for three consecutive
+rounds (`internal_inactive_trivial`), and two rounds are not enough
+(`internal_inactive_two_nontrivial`). Each of the eighteen disjoint three-round
+windows therefore applies the S-box to a nonzero difference, so every distinct
+input pair incurs at least 34 active S-box applications (`activity_with_partial`).
+This is a pigeonhole lower bound. It is not claimed to be attained.
+
 The independently keyed variant has individual-trail probability at most
 `2^(-4016)`, since each charged S-box costs at least 251 bits in that sample
 space. The theorem retains the original round-count arithmetic in its type;
 `probability_exponent` proves that its exponent is 4016. This avoids conversion
 expanding the enormous key space. This statement does not concern the
 probability of a trail under the fixed public constants alone.
+
+With the internal rounds charged, the same independently keyed trail bound becomes
+`2^(-8534)` (`independent_key_probability_with_partial`, with the exponent
+evaluated by `probability_exponent_with_partial`). The sample space and the
+caveats above are unchanged. Both exponents are far past any attack threshold, so
+the larger one completes the accounting rather than changing a security conclusion.
 
 `Poseidon2/BN254Checks.lean` checks all 64 transitions of a supplied execution
 trace and proves the pinned upstream `[0,1,2]` known-answer vector. A finite
@@ -95,7 +110,8 @@ practical without changing the mathematical permutation.
 ## Boundary of the certificate
 
 The certificate does not prove that the selected round counts provide a claimed
-security level against every attack. It does not prove absence of subspace
+security level against every attack. The internal-round count is a window
+argument giving a lower bound on activity; it does not prove absence of subspace
 trails, algebraic attack resistance, sponge indifferentiability, collision or
 preimage resistance, Rust machine-code equivalence, AIR equivalence, or zkVM
 soundness. Checking a reference vector is narrower than proving universal Rust

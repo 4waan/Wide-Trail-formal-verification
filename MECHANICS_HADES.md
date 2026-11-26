@@ -69,5 +69,38 @@ key per round. Fixed round additions are not independent random round keys,
 and a trail bound still concerns one summand of a differential hull. Polynomial degree, subspace trails, sponge
 security, and implementation equivalence need separate statements.
 
+## Partial rounds
+
+A difference is inactive in a round when it vanishes on every S-box coordinate of
+that round's mask. An inactive round sends the difference through its linear map
+and nothing else: the S-box coordinates carry zero in and zero out, and the other
+coordinates are untouched (`IsTrail.succ_of_inactive`). A run of inactive rounds
+sharing one linear map `L` is therefore a run of multiplications by `L`, and the
+differences that survive `r` such rounds form the subspace
+
+```text
+inactiveSpace L mask r = { a | (L ^ j) a i = 0 for all j < r and i in mask }.
+```
+
+If that subspace is `⊥`, no nonzero difference crosses `r` middle rounds without
+an active S-box (`IsTrail.active_in_window`). Tiling `m` middle rounds with
+disjoint windows of length `r` gives `m / r` more (`IsTrail.middle_bound`), and
+the three blocks add:
+
+```text
+(r / 2 + s / 2) * B + r % 2 + s % 2 + m / w
+  <= scheduledWeight rounds T 0 (r + m + s)
+```
+
+The other direction is `IsTrail.free_window`: a difference inside the inactive
+space crosses its window with no charge, whatever the S-boxes and constants are.
+`inactiveSpace_ne_bot` shows by rank-nullity that `r` rounds with
+`r * mask.card < width` always leave such a difference. For one S-box coordinate
+the space is the kernel of a Krylov matrix, so a window can only be useful once it
+is at least as long as the width.
+
+`hades_probability_with_middle` carries the extra `m / w` into the
+independent-key trail count. The sample space and its caveats are unchanged.
+
 The pinned BN254 width-three Poseidon2 certificate uses these results. See
 [the certificate](PRODUCTION_CERTIFICATE.md) for its exact scope and source pin.
