@@ -2,7 +2,48 @@
 
 *Kernel-checked wide-trail and HADES activity bounds, concrete AES algebra, and exact differential trail counts in Lean 4.*
 
-Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://www.researchgate.net/publication/225704500_The_Wide_Trail_Design_Strategy).
+Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://doi.org/10.1007/3-540-45325-3_20) (Cryptography and Coding 2001, LNCS 2260, pp. 222–238; see [`paper/`](paper/)).
+
+---
+
+## Building and checking
+
+You need [elan](https://github.com/leanprover/elan), the Lean toolchain manager, and git.
+The toolchain is pinned in [`lean-toolchain`](lean-toolchain) (Lean `v4.33.1`) and Mathlib in
+[`lakefile.toml`](lakefile.toml) (`v4.33.1`); elan and Lake fetch both.
+
+```bash
+git clone https://github.com/4waan/Wide-Trail-formal-verification.git
+cd Wide-Trail-formal-verification
+lake exe cache get    # prebuilt Mathlib files, instead of compiling Mathlib
+lake build            # the default library WideTrail
+```
+
+A successful `lake build` means every theorem in the default library has been checked by
+Lean's kernel. Two further checks run in CI:
+
+```bash
+lake env lean scripts/AuditAxioms.lean   # only propext, Classical.choice, Quot.sound
+python3 scripts/check_imports.py         # every module is reachable from a library root
+```
+
+The default library leaves out three check modules that evaluate whole width-16 Poseidon2
+permutations in the kernel. Each needs 7 to 12 GB of memory to elaborate, so they live in a
+separate library, `WideTrailHeavy`. Lake builds independent modules in parallel, so build
+them one at a time:
+
+```bash
+lake build WideTrail.Poseidon2.Checks.KoalaBear   # about 12 GB
+lake build WideTrail.Poseidon2.Checks.BabyBear    # about 7 GB
+lake build WideTrail.Poseidon2.Checks.Plonky3     # about 7 GB
+lake build WideTrailHeavy
+lake env lean scripts/AuditAxiomsHeavy.lean      # the audit with these checks included
+```
+
+No module of the default library measured above about 3 GB. Lake runs one Lean process
+per core, so the peak of the default build grows with the number of cores.
+
+To cite this project, see [`CITATION.cff`](CITATION.cff).
 
 ---
 
@@ -116,8 +157,9 @@ crates, with those tests' own round constants.
 See [the concrete certificates and their scope](PRODUCTION_CERTIFICATE.md).
 
 Named theorem footprints are pinned by `#print axioms`. The complete module audit
-in `scripts/AuditAxioms.lean` checks every project declaration, including names in
-the root namespace. Both allow nothing beyond
+in `scripts/AuditAxiomsHeavy.lean` checks every project declaration, including names in
+the root namespace (`scripts/AuditAxioms.lean` does the same for the default library). Both
+allow nothing beyond
 the standard `propext, Classical.choice, Quot.sound` baseline: no `sorry`, no
 `native_decide`, no `bv_decide` fallback axiom, anywhere. See
 [`WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md) for the
@@ -470,104 +512,132 @@ here bounds a differential of a permutation with fixed constants or under one fi
 
 ---
 
-## The basic principles, dumbed down
+## Appendix: the basic idea, informally
 
-Take two plaintexts P and P' (differing in a chosen way) and cipher E_k
-let `a'= P ⊕ P' && b' = E(P) ⊕ E(P')`
-when E behaves like a random permutation on 128bit blocks for fixed a'
-b' would be spread ≈uniformally over 2^128 possibilities and that means any b showing up has 2^-128 probaility
-We define the difference propagation probability (for n-bit vectors a and (a'-a))as:
+*These notes are an informal introduction to differential cryptanalysis. They are not part
+of the documentation above, and nothing in them is checked by Lean.*
+
+Take two plaintexts P and P′ that differ in a chosen way, and a cipher E_k.
+Let `a' = P ⊕ P'` and `b' = E(P) ⊕ E(P')`.
+When E behaves like a random permutation on 128-bit blocks, then for a fixed a′ the output
+difference b′ is spread roughly uniformly over 2^128 possibilities, so any particular b′ shows
+up with probability about 2^-128.
+The difference propagation probability of a map h (for n-bit vectors a and a′) is
+
 `P_h(a', b') = (2^-n)∑∆(b' + h(a + a') + h(a))`
-∆(x)=0 forall x except ∆(0) = 1 so you can see direct implication of the spread of probability over bits.
 
-so when i say dumbed down i ll also explain another thing here: 
-### why differences specifically?
+where ∆(x) = 0 for every x except ∆(0) = 1. So the formula shows directly how the
+probability is spread over the output differences.
 
-Round key enters by XOR, a and a* (a'-a) both get key 'k' XORed into them:
-`(a⊕ k) ⊕ (a* ⊕ k) = a ⊕ a*` --> the key cancels
-difference passes through key addition completely unchanged for every key. 
-The same happens at any linear layer λ because linear means `λ(a) ⊕ λ(a*) = λ(a ⊕ a*)`.. the difference passes and key never enters
-So in a key alternating cipher where there are 3 components in a round, 2 of them handle differences in a way that is exact and key independent
+Since this is the informal version, here is one more thing to explain.
 
-**The only place a difference behaves probabilistically at all is the S box layer** 
+### Why differences?
 
-### the attack and the design
+The round key enters by XOR: a and a* (where a* = a ⊕ a′) both get the key k XORed into them:
+`(a ⊕ k) ⊕ (a* ⊕ k) = a ⊕ a*`, so the key cancels.
+The difference passes through key addition unchanged, for every key.
+The same happens at any linear layer λ, because linear means `λ(a) ⊕ λ(a*) = λ(a ⊕ a*)`: the
+difference passes through and the key never enters.
+So in a key-alternating cipher with three components per round, two of them handle
+differences exactly and independently of the key.
 
-we can see the shape of the attack minimalised as: 
+**The only place where a difference behaves probabilistically at all is the S-box layer.**
 
-suppose you find a pair (a', b') where prob is 2^-30, which is 2^98 times more likely than it should be, the lever we have here is:
-1. collect ~2^30 plaintext pairs with difference `a'`
-2. Guess the final round key `k_r`
-3. Decrypt the last round of both ciphertexts under that guess. 
-4. Check whether the difference at round r-1 matches what the above high probability pattern says
+### The attack and the design
 
-so *attack* basically is among randomly showing up (scrambling guesses) predictions the right guess makes it show up at 2^30 and the correct k_r stands out from a counter array, and we peel off the last round key and repeat inwards.
-Taking this further down the explain easy road because neither a beginner (or chatgpt) can wrap itself around the fundamentals:
+The attack, in its simplest form. Suppose you find a pair (a′, b′) with probability 2^-30,
+which is 2^98 times more likely than it should be. Then:
 
-two inputs:
-`P  = 01010101...`
-`P* = 01011101...`
-almost same, and call the difference `a' = 00001000...`
-encrypt both: E(P) and E(P*) and diff these outputs
-Now think a perfectly random cipher:
-knowing that inputs differ by a' will help with learning nothing about how outputs differ, it could be any of 2^128 possible 128 bit patterns `Pr[a' -> b'] ~2^-128`
+1. Collect about 2^30 plaintext pairs with difference `a'`.
+2. Guess the final round key `k_r`.
+3. Decrypt the last round of both ciphertexts under that guess.
+4. Check whether the difference after round r − 1 matches the high-probability pattern.
 
-But the weakness here:
-Suppose by a chance you discover that when giving the cipher two inputs with diff `a'` the output differences are `b'` quiet often
-like imagine `Pr[a'-> b'] ~2^-30`
-That gives a statistical wrap of the cipher's internal structure!
+Wrong guesses scramble the values and match only at random, while the right guess makes
+the prediction come true about once every 2^30 pairs. The correct k_r stands out in a
+counter array; then that round key is peeled off and the process repeats inwards.
 
-*How will this help find the key?*
+The same idea once more, step by step, since neither a beginner nor ChatGPT gets the
+fundamentals right away.
 
-in an AES lik encryption, the P goes through suppose r rounds
-P-> round1 ->.... round r-> ciphertext
-here round r is the key we re trying to find
-but you cant see the diff before the final round
+Two inputs:
 
-1. decrypt final round using the guessed key with ciphertext pair
-2. Xor together with guessed round r-1 values
+```
+P  = 01010101...
+P* = 01011101...
+```
 
-does the difference look like as predicted?
-so if the key guess is wrong its garbade random internal values...
+They are almost the same; call the difference `a' = 00001000...`.
+Encrypt both, E(P) and E(P*), and take the difference of the outputs.
+Now think of a perfectly random cipher: knowing that the inputs differ by a′ tells you
+nothing about how the outputs differ. The output difference could be any of the 2^128
+possible 128-bit patterns, `Pr[a' -> b'] ≈ 2^-128`.
 
+Now the weakness. Suppose you discover that when you give the cipher two inputs with
+difference `a'`, the output difference is `b'` quite often, say `Pr[a' -> b'] ≈ 2^-30`.
+That gives a statistical handle on the cipher's internal structure.
+
+*How does this help find the key?*
+
+In an AES-like cipher, P goes through, say, r rounds:
+
+```
+P -> round 1 -> ... -> round r -> ciphertext
+```
+
+The key of round r is the one we are trying to find, but you cannot see the difference
+before the final round. So:
+
+1. Decrypt the final round of the ciphertext pair with the guessed key.
+2. XOR the two guessed round r − 1 values together.
+
+Does the difference look as predicted? If the key guess is wrong, the internal values are
+random garbage:
+
+```
 Key guess          Number of matches
 
 Guess A                  0
 Guess B                  1
 Guess C                  0
 Guess D                  2
-Guess E                  947  ← whoaa
+Guess E                  947  <- whoa
 Guess F                  1
 Guess G                  0
+```
 
-*differential cryptanalysis is basically finding a weird cause-effect*
-*relation in how differences are propagating in a cipher.* 
+*Differential cryptanalysis is basically finding a weird cause-and-effect relation in how
+differences propagate through a cipher.* The key detector is nothing but a statistical
+bias.
 
-the key detector is nothing but a statistical bias.
+### Inside an S-box
 
-### Inside S-box
+Think of a small lookup table like `S : {0, 1}^8 -> {0, 1}^8`. It is invertible and
+nonlinear, meaning it does not commute with XOR.
 
-think of a small lookup table like `S : {0, 1}^8 -> {0, 1}^8`. its invertible, non linear meaning it doesnt commute with XOR..
+Take two inputs, x and x ⊕ a′, and pass both through the S-box:
 
-take two inputs (x and a') and pass through the S-box
-x          ──> S(x)
-x ⊕ a'     ──> S(x ⊕ a')
-see the diff `S(x) ⊕ S(x ⊕ a')`
+```
+x        ──> S(x)
+x ⊕ a'   ──> S(x ⊕ a')
+```
 
-suppose
+and look at the difference `S(x) ⊕ S(x ⊕ a')`. Suppose
+
+```
 a' = 00000001
 x  = 00000000
 
-S(x)       = something
+S(x)      = something
 S(x ⊕ a') = something else
 
 output difference = S(x) ⊕ S(x ⊕ a')
+```
 
-at the end we might get something like:
-Input difference = a'
+Doing this for every x, for the input difference a′, gives a row of a DDT (difference
+distribution table), something like:
 
-a DDT (difference ditribution table):
-
+```
 Output difference       Number of times
 
 00000000                     0
@@ -575,4 +645,4 @@ Output difference       Number of times
 10011001                     4  <- happens 4 times
 01010111                     2
 ...
-..
+```
