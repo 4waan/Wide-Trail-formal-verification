@@ -24,9 +24,9 @@ enough for the kernel to enumerate.
 * **Attained for seventh powers.** Over `ZMod 29` the differential `(1, 0)` of
   `x ↦ x ^ 7` has count `6`, so `pow_seven_uniform` is sharp there. The six inputs are
   `1 / (ζ - 1)` for the six seventh roots of unity `ζ ≠ 1`, which exist because `7`
-  divides `29 - 1`. `29` is the smallest prime for which this happens. Over smaller
-  prime fields the bound is not attained: over `ZMod 11`, where `x ↦ x ^ 7` is a
-  permutation, the kernel finds uniformity `2`.
+  divides `29 - 1`. A search outside Lean found no smaller prime where the bound is
+  attained; that minimality is not checked here. Over `ZMod 11`, where `x ↦ x ^ 7` is a
+  permutation, the kernel confirms uniformity at most `2`.
 
 The witnesses were found by an exhaustive search outside Lean; only the witnesses
 themselves are used here, and every finite check is kernel `decide`.
@@ -118,7 +118,7 @@ theorem seventh_twentynine_not_uniform_five :
   omega
 
 /-- Over `ZMod 11` the seventh-power map is a permutation (`gcd 7 10 = 1`) and its
-uniformity is `2`, well below the general bound `6`. The bound of `pow_seven_uniform` is
+uniformity is at most `2`, well below the general bound `6`. The bound of `pow_seven_uniform` is
 therefore not attained over every field where it applies. -/
 theorem seventh_eleven_uniform : IsDiffUniform (fun x : ZMod 11 => x ^ 7) 2 := by
   decide

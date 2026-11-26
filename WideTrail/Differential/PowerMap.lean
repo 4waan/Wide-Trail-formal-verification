@@ -71,7 +71,7 @@ variable {K : Type*} [Field K] [Fintype K] [DecidableEq K]
 `a ^ (d - k) * (d choose k)`, which is nonzero for `a ≠ 0`, so the polynomial is nonzero
 of degree at most `d - 1`.
 
-This is weaker than `(d : K) ≠ 0`: for `d = 6` in characteristic two, `6` vanishes but
+This hypothesis is weaker than `(d : K) ≠ 0`: for `d = 6` in characteristic two, `6` vanishes but
 `6 choose 2 = 15` does not. By Lucas' theorem (not proved here) every such coefficient
 vanishes only when `d` is a power of the characteristic, and then `x ↦ x ^ d` is
 additive. -/
@@ -88,8 +88,8 @@ theorem pow_uniform_of_choose {d k : Nat} (hk0 : 0 < k) (hkd : k < d)
   simp [hx]
 
 /-- **Power maps.** If `2 ≤ d` and `d` is nonzero in `K`, then `x ↦ x ^ d` has
-differential uniformity at most `d - 1`. The coefficient of `X ^ (d - 1)` in the
-difference polynomial is `d * a`.
+differential uniformity at most `d - 1`. The difference polynomial has degree at most
+`d - 1`, and its coefficient of `X` is `d * a ^ (d - 1)`, which is nonzero.
 
 Neither hypothesis can be dropped. For `d = 1` the map is additive. For `d` equal to the
 characteristic the map is additive as well; `Checks/PowerMap.lean` decides both cases

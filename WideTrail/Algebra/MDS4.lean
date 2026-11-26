@@ -49,8 +49,9 @@ The branch-bound corollary is proved here from `isMDS_branch_bound` rather than 
 `Hades.branch_of_mds`, so that this file does not import the `Hades` layer.
 
 What is not claimed: nothing is said about the full Poseidon2 external layer, which is the
-block circulant `circ(2 M4, M4, …, M4)` and is not MDS (see
-`WideTrail.Algebra.BlockCirculant`), nor about any concrete field; the instances for
+block circulant `circ(2 M4, M4, …, M4)` (its branch number is bounded below in
+`WideTrail.Algebra.BlockCirculant`; that it is not MDS, e.g. the state `(e₀, -e₀, 0, 0)`
+has weight `10 < 17`, is not formalised), nor about any concrete field; the instances for
 the KoalaBear and BabyBear primes are in `WideTrail.Algebra.Checks.MDS4`. The HorizenLabs
 reference implementation uses a different `4 × 4` matrix,
 `[[5, 7, 1, 3], [4, 6, 1, 1], [1, 3, 5, 7], [1, 1, 4, 6]]` (`apply_hl_mat4`); nothing here

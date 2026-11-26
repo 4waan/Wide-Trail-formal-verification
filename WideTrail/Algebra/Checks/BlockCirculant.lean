@@ -12,7 +12,7 @@ import Mathlib.Tactic.IntervalCases
 /-!
 # Adversarial checks for the block-circulant branch bound
 
-Every instance here has four blocks of two positions (`t = 4`, `k = 2`), so the bound of
+Every `blockMix` instance here has four blocks of two positions (`t = 4`, `k = 2`), so the bound of
 `BlockCirculant.isBranchBound_blockMix` is `min (4 + 2) (2 * 3) = 6`. The block map is
 `N = [[1, 1], [1, 2]]`. Its entries and its determinant `1` are nonzero in `ZMod 5` and in
 `ZMod 7`, so `N` has branch number `3` over both; this is decided below rather than

@@ -20,7 +20,8 @@ import Mathlib.Tactic.Ring
 A state is indexed by `B × P`: block `i : B`, position `c : P`. Given a linear map
 `N` on one block, `blockMix N` replaces block `i` by `N (x_i + ∑ⱼ xⱼ)`. In matrix
 form this is the block circulant `circ(2N, N, …, N)`, the shape of the Poseidon2
-external ("MDS-light") layer, where `N` is the `4 × 4` matrix `M4`.
+external ("MDS-light") layer at widths `8, 12, …, 24`, where `N` is the `4 × 4` matrix
+`M4`. (At width four Poseidon2 uses `M4` itself.)
 
 Write `t = |B|` and `k = |P|`. The main theorem, `isBranchBound_blockMix`, says:
 if `N` has branch number `k + 1` and the integers `1, …, t + 1` are nonzero in `K`,
