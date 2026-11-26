@@ -103,9 +103,10 @@ input; it does not prove that model and code agree on every input, and the agree
 model's round-constant tables with SP1's rests on the source comparisons recorded in
 `WideTrail.Poseidon2.KoalaBear` and `WideTrail.Poseidon2.BabyBear`. The regression values are
 outputs of the model, not of SP1. No security statement is made here: the activity counts of
-the instances are lower bounds on charged S-boxes for actual input pairs, and their probability
-statements concern one trail in the model with an additional independent uniform key per round,
-not the permutation with its fixed constants and not a differential. Nothing is said about
+the instances are lower bounds on charged S-boxes for actual input pairs; their trail-probability
+statements concern one trail, and their differential statements the key-averaged differential,
+both in the model with an additional independent uniform key per round; none concerns the
+permutation with its fixed constants. Nothing is said about
 subspace-trail resistance, algebraic attacks, sponge or duplex constructions, or equivalence
 with SP1's AIR, the gnark circuit or a built binary.
 -/

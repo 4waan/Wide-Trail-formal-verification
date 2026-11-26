@@ -15,7 +15,9 @@ missing-assumption counterexamples, the independent-key trail bounds of `Probabi
 the inactive-space results of `Subspace.lean` and `Krylov.lean`. `card_sub_le_finrank_inactiveSpace`
 is pinned in `WideTrail.Poseidon2.Checks.Plonky3`, `inactiveSpace_eq_bot_of_krylov` and
 `inactiveSpace_diagPlusOnes_eq_bot` in `WideTrail.Hades.Checks.Krylov`, and the results of
-`Dimension.lean` in `WideTrail.Hades.Checks.Dimension`. The module-based CI audit additionally
+`Dimension.lean` in `WideTrail.Hades.Checks.Dimension`. `diffKeyCount_bound_of_two_full_rounds`
+and `hades_differential_bound` (`Hull.lean`) are pinned in `WideTrail.Poseidon2.Checks.Plonky3`.
+The module-based CI audit additionally
 checks every project declaration, including generated declarations.
 -/
 
