@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Awaan Siddiqui. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Awaan Siddiqui
+-/
 import WideTrail.Hades.Probability
 import Mathlib.Algebra.Module.LinearMap.End
 import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
@@ -319,5 +324,70 @@ theorem hades_probability_with_middle (r m s B w : Nat) (mask : Finset Idx)
     exact le_trans (Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by norm_num)
       (Nat.mul_le_mul_left d hactivity)))
       (keyCount_weight_bound rounds _ (fun n hn i _ => hu n hn i) hd T x)
+
+end Hades
+
+/-! ### A dimension count -/
+
+namespace Hades
+
+variable {Idx K : Type*} [Fintype Idx] [Field K]
+
+/-- **At least `card Idx - r * mask.card` dimensions survive `r` inactive rounds.** The
+`r * mask.card` conditions of `inactiveConstraints` cut out a subspace of dimension at least
+`card Idx - r * mask.card` (rank–nullity), and that subspace lies in `inactiveSpace`. This
+generalises `inactiveSpace_ne_bot`, which is the case where the bound is positive.
+
+It is a lower bound only: it says nothing about whether the actual dimension is larger, which
+depends on `L`. Natural-number subtraction makes it vacuous once
+`card Idx ≤ r * mask.card`. -/
+theorem card_sub_le_finrank_inactiveSpace (L : Module.End K (Idx → K)) (mask : Finset Idx)
+    (r : Nat) : Fintype.card Idx - r * mask.card ≤ Module.finrank K (inactiveSpace L mask r) := by
+  have hsum := LinearMap.finrank_range_add_finrank_ker (inactiveConstraints L mask r)
+  have hrange := Submodule.finrank_le (LinearMap.range (inactiveConstraints L mask r))
+  have hmono := Submodule.finrank_mono (ker_inactiveConstraints_le L mask r)
+  rw [Module.finrank_fintype_fun_eq_card] at hsum
+  rw [Module.finrank_fintype_fun_eq_card, Fintype.card_prod, Fintype.card_fin,
+    Fintype.card_coe] at hrange
+  omega
+
+end Hades
+
+/-! ### The exact ratio with the middle rounds charged -/
+
+namespace Hades
+
+variable {Idx K : Type*} [Fintype Idx] [DecidableEq Idx] [Field K] [DecidableEq K] [Fintype K]
+
+/-- **`hades_probability_with_middle` as an exact ratio.** Under the hypotheses of
+`hades_probability_with_middle` without `u * 2 ^ d ≤ card K`, and with
+`A = (r / 2 + s / 2) * B + r % 2 + s % 2 + m / w` charged S-boxes,
+`keyCount * card K ^ A ≤ u ^ A * card (Idx → K) ^ (r + m + s)`.
+
+The sample space is unchanged: one trail, an additional independent uniform key per round.
+Nothing is claimed about the fixed public constants alone, nor about a differential. -/
+theorem hades_probability_with_middle_exact (r m s B w : Nat) (mask : Finset Idx)
+    (boxes : Nat → Idx → K ≃ K) (linear : Nat → (Idx → K) ≃ₗ[K] (Idx → K))
+    (values : Nat → Idx → K) {u : Nat}
+    (hu : ∀ n < r + m + s, ∀ i, IsDiffUniform (boxes n i) u)
+    (hbp : ∀ j, j + 1 < r → isBranchBound id (linear j) B)
+    (hbs : ∀ j, j + 1 < s → isBranchBound id (linear (r + m + j)) B)
+    (L : (Idx → K) ≃ₗ[K] (Idx → K)) (hmid : ∀ j < m, linear (r + j) = L)
+    (htriv : inactiveSpace L.toLinearMap mask w = ⊥)
+    {T : Nat → Idx → K} (h0 : T 0 ≠ 0) (x : Idx → K) :
+    keyCount (hadesSchedule r m s mask boxes linear values) (r + m + s) T x
+      * Fintype.card K ^ ((r / 2 + s / 2) * B + r % 2 + s % 2 + m / w)
+      ≤ u ^ ((r / 2 + s / 2) * B + r % 2 + s % 2 + m / w)
+        * Fintype.card (Idx → K) ^ (r + m + s) := by
+  let rounds := hadesSchedule r m s mask boxes linear values
+  by_cases hz : keyCount rounds (r + m + s) T x = 0
+  · change keyCount rounds _ _ _ * _ ≤ _
+    simp [hz]
+  · exact keyCount_weight_bound_exact_of_le rounds _ (fun n hn i _ => hu n hn i) T x
+      ((isTrail_of_keyCount_ne_zero hz).outer_middle_bound r m s B w h0
+        (fun j hj => hadesMask_prefix r m s mask hj)
+        (fun j hj => hadesMask_suffix r m s mask hj) hbp hbs L mask
+        (fun j hj => hmid j hj)
+        (fun j hj => hadesMask_middle r m s mask hj) htriv)
 
 end Hades

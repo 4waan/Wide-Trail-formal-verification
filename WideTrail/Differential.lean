@@ -11,7 +11,11 @@ import WideTrail.Differential.AESProb
 import WideTrail.Differential.Polynomial
 import WideTrail.Differential.AESConcrete
 import WideTrail.Differential.Scheduled
+import WideTrail.Differential.Hull
+import WideTrail.Differential.PowerMap
 import WideTrail.Differential.Checks.Toy
+import WideTrail.Differential.Checks.PowerMap
 import WideTrail.Differential.Checks.Axioms
+import WideTrail.Differential.Checks.Hull
 
 /-! Differential counts, independent-key trail probabilities, and hull checks. -/

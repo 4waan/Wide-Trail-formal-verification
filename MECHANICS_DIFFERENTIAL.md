@@ -173,13 +173,70 @@ Its concrete probability wrappers require no S-box hypotheses.
 
 **Assumed: independent round keys.** Discussed above. Real AES has a key schedule.
 
-**Open: the hull.** `diffCount_comp` is an unconditional identity: the differential count of
-`G ∘ H` is the sum, over intermediate differences, of the counts along each route. A
+**Partly closed: the hull.** `diffCount_comp` is an unconditional identity: the differential
+count of `G ∘ H` is the sum, over intermediate differences, of the counts along each route. A
 wide-trail theorem bounds one summand. `Toy.lean` exhibits a two-round differential realised
 by `8` inputs and split evenly between two intermediate differences accounting for `4` each,
 so the best single trail is off by a factor of two on a cipher small enough to check by hand.
-Nothing in Layers 1 to 3 bounds the sum, and that is the standard caveat on every wide-trail
-figure in the literature, stated here as a theorem rather than as a remark.
+That is the standard caveat on every wide-trail figure in the literature, stated here as a
+theorem rather than as a remark. `Hull.lean` bounds the sum itself, but only in the
+independent-key model and only over two rounds (section 7). Nothing here bounds a
+differential under one fixed key or fixed round constants.
 
 **Modelled: a round-uniform cipher.** The same `λ = θ ∘ π` in every round. Real AES omits
 `MixColumns` in the last round.
+
+## 7. Bounding the differential over two rounds
+
+`Hull.lean` counts a differential in the model of section 4, with round-specific maps as in
+`Scheduled.lean`. Round `n` maps `z` to `lam n (γ n (z + k n))`, and
+
+```
+diffKeyCount lam γ r a b x = |{k : Fin r → X | run k (x + a) - run k x = b}|
+```
+
+counts the key vectors under which the pair `(x, x + a)` ends at the difference `b`. Divided
+by `|X| ^ r` it is the probability of the differential averaged over independent keys. Peeling
+the first key, exactly as for `trailKeyCount`, shows that it does not depend on `x`
+(`diffKeyCount_const`) and that it composes as a sum over the difference in between
+(`diffKeyCount_add`). Over `r + 1` rounds it is the sum of `trailKeyCount` over every choice of
+the `r` intermediate differences (`diffKeyCount_succ_eq_sum_trailKeyCount`): the hull, as a
+theorem about this model. Rows sum to `|X| ^ r` (`sum_diffKeyCount`); when every `γ n` is
+bijective, so do columns (`sum_diffKeyCount_col`).
+
+Over two rounds, with `β = (lam 1)⁻¹ b`,
+
+```
+diffKeyCount lam γ 2 a b x = ∑ c, diffCount (γ 0) a c * diffCount (γ 1) (lam 0 c) β
+```
+
+and for bricklayer rounds both factors are products over coordinates, as in section 2. A
+nonzero term needs `activePattern c = activePattern a` and
+`activePattern (lam 0 c) = activePattern β`, so the pair `(c, lam 0 c)`, a state indexed by
+`Idx ⊕ Idx` (`codeword`), is nonzero, has weight at least `B`, and lives on the
+`weight a + weight β` positions `S` of those two supports. Fix `B - 1` positions `D` of `S`.
+Two such `c` that agree on `S \ D` differ by a codeword supported on `D`, whose weight is below
+`B`, so it is `0`. The factors on `D` are at most `u` each. The factors on `S \ D` are summed
+over all values, by row sums on the input side and column sums on the output side, which is
+where bijective S-boxes are needed. Every factor outside `S` is `diffCount (s n i) 0 0 = |K|`.
+So, for `a ≠ 0` (`diffKeyCount_two_round_bound`, `bricklayer_two_round_bound`):
+
+```
+diffKeyCount lam γ 2 a b x * |K| ^ (B - 1) ≤ u ^ (B - 1) * |Idx → K| ^ 2
+```
+
+`sum_prod_le_of_weight` is the counting step, for any injective additive map whose nonzero
+values have weight at least `B`.
+
+In a longer schedule the other rounds are charged nothing; they are only required to be
+bijective (`diffKeyCount_window_bound`, `diffKeyCount_bound_of_two_rounds`). Rounds before the
+window keep the difference nonzero (`diffKeyCount_eq_zero`) and their rows sum to `|X|` per
+round; rounds after it have columns that sum to the same.
+
+`Checks/Hull.lean` tests this on a twenty-five-state cipher over `ZMod 5`: the bound allows
+`100` of the `625` key pairs, and the kernel finds a maximum of `85` over all differentials
+with a nonzero input difference (`toy_count_le`, `toy_count_max`). With both keys fixed to
+zero, one differential is realised by `5` of the `25` inputs, which exceeds the bound
+(`toy_fixed_exceeds`). The averaging is load-bearing here too: this is a statement about the
+key-averaged differential, not about a fixed key or about fixed round constants. Only two
+rounds are charged, `B - 1` S-boxes of them.

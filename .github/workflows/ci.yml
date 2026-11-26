@@ -26,12 +26,37 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Install the toolchain and fetch caches only. The build itself runs in
+      # the next two steps, so that it can be ordered.
       - uses: leanprover/lean-action@v1
         with:
           # Pull prebuilt Mathlib olean files instead of compiling Mathlib from
           # source. Detection is automatic, but this project always needs it, so
           # say it outright rather than depending on the heuristic.
           use-mathlib-cache: true
+          build: false
+
+      # Three check modules evaluate whole 16-wide permutations in the kernel
+      # and each needs 7 to 12 GB of memory to elaborate. Lake builds
+      # independent modules in parallel and has no option to limit that, so
+      # together they exceed the runner's 16 GB and the runner is shut down.
+      # Building them one at a time first keeps the peak to one of them.
+      - name: Build the memory-heavy check modules one at a time
+        run: |
+          lake build WideTrail.Poseidon2.Checks.KoalaBear
+          lake build WideTrail.Poseidon2.Checks.BabyBear
+          lake build WideTrail.Poseidon2.Checks.Plonky3
+
+      - name: Build everything else
+        run: lake build
+
+      - uses: leanprover/lean-action@v1
+        with:
+          # Everything is built. Restoring the GitHub cache now could replace
+          # fresh build outputs with older ones, so it stays off here.
+          use-mathlib-cache: false
+          use-github-cache: false
+          build: false
 
           # Retain the action's namespace audit alongside the complete module
           # audit below. Unexpected transitive axioms include
@@ -44,3 +69,9 @@ jobs:
 
       - name: Audit every project declaration by defining module
         run: lake env lean scripts/AuditAxioms.lean
+
+      # The build and the audit above cover only modules that WideTrail.lean
+      # imports. A file that nothing imports would be neither compiled nor
+      # audited, and no step would notice.
+      - name: Check that every module is imported
+        run: python3 scripts/check_imports.py

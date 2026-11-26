@@ -34,8 +34,14 @@ Two facts here carry the weight of the whole layer.
   differences, of the count of inputs taking that particular route. This is an
   **identity**, with no independence assumption anywhere, and it is the precise statement
   of the *hull effect*: a wide-trail theorem controls one summand, while an attacker gets
-  the whole sum. Nothing in Layers 1 to 3 closes that gap, and this file is where the gap
-  is made visible rather than mentioned.
+  the whole sum. For a fixed map that gap is not closed anywhere in this development, and
+  this file is where the gap is made visible rather than mentioned. `Hull.lean` bounds the
+  whole sum in one model only: averaged over an additional independent uniform key per
+  round, for two consecutive bricklayer rounds, through the branch number of the linear
+  layer between them (`Scheduled.diffKeyCount_two_round_bound`).
+
+`sum_diffCount_col`, at the end of the file, is the column version of `sum_diffCount` for a
+bijective map. `Hull.lean` uses both.
 
 Key additions and invertible linear layers are invisible to all of this
 (`diffCount_addKey`, `diffCount_addEquiv`), which is the differential-probability version
@@ -134,8 +140,11 @@ intermediate differences, of the counts along each route. It is an equality, it 
 arbitrary `G` and `H`, and it assumes nothing about keys or independence.
 
 Read it in the direction that matters for cryptanalysis: a wide-trail theorem bounds one
-summand, and what an attacker exploits is the whole sum. That gap is the hull effect, and
-it is not closed anywhere in this development. -/
+summand, and what an attacker exploits is the whole sum. That gap is the hull effect. For a
+fixed map it is not closed anywhere in this development. `Hull.lean` bounds the whole sum only
+on average over an additional independent uniform key per round, for two consecutive
+bricklayer rounds (`Scheduled.diffKeyCount_two_round_bound`); that says nothing about a fixed
+key. -/
 theorem diffCount_comp [Fintype Y] (G : Y → Z) (H : X → Y) (a : X) (c : Z) :
     diffCount (fun x => G (H x)) a c = ∑ b : Y, jointCount G H a b c := by
   have h := Finset.card_eq_sum_card_fiberwise
@@ -154,3 +163,31 @@ theorem diffCount_comp [Fintype Y] (G : Y → Z) (H : X → Y) (a : X) (c : Z) :
   · rintro ⟨hb, hc⟩
     have hH : H (x + a) = H x + b := by rw [← hb]; abel
     exact ⟨by rw [hH]; exact hc, hb⟩
+
+/-- **A column of the difference distribution table sums to `|X|`, for a bijective map.** For
+each input `x` exactly one input difference `a` satisfies `F (x + a) - F x = b`, so the counts
+into a fixed output difference `b` add up to `|X|`. Bijectivity is needed: for a constant map
+the column at `b = 0` sums to `|X| ^ 2`. -/
+theorem sum_diffCount_col {F : X → Y} (hF : Function.Bijective F) (b : Y) :
+    ∑ a : X, diffCount F a b = Fintype.card X := by
+  have hcol : ∀ x : X, ∑ a : X, (if F (x + a) - F x = b then 1 else 0) = 1 := by
+    intro x
+    obtain ⟨a₀, ha₀⟩ := hF.2 (F x + b)
+    rw [Finset.sum_eq_single (a₀ - x)]
+    · rw [if_pos]
+      rw [add_sub_cancel, ha₀, add_sub_cancel_left]
+    · intro a _ ha
+      rw [if_neg]
+      intro h
+      apply ha
+      have hxa : F (x + a) = F a₀ := by rw [ha₀, ← h, add_sub_cancel]
+      rw [← hF.1 hxa, add_sub_cancel_left]
+    · intro h
+      exact absurd (Finset.mem_univ _) h
+  calc ∑ a : X, diffCount F a b
+      = ∑ a : X, ∑ x : X, (if F (x + a) - F x = b then 1 else 0) := by
+        refine Finset.sum_congr rfl fun a _ => ?_
+        rw [diffCount, diffSet, Finset.card_filter]
+    _ = ∑ x : X, ∑ a : X, (if F (x + a) - F x = b then 1 else 0) := Finset.sum_comm
+    _ = ∑ _x : X, 1 := Finset.sum_congr rfl fun x _ => hcol x
+    _ = Fintype.card X := by simp

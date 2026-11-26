@@ -102,8 +102,13 @@ independence, no keys, no hypotheses. Then `toy_hull_total`, `toy_hull_split` an
 accounts for half of it.
 
 **Verdict.** The gap is real and it is a factor of two on the smallest cipher that shows it.
-Nothing in Layers 1 to 3 closes it. That is the honest status of every wide-trail figure in
-the literature, and it is stated here as a compiled theorem rather than as a footnote.
+That is the honest status of every wide-trail figure in the literature, and it is stated here
+as a compiled theorem rather than as a footnote. `Hull.lean` in the parent folder now bounds
+the sum itself, but only over two rounds and only averaged over independent keys
+(`Scheduled.bricklayer_two_round_bound`). `Hull.lean` in this folder attacks that bound: on a
+twenty-five-state cipher the kernel finds every differential within it (`toy_count_le`), and
+with both keys fixed to zero one differential exceeds it (`toy_fixed_exceeds`), so it cannot
+be read as a fixed-key statement.
 
 ---
 
@@ -128,17 +133,21 @@ a construction of an inverse, not an assumption about a cipher.
 
 ## What is still assumed
 
-* **The AES S-box's differential uniformity is `4`.** A hypothesis, exactly as
-  `IsColBranchBound` was a hypothesis in Propagation layer, and unlike that one it is not discharged.
-  A kernel `decide` over the difference distribution table is `256 · 256` differentials each
-  scanning `256` inputs, and `Algebra/GF256.lean` records that enumerations of that size do not
-  finish. Closing it is a separate piece of work about inversion in `GF(2⁸)`.
 * **Round keys are independent and uniform.** Attack 4. Real AES has a key schedule.
 * **The cipher is round-uniform.** The same `θ ∘ π` in every round; real AES omits
   `MixColumns` in the last one. The count is over the inputs to rounds `0 … r-1`, so the last
   round's linear layer is not what the bound rests on, but the statement is about the uniform
   cipher.
-* **One trail, not one differential.** Attack 5.
+* **One trail, not one differential.** Attack 5. The differential bound of `Hull.lean`
+  charges two rounds only and holds for the key-averaged count only.
 * **The bound is not claimed to be tight.** `toy_bound_holds` promises `2⁻³` on a trail whose
   true key-averaged probability is `2⁻⁶`, because the toy S-box's actual differential counts
   are `1` where its uniformity allows `2`. A lower bound on a lower bound, as in Propagation layer.
+
+The AES S-box's differential uniformity `4` is no longer assumed for the concrete S-box. It
+remains a hypothesis of the generic `AESProb.lean` theorems, as `IsColBranchBound` was in
+Propagation layer. A kernel `decide` over the difference distribution table is `256 · 256`
+differentials each scanning `256` inputs, and `Algebra/GF256.lean` records that enumerations
+of that size do not finish. For the concrete S-box the hypothesis is discharged instead by a
+root count for inversion in `GF(2⁸)` (`Sbox.inv_uniform` in `Polynomial.lean`, transported
+through the affine map by `AES.sbox_uniform` in `AESConcrete.lean`).

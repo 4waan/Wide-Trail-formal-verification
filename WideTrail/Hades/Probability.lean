@@ -69,6 +69,16 @@ theorem IsTrail.outer_bound {rounds : Nat → RoundSpec Idx K} {T : Nat → Idx 
   rw [Nat.add_mul]
   omega
 
+/-- The first `R` rounds charge at most `R * card Idx` S-boxes:
+`scheduledWeight rounds T 0 R ≤ R * card Idx`. -/
+theorem scheduledWeight_le_mul_card (rounds : Nat → RoundSpec Idx K) (T : Nat → Idx → K)
+    (R : Nat) : scheduledWeight rounds T 0 R ≤ R * Fintype.card Idx := by
+  calc scheduledWeight rounds T 0 R
+      = ∑ n ∈ Finset.range R, sboxWeight (rounds n).mask (T n) := by simp [scheduledWeight]
+    _ ≤ ∑ _n ∈ Finset.range R, Fintype.card Idx := Finset.sum_le_sum fun n _ =>
+        (sboxWeight_le_weight _ _).trans (Finset.card_le_univ _)
+    _ = R * Fintype.card Idx := by simp
+
 variable [Fintype K]
 
 def roundGamma (R : RoundSpec Idx K) (x : Idx → K) : Idx → K :=
@@ -106,35 +116,40 @@ theorem isTrail_of_keyCount_ne_zero {rounds : Nat → RoundSpec Idx K} {R : Nat}
     · simpa only [if_neg hi] using (Function.injective_id : Function.Injective (id : K → K))
   · exact fun i hi => outside_eq_of_diffCount_ne_zero _ _ hc hi
 
+/-- The trail count, multiplied out over the rounds: if every S-box that the mask charges in the
+first `R` rounds has differential uniformity at most `u`, then with
+`W = scheduledWeight rounds T 0 R`, `keyCount ≤ u ^ W * card K ^ (R * card Idx - W)`. -/
+theorem keyCount_le_pow_mul_pow (rounds : Nat → RoundSpec Idx K) (R : Nat) {u : Nat}
+    (hu : ∀ n < R, ∀ i ∈ (rounds n).mask, IsDiffUniform ((rounds n).sbox i) u)
+    (T : Nat → Idx → K) (x : Idx → K) :
+    keyCount rounds R T x ≤ u ^ scheduledWeight rounds T 0 R
+      * Fintype.card K ^ (R * Fintype.card Idx - scheduledWeight rounds T 0 R) := by
+  let w := fun n => sboxWeight (rounds n).mask (T n)
+  have hw : ∀ n, w n ≤ Fintype.card Idx := fun n =>
+    (sboxWeight_le_weight _ _).trans (Finset.card_le_univ _)
+  have hW : scheduledWeight rounds T 0 R = ∑ n ∈ Finset.range R, w n := by
+    simp [scheduledWeight, w]
+  rw [keyCount_eq_prod]
+  calc _ ≤ ∏ n ∈ Finset.range R, (u ^ w n * Fintype.card K ^ (Fintype.card Idx - w n)) := by
+        apply Finset.prod_le_prod'
+        intro n hn
+        exact diffCount_masked_le _ (hu n (Finset.mem_range.mp hn)) _ _
+    _ = _ := by
+        rw [Finset.prod_mul_distrib, Finset.prod_pow_eq_pow_sum, Finset.prod_pow_eq_pow_sum,
+          sum_sub_of_le w hw R, ← hW]
+
 /-- Every charged S-box costs `2^d` in the independent-key sample space. -/
 theorem keyCount_weight_bound (rounds : Nat → RoundSpec Idx K) (R : Nat)
     {u d : Nat} (hu : ∀ n < R, ∀ i ∈ (rounds n).mask, IsDiffUniform ((rounds n).sbox i) u)
     (hd : u * 2 ^ d ≤ Fintype.card K) (T : Nat → Idx → K) (x : Idx → K) :
     keyCount rounds R T x * 2 ^ (d * scheduledWeight rounds T 0 R)
       ≤ Fintype.card (Idx → K) ^ R := by
-  let w := fun n => sboxWeight (rounds n).mask (T n)
-  have hw : ∀ n, w n ≤ Fintype.card Idx := fun n =>
-    (sboxWeight_le_weight _ _).trans (Finset.card_le_univ _)
-  have hW : scheduledWeight rounds T 0 R = ∑ n ∈ Finset.range R, w n := by
-    simp [scheduledWeight, w]
-  have hWle : scheduledWeight rounds T 0 R ≤ R * Fintype.card Idx := by
-    rw [hW]
-    calc _ ≤ ∑ _n ∈ Finset.range R, Fintype.card Idx := Finset.sum_le_sum (fun n _ => hw n)
-      _ = _ := by simp
-  have hc : keyCount rounds R T x ≤ u ^ scheduledWeight rounds T 0 R
-      * Fintype.card K ^ (R * Fintype.card Idx - scheduledWeight rounds T 0 R) := by
-    rw [keyCount_eq_prod]
-    calc _ ≤ ∏ n ∈ Finset.range R, (u ^ w n * Fintype.card K ^ (Fintype.card Idx - w n)) := by
-          apply Finset.prod_le_prod'
-          intro n hn
-          exact diffCount_masked_le _ (hu n (Finset.mem_range.mp hn)) _ _
-      _ = _ := by
-          rw [Finset.prod_mul_distrib, Finset.prod_pow_eq_pow_sum, Finset.prod_pow_eq_pow_sum,
-            sum_sub_of_le w hw R, ← hW]
+  have hWle := scheduledWeight_le_mul_card rounds T R
   calc keyCount rounds R T x * 2 ^ (d * scheduledWeight rounds T 0 R)
       ≤ (u ^ scheduledWeight rounds T 0 R * Fintype.card K ^
           (R * Fintype.card Idx - scheduledWeight rounds T 0 R))
-          * 2 ^ (d * scheduledWeight rounds T 0 R) := Nat.mul_le_mul_right _ hc
+          * 2 ^ (d * scheduledWeight rounds T 0 R) :=
+        Nat.mul_le_mul_right _ (keyCount_le_pow_mul_pow rounds R hu T x)
     _ = (u * 2 ^ d) ^ scheduledWeight rounds T 0 R * Fintype.card K ^
         (R * Fintype.card Idx - scheduledWeight rounds T 0 R) := by rw [mul_pow, pow_mul]; ring
     _ ≤ Fintype.card K ^ scheduledWeight rounds T 0 R * Fintype.card K ^
@@ -165,5 +180,107 @@ theorem hades_probability (r m s B : Nat) (mask : Finset Idx)
     exact le_trans (Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by norm_num)
       (Nat.mul_le_mul_left d hactivity)))
       (keyCount_weight_bound rounds _ (fun n hn i _ => hu n hn i) hd T x)
+
+end Hades
+
+/-! ### Exact ratios
+
+`keyCount_weight_bound` charges a whole number `d` of bits per charged S-box, where
+`u * 2 ^ d ≤ card K`. The results below keep the ratio `card K / u` per charged S-box exact: for
+`A` charged S-boxes, `keyCount * card K ^ A ≤ u ^ A * card (Idx → K) ^ R`. The sample space is
+the same as above: one trail, an additional independent uniform key per round. -/
+
+namespace Hades
+
+/-- From an exact ratio to a whole power: if `n * q ≤ v * N`, `e * v ≤ q` and `0 < v`, then
+`n * e ≤ N`. With `n` a trail count, `q = card K ^ A`, `v = u ^ A` and `e = 2 ^ E`, this turns
+`keyCount * card K ^ A ≤ u ^ A * N` into `keyCount * 2 ^ E ≤ N`. -/
+theorem mul_le_of_ratio {n q v N e : Nat} (h : n * q ≤ v * N) (he : e * v ≤ q) (hv : 0 < v) :
+    n * e ≤ N := by
+  refine Nat.le_of_mul_le_mul_right ?_ hv
+  calc n * e * v = n * (e * v) := mul_assoc _ _ _
+    _ ≤ n * q := Nat.mul_le_mul_left _ he
+    _ ≤ v * N := h
+    _ = N * v := mul_comm _ _
+
+variable {Idx K : Type*} [Fintype Idx] [DecidableEq Idx] [Field K] [DecidableEq K] [Fintype K]
+
+/-- A trail count is at most the number of key sequences, `card (Idx → K) ^ R`: each factor of
+`keyCount_eq_prod` counts a set of states. -/
+theorem keyCount_le_card_pow (rounds : Nat → RoundSpec Idx K) (R : Nat) (T : Nat → Idx → K)
+    (x : Idx → K) : keyCount rounds R T x ≤ Fintype.card (Idx → K) ^ R := by
+  rw [keyCount_eq_prod]
+  calc _ ≤ ∏ _n ∈ Finset.range R, Fintype.card (Idx → K) :=
+        Finset.prod_le_prod' (fun n _ => diffCount_le_card _ _ _)
+    _ = _ := by rw [Finset.prod_const, Finset.card_range]
+
+/-- **The exact ratio.** If every S-box that the mask charges in the first `R` rounds has
+differential uniformity at most `u`, then with `W = scheduledWeight rounds T 0 R`,
+`keyCount * card K ^ W ≤ u ^ W * card (Idx → K) ^ R`. No relation between `u` and `card K` is
+assumed. This concerns one trail in the model with an additional independent uniform key per
+round. -/
+theorem keyCount_weight_bound_exact (rounds : Nat → RoundSpec Idx K) (R : Nat) {u : Nat}
+    (hu : ∀ n < R, ∀ i ∈ (rounds n).mask, IsDiffUniform ((rounds n).sbox i) u)
+    (T : Nat → Idx → K) (x : Idx → K) :
+    keyCount rounds R T x * Fintype.card K ^ scheduledWeight rounds T 0 R
+      ≤ u ^ scheduledWeight rounds T 0 R * Fintype.card (Idx → K) ^ R := by
+  calc keyCount rounds R T x * Fintype.card K ^ scheduledWeight rounds T 0 R
+      ≤ (u ^ scheduledWeight rounds T 0 R * Fintype.card K ^
+          (R * Fintype.card Idx - scheduledWeight rounds T 0 R))
+          * Fintype.card K ^ scheduledWeight rounds T 0 R :=
+        Nat.mul_le_mul_right _ (keyCount_le_pow_mul_pow rounds R hu T x)
+    _ = u ^ scheduledWeight rounds T 0 R * Fintype.card K ^ (R * Fintype.card Idx) := by
+        rw [mul_assoc, ← pow_add, Nat.sub_add_cancel (scheduledWeight_le_mul_card rounds T R)]
+    _ = u ^ scheduledWeight rounds T 0 R * Fintype.card (Idx → K) ^ R := by
+        rw [Fintype.card_fun, ← pow_mul, mul_comm (Fintype.card Idx) R]
+
+/-- **The exact ratio for a lower bound on the charged S-boxes.** As
+`keyCount_weight_bound_exact`, with `scheduledWeight rounds T 0 R` replaced by any `A` at most
+that weight: `keyCount * card K ^ A ≤ u ^ A * card (Idx → K) ^ R`. No relation between `u` and
+`card K` is assumed: if `u ≤ card K`, the surplus charged S-boxes are dropped from the exact
+ratio, and otherwise the bound follows from `keyCount_le_card_pow`. -/
+theorem keyCount_weight_bound_exact_of_le (rounds : Nat → RoundSpec Idx K) (R : Nat)
+    {u A : Nat} (hu : ∀ n < R, ∀ i ∈ (rounds n).mask, IsDiffUniform ((rounds n).sbox i) u)
+    (T : Nat → Idx → K) (x : Idx → K) (hA : A ≤ scheduledWeight rounds T 0 R) :
+    keyCount rounds R T x * Fintype.card K ^ A ≤ u ^ A * Fintype.card (Idx → K) ^ R := by
+  rcases le_total u (Fintype.card K) with huq | hqu
+  · obtain ⟨k, hk⟩ := Nat.exists_eq_add_of_le hA
+    have h := keyCount_weight_bound_exact rounds R hu T x
+    rw [hk, pow_add, pow_add] at h
+    refine Nat.le_of_mul_le_mul_right ?_ (pow_pos (Fintype.card_pos (α := K)) k)
+    calc keyCount rounds R T x * Fintype.card K ^ A * Fintype.card K ^ k
+        = keyCount rounds R T x * (Fintype.card K ^ A * Fintype.card K ^ k) := mul_assoc _ _ _
+      _ ≤ u ^ A * u ^ k * Fintype.card (Idx → K) ^ R := h
+      _ ≤ u ^ A * Fintype.card K ^ k * Fintype.card (Idx → K) ^ R :=
+          Nat.mul_le_mul_right _ (Nat.mul_le_mul_left _ (Nat.pow_le_pow_left huq k))
+      _ = u ^ A * Fintype.card (Idx → K) ^ R * Fintype.card K ^ k := by ring
+  · calc keyCount rounds R T x * Fintype.card K ^ A
+        ≤ Fintype.card (Idx → K) ^ R * u ^ A :=
+          Nat.mul_le_mul (keyCount_le_card_pow rounds R T x) (Nat.pow_le_pow_left hqu A)
+      _ = u ^ A * Fintype.card (Idx → K) ^ R := mul_comm _ _
+
+/-- **`hades_probability` as an exact ratio.** Under the hypotheses of `hades_probability`
+without `u * 2 ^ d ≤ card K`, and with `A = (r / 2 + s / 2) * B + r % 2 + s % 2` charged
+S-boxes in the outer rounds, `keyCount * card K ^ A ≤ u ^ A * card (Idx → K) ^ (r + m + s)`.
+This concerns one trail in the model with an additional independent uniform key per round: it
+is not a statement about the fixed round constants alone, and not about a differential. -/
+theorem hades_probability_exact (r m s B : Nat) (mask : Finset Idx)
+    (boxes : Nat → Idx → K ≃ K) (linear : Nat → (Idx → K) ≃ₗ[K] (Idx → K))
+    (values : Nat → Idx → K) {u : Nat}
+    (hu : ∀ n < r + m + s, ∀ i, IsDiffUniform (boxes n i) u)
+    (hbp : ∀ j, j + 1 < r → isBranchBound id (linear j) B)
+    (hbs : ∀ j, j + 1 < s → isBranchBound id (linear (r + m + j)) B)
+    {T : Nat → Idx → K} (h0 : T 0 ≠ 0) (x : Idx → K) :
+    keyCount (hadesSchedule r m s mask boxes linear values) (r + m + s) T x
+      * Fintype.card K ^ ((r / 2 + s / 2) * B + r % 2 + s % 2)
+      ≤ u ^ ((r / 2 + s / 2) * B + r % 2 + s % 2) * Fintype.card (Idx → K) ^ (r + m + s) := by
+  let rounds := hadesSchedule r m s mask boxes linear values
+  by_cases hz : keyCount rounds (r + m + s) T x = 0
+  · change keyCount rounds _ _ _ * _ ≤ _
+    simp [hz]
+  · exact keyCount_weight_bound_exact_of_le rounds _ (fun n hn i _ => hu n hn i) T x
+      ((isTrail_of_keyCount_ne_zero hz).outer_bound r m s B h0
+        (fun j hj => hadesMask_prefix r m s mask hj)
+        (fun j hj => hadesMask_suffix r m s mask hj) hbp hbs)
 
 end Hades

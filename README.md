@@ -34,7 +34,10 @@ the general "MDS matrix ⟹ optimal branch number" theorem, vocabulary Mathlib d
 all, and instantiates both against the real `4×4` AES `MixColumns` matrix. The output is
 `Algebra/AESMix.lean`'s `aes_four_round_concrete`/`aes128_ten_round_concrete`: the same two
 bounds, now with *no* remaining hypothesis except the free fact that the S-box layer is a
-bijective bricklayer (true for any invertible S-box, AES's included).
+bijective bricklayer (true for any invertible S-box, AES's included). The same layer holds
+the linear algebra of the Poseidon2 layers over any field: Plonky3's `4×4` matrix, the
+block-circulant external layer and its branch number, the internal layer `c (diag d + J)`,
+and their transposes.
 
 **Differential layer** (`WideTrail/Differential/`) turns the count into a probability. A differential's
 probability is kept as a `Nat` numerator over a fixed denominator, never a rational, so
@@ -52,7 +55,14 @@ ten-round AES, and `Differential/Checks/Toy.lean` exhibits a cipher, a trail and
 the key-averaged count is positive and the fixed-key count is zero. Differential layer also proves,
 unconditionally, that a differential is a *sum* over trails and exhibits a two-round
 differential worth twice its best trail, which is the hull effect that caveats every
-wide-trail figure in the literature.
+wide-trail figure in the literature. `Differential/Hull.lean` then bounds the differential
+itself, the whole sum, in the same independent-key model: over two bricklayer rounds with
+bijective S-boxes of uniformity at most `u` and a first linear layer of branch number at
+least `B`, every differential with a nonzero input difference has key-averaged
+probability at most `(u / |K|)^(B - 1)` (`Scheduled.bricklayer_two_round_bound`). Only
+those two rounds are charged, and the bound concerns the keys averaged over:
+`Differential/Checks/Hull.lean` gives a toy cipher on which it fails with the keys fixed
+to zero.
 
 Differential layer also demotes one of Propagation layer's hypotheses to a theorem. `PreserveSupport` was a claim
 about a function on differences, and a real S-box layer has no such function; what it really
@@ -69,19 +79,41 @@ Whole-state MDS mixing supplies `B = t + 1`. The activity result applies to actu
 distinct inputs. `Counting.lean` and `Probability.lean` now connect masked activity
 to exact differential trail counts in the explicitly independent-key model.
 `Subspace.lean` charges the middle rounds too: when no nonzero difference stays
-off the S-box coordinates for `w` consecutive rounds of the internal linear map,
-the `m` middle rounds add `m / w` active S-boxes (`outer_middle_bound`), and the
+off the S-box coordinates through `w` consecutive partial rounds with the internal
+linear map, the `m` middle rounds add `m / w` active S-boxes (`outer_middle_bound`), and the
 same term enters the probability bridge (`hades_probability_with_middle`). Fewer
 than `width / mask size` rounds always leave a nonzero inactive difference
-(`inactiveSpace_ne_bot`).
+(`inactiveSpace_ne_bot`). The trail bounds also keep the ratio `|K| / u` per charged
+S-box exact (`hades_probability_exact`, `hades_probability_with_middle_exact`).
+`Dimension.lean` gives the exact dimensions of the inactive spaces: with one S-box
+coordinate, once no nonzero difference stays inactive through `width` consecutive
+partial rounds, each round removes exactly one dimension
+(`finrank_inactiveSpace_singleton`), and for the Poseidon2 internal layer
+`c (diag d + J)` that happens exactly when the diagonal entries off the S-box
+coordinate are pairwise distinct (`inactiveSpace_diagPlusOnes_card_eq_bot_iff`).
+`Hull.lean` bounds a key-averaged differential, not only a trail, over two full rounds
+(`hades_differential_bound`).
 See [the HADES mechanics](MECHANICS_HADES.md) and [the implementation plan](HADES_PLAN.md).
 
 **Poseidon2 layer** (`WideTrail/Poseidon2/`) certifies the pinned reference BN254
 width-three instance: field primality, the actual fifth-power S-box, both linear
 inverses, external MDS mixing, permutation bijectivity, and at least 34 active
 S-boxes per distinct input pair, 16 from the outer rounds and 18 from the partial
-rounds. Its checked execution trace matches the pinned upstream known-answer vector.
-See [the concrete certificate and its scope](PRODUCTION_CERTIFICATE.md).
+rounds. Its checked execution traces match the pinned upstream known-answer vector
+and the vector of SP1's gnark test for the same permutation, which SP1 uses for its
+outer recursion and wrap stages. It also certifies the two width-sixteen
+permutations SP1 uses for its main proof system, through one generic model of the
+Plonky3 code: KoalaBear (SP1 6.10.0, `x^3`, twenty partial rounds) with at least 33
+active S-boxes per distinct input pair, and BabyBear (SP1 5.2.4, `x^7`, thirteen
+partial rounds) with at least 32. For each instance the independent-key trail bound is
+also stated as an exact ratio, which gives the exponents 989 (KoalaBear), 906 (BabyBear)
+and 8554 (BN254), each the largest this arithmetic allows; a key-averaged differential
+bound charges the first two full rounds. All of these concern one trail, or the
+differential averaged over an additional independent uniform key per round, not the
+permutation with its fixed constants. The models of both width-sixteen instances
+reproduce the known-answer vectors of the upstream `p3-koala-bear` and `p3-baby-bear`
+crates, with those tests' own round constants.
+See [the concrete certificates and their scope](PRODUCTION_CERTIFICATE.md).
 
 Named theorem footprints are pinned by `#print axioms`. The complete module audit
 in `scripts/AuditAxioms.lean` checks every project declaration, including names in
@@ -149,6 +181,27 @@ The general theorem: if every square submatrix of a matrix `M` is nonsingular (t
 #### [`WideTrail/Algebra/AESMix.lean`](WideTrail/Algebra/AESMix.lean)
 The real `4×4` AES `MixColumns` matrix over `GF256`, proved MDS (all 69 minors nonsingular), and wired through Propagation layer's `aes_four_round`/`aes128_ten_round` to produce the fully unconditional `aes_four_round_concrete`/`aes128_ten_round_concrete` (25 and 55), plus the same for AES-192 and AES-256 (75 and 80).
 
+#### [`WideTrail/Algebra/AESSbox.lean`](WideTrail/Algebra/AESSbox.lean)
+The FIPS 197 byte substitution: inversion in `GF(2⁸)` followed by the binary affine map with constant `0x63`, an executable inverse, and a proof of bijectivity.
+
+#### [`WideTrail/Algebra/PowerSbox.lean`](WideTrail/Algebra/PowerSbox.lean)
+A power map `x ↦ x^e` as an executable equivalence with inverse `x ↦ x^d`, whenever `e d = (q - 1) k + 1` and every nonzero `x` satisfies `x^(q - 1) = 1` (`Sbox.powerEquivOfFermat`). No enumeration of the field is needed.
+
+#### [`WideTrail/Algebra/MDS4.lean`](WideTrail/Algebra/MDS4.lean)
+Plonky3's `4×4` matrix `circ(2, 3, 1, 1)` over any field. It is MDS exactly when `2, 3, 5, 7, 11` and `17` are nonzero (`m4_isMDS_iff`), so its branch number is then `5`. Its determinant is `-35`, which gives an explicit inverse.
+
+#### [`WideTrail/Algebra/BlockCirculant.lean`](WideTrail/Algebra/BlockCirculant.lean)
+The Poseidon2 external layer as a block circulant `circ(2N, N, …, N)`: block `i` of the output is `N (xᵢ + ∑ⱼ xⱼ)`. If `N` has branch number `p + 1` on blocks of size `p`, and `1, …, b + 1` are nonzero for `b` blocks, the whole layer has branch number at least `min(b + p, 2(p + 1))`. At width sixteen that is `8`. The checks show the characteristic hypothesis cannot be dropped, and that the bound is attained in a small case over `ZMod 7`. On states whose blocks sum to zero the layer applies `N` to each block with no mixing between blocks (`blockMix_of_blockSum_eq_zero`); these states form a subspace of dimension `(b - 1) p` (`finrank_blockSumZero`), and when `N` is injective and `b + 1 ≠ 0` a state lies in it exactly when its image does (`blockMix_mem_blockSumZero_iff`). These are facts about the linear map alone, not about any attack.
+
+#### [`WideTrail/Algebra/DiagPlusOnes.lean`](WideTrail/Algebra/DiagPlusOnes.lean)
+The Poseidon2 internal layer `c (diag d + J)` as a linear equivalence, with the Sherman–Morrison inverse. It needs `c ≠ 0`, every `dᵢ ≠ 0` and `1 + ∑ 1/dᵢ ≠ 0`. The map is self-adjoint for the dot product, which `Hades/Krylov.lean` uses.
+
+#### [`WideTrail/Algebra/Transpose.lean`](WideTrail/Algebra/Transpose.lean)
+Transposes of the Poseidon2 linear layers. A square matrix is MDS exactly when its transpose is; the transpose of `circ(2, 3, 1, 1)` is `circ(2, 1, 1, 3)`, MDS under the same hypothesis; the transpose of `circ(2A, A, …, A)` is `circ(2Aᵀ, Aᵀ, …, Aᵀ)`, and at width sixteen it has branch number at least `8`; `c (diag d + J)` is symmetric. Taking the linear branch number of a map to be the differential branch number of its transpose, a definition here and not a proved statement about correlations, the differential branch-number bounds carry over. No correlation, linear trail or linear-attack bound is proved.
+
+#### [`WideTrail/Algebra/Checks/`](WideTrail/Algebra/Checks/)
+`MDS4.lean` shows over `ZMod 11` and `ZMod 7` that `circ(2, 3, 1, 1)` fails to be MDS when `11` or `7` vanishes, and that branch number `5` is attained over `ZMod 13`. `BlockCirculant.lean` shows that the characteristic hypothesis of the block-circulant bound cannot be dropped and that the bound is attained. `Axioms.lean` pins the axiom footprints of the layer's results.
+
 ### Differential layer: from active S-boxes to a probability
 
 #### [`WideTrail/Differential/Counts.lean`](WideTrail/Differential/Counts.lean)
@@ -166,8 +219,26 @@ The arithmetic, once: `trailKeyCount · 2 ^ (d·W) ≤ |X| ^ r`. Plus the bridge
 #### [`WideTrail/Differential/AESProb.lean`](WideTrail/Differential/AESProb.lean)
 The numbers. `|K| = 256`, `|Idx| = 16`, S-box uniformity `4`, and `4 · 2⁶ = 256`, so each active S-box costs `2⁻⁶`: `2⁻¹⁵⁰` over four rounds, `2⁻³³⁰` over ten, `2⁻⁴⁵⁰` over twelve, `2⁻⁴⁸⁰` over fourteen. The generic theorem retains explicit S-box hypotheses. `AESConcrete.lean` now discharges them for the actual AES S-box, using its proved inverse and a structural differential-uniformity proof.
 
+#### [`WideTrail/Differential/Polynomial.lean`](WideTrail/Differential/Polynomial.lean), [`WideTrail/Differential/AESConcrete.lean`](WideTrail/Differential/AESConcrete.lean)
+Differential bounds from polynomial root counts, with no enumeration of the field: apart from two exceptional inputs, a differential solution of inversion is a root of a nonzero quadratic. `AESConcrete.lean` carries this through the AES affine map, proves that the count `4` is attained, and discharges the S-box hypotheses of the AES trail bounds.
+
+#### [`WideTrail/Differential/Scheduled.lean`](WideTrail/Differential/Scheduled.lean)
+The Markov product formula for round-specific nonlinear and linear maps, counted over independent round-key vectors, which the Hades layer uses.
+
+#### [`WideTrail/Differential/Hull.lean`](WideTrail/Differential/Hull.lean)
+Differentials, not trails, in the additional-independent-key model. `diffKeyCount` counts the key vectors under which an input pair reaches a given output difference; it does not depend on the input (`diffKeyCount_const`), composes as a sum over intermediate differences (`diffKeyCount_add`), and over `r + 1` rounds is the sum of the trail counts of all trails from `a` to `b` (`diffKeyCount_succ_eq_sum_trailKeyCount`). The two-round bound: for bricklayer rounds with bijective S-boxes of uniformity at most `u` and a first linear layer of branch number at least `B`, `diffKeyCount * |K|^(B - 1) ≤ u^(B - 1) * |Idx → K|^2` for every nonzero input difference (`diffKeyCount_two_round_bound`, `bricklayer_two_round_bound`), and the same ratio over any number of bijective rounds containing two such rounds (`diffKeyCount_bound_of_two_rounds`). Only two rounds are charged, and nothing is said about a fixed key or fixed round constants.
+
+#### [`WideTrail/Differential/PowerMap.lean`](WideTrail/Differential/PowerMap.lean)
+The power map `x ↦ x^d` over any field has differential uniformity at most `d - 1` when `d` is nonzero in the field: for a nonzero input difference, the equation is a polynomial of degree `d - 1`. The checks show the bound is attained for `x^3` over `ZMod 7` and `x^7` over `ZMod 29`, and fails over `ZMod 3`, where `3 = 0`.
+
 #### [`WideTrail/Differential/Checks/Toy.lean`](WideTrail/Differential/Checks/Toy.lean)
 A sixteen-state cipher the kernel enumerates in full. Recomputes the bundle product and the Markov product by brute force, shows the S-box uniformity constant is exactly attained, exhibits a fixed key under which the product formula is false, and exhibits a two-round differential worth twice its best trail.
+
+#### [`WideTrail/Differential/Checks/PowerMap.lean`](WideTrail/Differential/Checks/PowerMap.lean)
+The power-map bound is attained for `x^3` over `ZMod 7` and for `x^7` over `ZMod 29`, and its conclusion fails without its hypotheses: over `ZMod 3`, where `3 = 0`, and for `d = 1`.
+
+#### [`WideTrail/Differential/Checks/Hull.lean`](WideTrail/Differential/Checks/Hull.lean)
+The two-round bound on a twenty-five-state cipher over `ZMod 5`: it allows `100` of the `625` key pairs, and the kernel finds a maximum of `85` over all differentials with a nonzero input difference (`toy_count_le`, `toy_count_max`). With both keys fixed to zero, one differential is realised by `5` of the `25` inputs, above the bound (`toy_fixed_exceeds`): the bound is a statement about the key-averaged model only.
 
 #### [`WideTrail/Differential/Checks/Axioms.lean`](WideTrail/Differential/Checks/Axioms.lean)
 The same axiom audit as Propagation layer, applied to the probability layer: twenty-six results, all on the standard baseline, none through `native_decide`.
@@ -191,18 +262,127 @@ Proves shifted full-window bounds and `outerRound_bound`. Pairs of full rounds
 cost a branch bound; an odd remaining full round costs one. The two outer blocks
 are counted separately. `hades_mds_bound` supplies the whole-state MDS corollary.
 
+#### [`Counting.lean`](WideTrail/Hades/Counting.lean), [`Probability.lean`](WideTrail/Hades/Probability.lean)
+`Counting.lean` factors the exact differential count of a masked S-box layer; identity
+coordinates are never charged. `Probability.lean` connects charged activity to trail
+counts in the model with an additional independent uniform key per round: a trail with a
+nonzero count is a support-correct trail, and `hades_probability` charges `d` bits per
+charged S-box when `u * 2^d ≤ |K|`. `hades_probability_exact` keeps the ratio `|K| / u`
+exact instead, and `mul_le_of_ratio` turns such a ratio into a power of two. These bound
+one trail, not the permutation with its fixed constants.
+
 #### [`Subspace.lean`](WideTrail/Hades/Subspace.lean)
 Shows that an inactive round acts on the difference by its linear map alone, so the
-differences surviving `r` inactive rounds form a subspace. If that subspace is
-trivial, every window of `r` middle rounds activates an S-box; differences inside
-it cross the window for free. Combines the outer and middle counts, carries them
-into the independent-key trail bound, and proves by rank-nullity that too short a
-window always leaves a nonzero inactive difference.
+differences that stay inactive through `r` consecutive partial rounds form a subspace.
+If that subspace is trivial, every window of `r` middle rounds activates an S-box;
+differences inside it cross the window for free. Combines the outer and middle counts,
+carries them into the independent-key trail bound, and proves by rank-nullity that too
+short a window always leaves a nonzero inactive difference.
 
-#### [`Checks`](WideTrail/Hades/Checks/Toy.lean)
-A 25-state cipher over `ZMod 5` checks the count, exhibits a tight witness, and
-shows why identity coordinates must be excluded. Weak mixing and a collapsing
-middle map refute bounds stated without their required assumptions.
+#### [`Krylov.lean`](WideTrail/Hades/Krylov.lean)
+Turns "no nonzero difference stays off the S-box coordinate through `r` consecutive
+partial rounds" into finite checks. For a self-adjoint internal map, the conditions are
+dot products with the vectors `Lʲ e₀`. A table of those vectors and a left inverse, both
+checked by `decide`, prove the inactive space trivial. A nonzero scalar in front of the
+map does not matter.
+
+#### [`Dimension.lean`](WideTrail/Hades/Dimension.lean)
+How the inactive space shrinks as the window grows, for any linear map and mask. The
+chain of spaces is constant from `width` rounds on (`inactiveSpace_eq_card`), and the
+space for `width` rounds is the largest `L`-invariant subspace of differences inactive in
+one round; it is trivial exactly when no nonzero difference stays inactive forever
+(`no_infinite_inactive_trail`). With one S-box coordinate, if that space is trivial the
+differences that stay inactive through `r` consecutive partial rounds have dimension
+exactly `width - r` (`finrank_inactiveSpace_singleton`). For the Poseidon2 internal layer
+`c (diag d + J)`, the space for `width` rounds is trivial exactly when the diagonal entries
+off the S-box coordinate are pairwise distinct
+(`inactiveSpace_diagPlusOnes_card_eq_bot_iff`), which needs no table, and the dimensions
+are then exactly `width - r` (`finrank_inactiveSpace_diagPlusOnes`). These concern
+differences that avoid the partial-round S-boxes only, not subspace trails in general.
+
+#### [`Hull.lean`](WideTrail/Hades/Hull.lean)
+Bounds a differential, the sum over all trails from `a` to `b`, through the scheduled
+rounds in the additional-independent-key model. If two adjacent rounds are full, their
+S-boxes have uniformity at most `u`, and the first has a linear layer of branch number at
+least `B`, then every differential with a nonzero input difference has key-averaged
+probability at most `(u / |K|)^(B - 1)` (`diffKeyCount_bound_of_two_full_rounds`,
+`hades_differential_bound`). Only those two rounds are charged; nothing is said about the
+fixed round constants alone.
+
+#### [`Checks`](WideTrail/Hades/Checks/)
+`Toy.lean`: a 25-state cipher over `ZMod 5` checks the count, exhibits a tight witness,
+and shows why identity coordinates must be excluded. Weak mixing and a collapsing middle
+map refute bounds stated without their required assumptions. `Counting.lean` checks the
+masked and scheduled counts by enumeration. `Krylov.lean` checks the certificate route on a
+four-coordinate internal matrix over `ZMod 13` and shows that self-adjointness cannot be
+dropped. `Dimension.lean` shows over `ZMod 5` that a repeated diagonal entry leaves a
+nonzero difference inactive forever, and that with a mask of two coordinates one round can
+remove two dimensions. `Axioms.lean` pins the axiom footprints.
+
+---
+
+### Poseidon2 layer: concrete permutations
+
+#### [`BN254Parameters.lean`](WideTrail/Poseidon2/BN254Parameters.lean), [`BN254Primality.lean`](WideTrail/Poseidon2/BN254Primality.lean), [`BN254.lean`](WideTrail/Poseidon2/BN254.lean)
+The reference BN254 width-three permutation: its 192 constants, primality by Lucas
+certificates, the fifth-power S-box, both linear layers with inverses, bijectivity,
+and 16 active S-boxes in the outer rounds.
+
+#### [`BN254Middle.lean`](WideTrail/Poseidon2/BN254Middle.lean)
+Charges the 56 internal rounds: no nonzero difference stays inactive through three
+consecutive partial rounds, and some does through two, so every distinct input pair
+incurs at least 34 active S-boxes. The internal matrix is `diag (1, 1, 2) + J`, so the
+diagonal criterion proves the three-round statement again and gives exactly `3 - r`
+inactive dimensions. The trail bound keeps the ratio `p / 4` exact, which gives the
+exponent 8554, and a key-averaged differential bound charges the first two external
+rounds (exponent 754).
+
+#### [`BN254Execution.lean`](WideTrail/Poseidon2/BN254Execution.lean), [`BN254Checks.lean`](WideTrail/Poseidon2/BN254Checks.lean)
+A materialised runner proved equal to the specification, a checked 64-round
+trace, and the upstream `[0, 1, 2]` known-answer vector.
+
+#### [`Checks/BN254SP1.lean`](WideTrail/Poseidon2/Checks/BN254SP1.lean)
+SP1's gnark test vector for its BN254 outer permutation, input `(0, 0, 0)`, proved
+for the same Lean permutation.
+
+#### [`Plonky3.lean`](WideTrail/Poseidon2/Plonky3.lean)
+The width-sixteen Plonky3 permutation over any field, as SP1 configures it. The
+external layer is proved equal to a transcription of the code's
+`mds_light_permutation`; the internal layer is `R⁻¹ (diag d + J)` with SP1's diagonal.
+Bijectivity, at least 32 active S-boxes from the full rounds, the partial-round
+term, and the independent-key trail bound hold for every round-constant table, the
+trail bound also as an exact ratio. Also: the diagonal criterion and exact inactive
+dimensions for the internal layer, a key-averaged differential bound over the first two
+full rounds, the states with zero block sum on which the external layer acts block by
+block, and the transposes of both layers.
+
+#### [`Plonky3Execution.lean`](WideTrail/Poseidon2/Plonky3Execution.lean)
+A materialised runner for the width-sixteen permutation, with every coordinate a named
+field and every layer written out coordinate by coordinate. It is proved equal to the
+specification for every scale, S-box, constant table, number of partial rounds, input and
+round count, so `decide` on the runner proves statements about the model.
+
+#### [`KoalaBear.lean`](WideTrail/Poseidon2/KoalaBear.lean), [`BabyBear.lean`](WideTrail/Poseidon2/BabyBear.lean)
+The SP1 instances, with primality, the S-box, the Montgomery factor and the
+pinned constants. KoalaBear: no nonzero difference stays inactive through sixteen
+consecutive partial rounds, so at least 33 active S-boxes; trail exponent 957, or 989
+with the exact ratio. BabyBear: at least 32, trail exponent 896, or 906 with the exact
+ratio; its thirteen partial rounds add nothing, exactly 3 dimensions of differences stay
+inactive through them, and some input pairs cross them without activating an S-box.
+Both: the diagonal criterion, exactly `16 - r` inactive dimensions, and key-averaged
+differential exponents 209 (KoalaBear) and 198 (BabyBear).
+
+#### [`Checks`](WideTrail/Poseidon2/Checks/)
+Why each exponent and margin is what it is, which hypotheses cannot be dropped, and
+end-to-end runs. The uniformity (2 and 6), the external branch number (8) and the window
+(16) are each shown to be exact, and each sharp exponent fails when increased by one
+(for BN254 in `BN254Checks.lean`). `Plonky3KAT.lean` shows that the models of both
+instances reproduce the known-answer vectors of the upstream `p3-koala-bear` and
+`p3-baby-bear` crates, with those tests' own constants, and that each vector fails
+without the Montgomery factor, without the initial external layer, or with the raw
+samples read as canonical values. The pinned-constant outputs are regression values from
+an outside model, since no published vector exists for either SP1 instance.
+`Axioms.lean` pins the axiom footprints of the certificates.
 
 ---
 
@@ -241,7 +421,7 @@ flowchart TD
     GFMDS["Algebra layer: GF256.lean + MDS.lean\nbuild GF(2^8), prove MDS -> branch B"]
     AESMIX["Algebra layer: AESMix.lean\nthe real MixColumns matrix is MDS"]
     CONCRETE["AESMix.lean\nunconditional: 25 per 4 rounds, 55 over AES-128"]
-    DIFF["Differential layer: Differential.lean\nDP as a Nat count; hull identity"]
+    DIFF["Differential layer: Counts.lean\nDP as a Nat count; hull identity"]
     BRICK["Differential layer: Bricklayer.lean\nDP factors over bundles; exponent = weight"]
     MARKOV["Differential layer: Markov.lean\ncount round-key vectors -> rounds multiply"]
     TPROB["Differential layer: TrailProb.lean\ncount * 2^(d*W) <= |X|^r"]
@@ -272,7 +452,7 @@ flowchart TD
 
 ### Why this is useful
 
-Normally, showing a cipher resists differential and linear cryptanalysis means hand-checking (or exhaustively searching) huge numbers of specific attack patterns, one cipher at a time. This project instead proves a bound that holds for an entire *family* of cipher designs at once, AES included, as long as the design follows the wide-trail shape: an S-box layer, a well-mixing layer, and a shuffle that spreads columns well.
+Normally, bounding what differential cryptanalysis can do against a cipher means hand-checking (or exhaustively searching) huge numbers of specific trails, one cipher at a time. This project instead proves an activity bound that holds for an entire *family* of cipher designs at once, AES included, as long as the design follows the wide-trail shape: an S-box layer, a well-mixing layer, and a shuffle that spreads columns well. The differential layer turns such counts into trail bounds, and bounds two-round differentials from the branch number directly, in a model with independent round keys. Linear cryptanalysis is not covered: no correlation, linear trail or linear hull is formalised. The only related results are the transpose facts of `Algebra/Transpose.lean`, which carry the differential branch-number bounds of the Poseidon2 linear layers over to linear branch numbers, under a definition of the linear branch number that is taken, not proved.
 
 Two things make that bound trustworthy:
 
@@ -284,6 +464,9 @@ S-box uniformity and probability model are available. The differential layer pro
 this bridge for independent round keys. A differential sums multiple trails, and
 fixed public constants do not provide independent keys. HADES now has both the
 activity theorem and its separate independent-key counting connection.
+`Differential/Hull.lean` and `Hades/Hull.lean` bound a differential, the sum over all
+trails, but only over two full rounds and only averaged over independent keys; nothing
+here bounds a differential of a permutation with fixed constants or under one fixed key.
 
 ---
 

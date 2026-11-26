@@ -34,7 +34,8 @@ conclusions.
 * `toy_hull`: **the hull effect is real, not hypothetical.** A concrete two-round
   differential is realised by `8` of the `16` inputs, split evenly between two intermediate
   differences that each account for only `4`. The best single trail is off by a factor of
-  two, and no wide-trail bound sees the difference.
+  two, and no bound on one trail sees the difference for this fixed map. `Hull.lean`
+  bounds the whole sum only on average over an additional independent uniform key per round.
 -/
 
 set_option autoImplicit false
@@ -139,8 +140,9 @@ theorem toy_bound_holds :
 
 `toyRound k` is one keyed round. Over two rounds the differential `(0,2) → (2,2)` is
 realised by `8` of the `16` inputs, and `diffCount_comp` splits that `8` into `4 + 4` across
-two intermediate differences. A trail bound controls one of those summands. Nothing in
-Layers 1 to 3 controls their sum. -/
+two intermediate differences. A trail bound controls one of those summands. For a fixed
+map nothing here controls their sum; `Hull.lean` bounds it only on average over an additional
+independent uniform key per round (`Scheduled.diffKeyCount_two_round_bound`). -/
 
 /-- One keyed round of the toy cipher. -/
 def toyRound (k x : Fin 2 → ZMod 4) : Fin 2 → ZMod 4 := toyLin (toyGamma (x + k))

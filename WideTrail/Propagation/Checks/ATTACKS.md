@@ -258,7 +258,9 @@ and it is not a theorem in general.
 
 **A trail is not a differential.** These bounds constrain a single trail. Many trails can
 share the same input and output difference and their probabilities add, which is trail
-clustering. Nothing here bounds a differential, only each trail in it.
+clustering. Nothing in this layer bounds a differential, only each trail in it.
+`Differential/Hull.lean` bounds a differential over two rounds, averaged over independent
+round keys; no bound for a fixed key follows.
 
 **Single key only.** Every theorem is about one trail through the round function, with
 the round keys absorbed into the S-box layer by `PreserveSupport`. That absorption is

@@ -38,7 +38,11 @@ Two things are worth being blunt about, because the theorem is easy to over-read
   hypothesis is load-bearing, not decorative.
 * **It is one trail, not one differential.** `Differential.diffCount_comp` shows the
   differential of a composition is a *sum* over intermediate differences; a trail bound
-  controls one summand. That gap is the hull effect and nothing here closes it.
+  controls one summand. That gap is the hull effect and nothing in this file closes it.
+  `Hull.lean` bounds the whole sum, the differential, in the same independent-key model,
+  for two consecutive bricklayer rounds whose first linear layer has a branch-number bound
+  (`Scheduled.diffKeyCount_two_round_bound`). No result in this development bounds a
+  differential of the cipher under one fixed key.
 
 The counting is arranged so `Follows` peels its first round, which is what makes the
 induction a single application of `Finset.card_bij'` plus `Finset.prod_range_succ'`.
