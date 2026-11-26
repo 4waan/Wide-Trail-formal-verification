@@ -28,6 +28,11 @@ outside model. All finite checks are kernel `decide`.
 * **The trail exponent is the largest the margin allows.** `6 * 2^28 ≤ p < 6 * 2^29`
   (`probability_margin_sharp`), so with `u = 6` the generic bound gives at most `dd = 28` per
   charged S-box.
+* **The external branch number is exactly `8`.** `external_branch` gives at least `8`. The
+  difference `branchWitness`, equal to `-1` at coordinates `0`, `4`, `8` and to `4` at
+  coordinate `12`, has block sum `e_0`, so the external layer cancels it in the first three
+  blocks and sends it to `5 M4 e_0` in the last: four active coordinates in, four out
+  (`external_branchWitness`, `external_not_branch_nine`).
 * **The window is exactly sixteen over BabyBear.** A Krylov certificate
   (`inactive_sixteen`) shows that no nonzero difference avoids coordinate `0` for sixteen
   applications of `diag d + J`, and fifteen are not enough (`inactive_fifteen_ne_bot`). So the
@@ -120,6 +125,26 @@ theorem inverseExponent_mod :
 theorem probability_margin_sharp :
     6 * 2 ^ 28 ≤ Fintype.card F ∧ Fintype.card F < 6 * 2 ^ 29 := by
   rw [field_card]
+  decide
+
+/-! ### The external branch number -/
+
+/-- A nonzero difference of weight four whose image also has weight four. -/
+def branchWitness : State := ![-1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, 4, 0, 0, 0]
+
+/-- The first three blocks of `branchWitness` cancel against the block sum `e_0`; the last
+becomes `5 M4 e_0 = (10, 5, 5, 15)`. -/
+theorem external_branchWitness :
+    external branchWitness = ![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 5, 5, 15] := by
+  rw [external_eq_mdsLight]
+  decide
+
+/-- **The bound `8` of `external_branch` is attained.** -/
+theorem external_not_branch_nine : ¬ isBranchBound id external 9 := by
+  intro h
+  have hw := h branchWitness (by decide)
+  rw [external_branchWitness] at hw
+  revert hw
   decide
 
 /-! ### The window over BabyBear -/
@@ -474,6 +499,10 @@ end Poseidon2.BabyBear.Checks
 /-- info: 'Poseidon2.BabyBear.Checks.inactive_sixteen' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.BabyBear.Checks.inactive_sixteen
+
+/-- info: 'Poseidon2.BabyBear.Checks.external_not_branch_nine' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.BabyBear.Checks.external_not_branch_nine
 
 /-- info: 'Poseidon2.BabyBear.Checks.activity_with_window' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
