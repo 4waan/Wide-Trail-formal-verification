@@ -818,3 +818,138 @@ theorem independent_key_differential_exact (hK : Conditions c)
   exact h
 
 end Poseidon2.Plonky3
+
+/-! ### States whose four blocks sum to zero
+
+A flat state lies in `blockSumZeroFlat` when its four blocks `x_0, …, x_3` (`blockOf`) sum to
+zero, that is, when the code's position sums `sums[k] = x[k] + x[4 + k] + x[8 + k] + x[12 + k]`
+all vanish (`mem_blockSumZeroFlat`). This is `BlockCirculant.blockSumZero` on the flat state, and
+the results below specialise `BlockCirculant.blockMix_of_blockSum_eq_zero` and its companions to
+the external layer:
+
+* `blockOf_external_of_mem`, `external_eq_mat4Blocks_of_mem`: on such a state the external layer
+  is `M4` applied to each block separately, with no mixing between blocks;
+* `external_mem_blockSumZeroFlat_iff`: a state lies in the subspace exactly when its image under
+  the external layer does, so the layer maps the subspace onto itself and every state outside it
+  to a state outside it;
+* `finrank_blockSumZeroFlat`: the subspace has dimension `12`.
+
+At the level of the code, over every commutative ring: the position sums after the first step of
+`mds_light_permutation` are `M4` applied to the position sums of the input
+(`positionSums_mat4Blocks`), so when the latter vanish the second step adds zero and the layer is
+`M4` on each block (`mdsLight_eq_mat4Blocks`); in general the output position sums are `5` times
+`M4` applied to the input position sums (`positionSums_mdsLight`).
+
+Why this subspace is singled out: recent round-skipping work on Poseidon2 (IACR ePrint 2026/306)
+exploits structure of this kind in the linear layers, and its authors state that their attacks do
+not mean that the primitive falls short of its claimed security level. No source cited here shows
+that SP1's parameter sets are affected, and nothing here is a statement about any attack. These
+are facts about the external layer alone: the S-box layer of a full round acts on every coordinate
+and need not keep a state in the subspace, and nothing is said about the internal layer, about
+whole rounds or about the permutation. -/
+
+namespace Poseidon2.Plonky3
+
+open BlockCirculant
+
+section Code
+
+variable {R : Type*} [CommRing R]
+
+/-- The position sums of a state are the sum of its four blocks. -/
+theorem positionSums_eq_sum_blockOf (x : Fin 16 → R) :
+    positionSums x = ∑ b : Fin 4, blockOf x b := by
+  funext k
+  rw [positionSums_apply, Finset.sum_apply]
+  rfl
+
+/-- **The position sums after the first step.** `sums[k]` computed from `M4` applied to each
+block (`mat4Blocks`) is coordinate `k` of `M4` applied to the position sums of the input. -/
+theorem positionSums_mat4Blocks (x : Fin 16 → R) :
+    positionSums (mat4Blocks x) = (m4 R).mulVec (positionSums x) := by
+  funext k
+  rw [positionSums_apply, positionSums_eq_sum_blockOf, Matrix.mulVec_sum, Finset.sum_apply]
+  simp only [mat4Blocks_apply, Equiv.symm_apply_apply]
+
+/-- **The code adds nothing on states with zero position sums.** If every position sum of `x`
+vanishes, `mds_light_permutation` returns `M4` applied to each block: `mdsLight x = mat4Blocks x`.
+This holds over every commutative ring. -/
+theorem mdsLight_eq_mat4Blocks {x : Fin 16 → R} (hx : positionSums x = 0) :
+    mdsLight x = mat4Blocks x := by
+  funext i
+  rw [mdsLight, positionSums_mat4Blocks, hx, Matrix.mulVec_zero, Pi.zero_apply, add_zero]
+
+/-- **The position sums of the output.** `sums` of `mdsLight x` is `5` times `M4` applied to the
+position sums of `x`: each of the four blocks contributes `M4 s` once more. -/
+theorem positionSums_mdsLight (x : Fin 16 → R) :
+    positionSums (mdsLight x) = (5 : R) • (m4 R).mulVec (positionSums x) := by
+  funext k
+  have h := congrFun (positionSums_mat4Blocks x) k
+  rw [positionSums_apply] at h
+  simp only [mat4Blocks_apply, Equiv.symm_apply_apply] at h
+  rw [positionSums_apply]
+  simp only [mdsLight_apply]
+  rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, Fintype.card_fin, h,
+    Pi.smul_apply, smul_eq_mul, nsmul_eq_mul]
+  ring
+
+end Code
+
+variable {K : Type*} [Field K]
+
+/-- The position sums of a flat state are the block sum of the state indexed by `blockIndex`. -/
+theorem positionSums_eq_blockSum (x : Fin 16 → K) :
+    positionSums x = blockSum (x ∘ blockIndex) := by
+  funext k
+  rw [positionSums_apply]
+  rfl
+
+/-- The flat states whose four blocks sum to zero: `BlockCirculant.blockSumZero`, pulled back to
+`Fin 16 → K` along `blockIndex`. -/
+def blockSumZeroFlat : Submodule K (Fin 16 → K) :=
+  blockSumZero.comap (LinearEquiv.funCongrLeft K K blockIndex).toLinearMap
+
+/-- **Membership is the vanishing of the code's position sums** `sums[k]`. -/
+theorem mem_blockSumZeroFlat {x : Fin 16 → K} : x ∈ blockSumZeroFlat ↔ positionSums x = 0 := by
+  rw [positionSums_eq_blockSum, ← mem_blockSumZero]
+  rfl
+
+/-- **The subspace has dimension `12`**: `(4 - 1) * 4` (`BlockCirculant.finrank_blockSumZero`),
+unchanged by relabelling coordinates. -/
+theorem finrank_blockSumZeroFlat : Module.finrank K (blockSumZeroFlat (K := K)) = 12 := by
+  rw [blockSumZeroFlat, Submodule.comap_equiv_eq_map_symm, LinearEquiv.finrank_map_eq,
+    finrank_blockSumZero, Fintype.card_fin]
+
+/-- **On `blockSumZeroFlat` the external layer is `M4` on each block.** It equals the first step
+of the code alone, `mat4Blocks`. -/
+theorem external_eq_mat4Blocks_of_mem (h35 : (35 : K) ≠ 0) {x : Fin 16 → K}
+    (hx : x ∈ blockSumZeroFlat) : external h35 x = mat4Blocks x := by
+  rw [external_eq_mdsLight, mdsLight_eq_mat4Blocks (mem_blockSumZeroFlat.mp hx)]
+
+/-- **No mixing between blocks on `blockSumZeroFlat`.** Block `b` of the output is `M4` applied to
+block `b` of the input. -/
+theorem blockOf_external_of_mem (h35 : (35 : K) ≠ 0) {x : Fin 16 → K}
+    (hx : x ∈ blockSumZeroFlat) (b : Fin 4) :
+    blockOf (external h35 x) b = (m4 K).mulVec (blockOf x b) := by
+  funext c
+  rw [blockOf, external_eq_mat4Blocks_of_mem h35 hx, mat4Blocks_apply, Equiv.symm_apply_apply]
+
+/-- `external h35 x` written through `BlockCirculant.blockMix` on the state indexed by
+`blockIndex`. -/
+theorem external_comp_blockIndex (h35 : (35 : K) ≠ 0) (x : Fin 16 → K) :
+    external h35 x ∘ blockIndex = blockMix (m4Equiv K h35).toLinearMap (x ∘ blockIndex) := by
+  rw [external_apply]
+  funext ic
+  simp
+
+/-- **The external layer preserves `blockSumZeroFlat` in both directions.** `external h35 x`
+lies in the subspace exactly when `x` does, by `BlockCirculant.blockMix_mem_blockSumZero_iff`:
+`M4` is injective and `5 ≠ 0` under `35 ≠ 0`. Since the layer is bijective, it maps the subspace
+onto itself. -/
+theorem external_mem_blockSumZeroFlat_iff (h35 : (35 : K) ≠ 0) (x : Fin 16 → K) :
+    external h35 x ∈ blockSumZeroFlat ↔ x ∈ blockSumZeroFlat := by
+  rw [mem_blockSumZeroFlat, mem_blockSumZeroFlat, positionSums_eq_blockSum,
+    positionSums_eq_blockSum, external_comp_blockIndex, ← mem_blockSumZero, ← mem_blockSumZero]
+  exact blockMix_mem_blockSumZero_iff (m4Equiv K h35).injective (five_ne_zero_of_thirtyFive h35) _
+
+end Poseidon2.Plonky3

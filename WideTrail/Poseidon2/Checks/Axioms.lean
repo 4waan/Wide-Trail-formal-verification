@@ -132,3 +132,17 @@ end Poseidon2.AxiomChecks
 /-- info: 'Poseidon2.BN254.independent_key_differential_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.BN254.independent_key_differential_sharp
+
+/-! ### Plonky3: states whose four blocks sum to zero -/
+
+/-- info: 'Poseidon2.Plonky3.positionSums_mat4Blocks' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.positionSums_mat4Blocks
+
+/-- info: 'Poseidon2.Plonky3.mem_blockSumZeroFlat' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.mem_blockSumZeroFlat
+
+/-- info: 'Poseidon2.Plonky3.external_eq_mat4Blocks_of_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.external_eq_mat4Blocks_of_mem

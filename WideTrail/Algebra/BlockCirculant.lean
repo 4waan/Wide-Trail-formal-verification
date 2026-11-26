@@ -8,6 +8,7 @@ import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Module.Equiv.Defs
 import Mathlib.Algebra.Module.Pi
 import Mathlib.Data.Fintype.BigOperators
+import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 import Mathlib.Logic.Equiv.Fin.Basic
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.LinearCombination
@@ -483,5 +484,106 @@ theorem blockMix_apply_eq_add_sum (N : (P → K) →ₗ[K] (P → K)) (x : B × 
   have h := congrFun (block_blockMix_eq_add_sum N x i) c
   rw [Pi.add_apply, sum_fun_apply] at h
   exact h
+
+end BlockCirculant
+
+/-! ### States whose blocks sum to zero
+
+The proof of `isBranchBound_blockMix` splits on the block sum `s = ∑ⱼ xⱼ`. This section isolates
+the case `s = 0`. For such a state, block `i` of `blockMix N x` is `N xᵢ`
+(`blockMix_of_blockSum_eq_zero`): the layer applies `N` to each block separately and mixes
+nothing between blocks. For every state the block sum of the output is `(t + 1) • N s`
+(`blockSum_blockMix`). So the states with `s = 0` form a subspace, `blockSumZero`, that
+`blockMix N` maps into itself (`blockMix_mem_blockSumZero`); when `N` is injective and `t + 1 ≠ 0`
+in `K`, a state lies in it exactly when its image does (`blockMix_mem_blockSumZero_iff`). Its
+dimension is `(t - 1) k` (`finrank_blockSumZero`).
+
+Why this subspace is singled out: recent round-skipping work on Poseidon2 (IACR ePrint 2026/306)
+exploits structure of the linear-layer matrices of this kind, and its authors state that their
+attacks do not mean that the primitive falls short of its claimed security level. Nothing here is
+a statement about any attack: these are facts about the linear map `blockMix N` alone. They say
+nothing about the S-box layer, which in a full round acts on every coordinate and need not keep a
+state in `blockSumZero`, and nothing about any concrete parameter set. -/
+
+namespace BlockCirculant
+
+variable {B P K : Type*} [Fintype B] [Field K]
+
+/-- **No mixing between blocks when the block sum vanishes.** If `∑ⱼ xⱼ = 0`, block `i` of
+`blockMix N x` is `N xᵢ`. -/
+theorem blockMix_of_blockSum_eq_zero (N : (P → K) →ₗ[K] (P → K)) {x : B × P → K}
+    (hs : blockSum x = 0) (i : B) : block (blockMix N x) i = N (block x i) := by
+  rw [block_blockMix, hs, add_zero]
+
+/-- `blockMix_of_blockSum_eq_zero` for the whole state: if `∑ⱼ xⱼ = 0`, coordinate `(i, c)` of
+`blockMix N x` is coordinate `c` of `N xᵢ`. -/
+theorem blockMix_eq_of_blockSum_eq_zero (N : (P → K) →ₗ[K] (P → K)) {x : B × P → K}
+    (hs : blockSum x = 0) : blockMix N x = fun ic => N (block x ic.1) ic.2 := by
+  funext ⟨i, c⟩
+  exact congrFun (blockMix_of_blockSum_eq_zero N hs i) c
+
+/-- **The block sum of the output.** For every state, `∑ᵢ (blockMix N x)ᵢ = (t + 1) • N s` with
+`s = ∑ⱼ xⱼ`: output block `i` is `N (xᵢ + s)`, and the inputs `xᵢ + s` sum to `s + t s`. -/
+theorem blockSum_blockMix (N : (P → K) →ₗ[K] (P → K)) (x : B × P → K) :
+    blockSum (blockMix N x) = ((Fintype.card B + 1 : ℕ) : K) • N (blockSum x) := by
+  have h : ∑ i, (block x i + blockSum x) = ((Fintype.card B + 1 : ℕ) : K) • blockSum x := by
+    rw [Finset.sum_add_distrib, ← blockSum_eq_sum, Finset.sum_const, Finset.card_univ,
+      Nat.cast_smul_eq_nsmul, succ_nsmul, add_comm]
+  rw [blockSum_eq_sum]
+  simp only [block_blockMix]
+  rw [← map_sum, h, map_smul]
+
+/-- The block sum `x ↦ ∑ⱼ xⱼ` as a linear map. -/
+def blockSumLinear : (B × P → K) →ₗ[K] (P → K) where
+  toFun := blockSum
+  map_add' := blockSum_add
+  map_smul' := blockSum_smul
+
+theorem blockSumLinear_apply (x : B × P → K) : blockSumLinear x = blockSum x := rfl
+
+/-- The states whose blocks sum to zero: the kernel of `blockSumLinear`. -/
+def blockSumZero : Submodule K (B × P → K) := LinearMap.ker blockSumLinear
+
+theorem mem_blockSumZero {x : B × P → K} : x ∈ blockSumZero ↔ blockSum x = 0 :=
+  LinearMap.mem_ker
+
+/-- **`blockMix N` maps `blockSumZero` into itself**, for every linear `N` and every field:
+the block sum of the output is `(t + 1) • N 0 = 0`. -/
+theorem blockMix_mem_blockSumZero (N : (P → K) →ₗ[K] (P → K)) {x : B × P → K}
+    (hx : x ∈ blockSumZero) : blockMix N x ∈ blockSumZero := by
+  rw [mem_blockSumZero] at hx ⊢
+  rw [blockSum_blockMix, hx, map_zero, smul_zero]
+
+/-- If `N` is injective and `t + 1 ≠ 0` in `K`, then `blockMix N x` lies in `blockSumZero`
+exactly when `x` does. Without `t + 1 ≠ 0` the forward direction can fail
+(`Checks.flat_not_mem_blockSumZero`). -/
+theorem blockMix_mem_blockSumZero_iff {N : (P → K) →ₗ[K] (P → K)} (hN : Function.Injective N)
+    (h : ((Fintype.card B + 1 : ℕ) : K) ≠ 0) (x : B × P → K) :
+    blockMix N x ∈ blockSumZero ↔ x ∈ blockSumZero := by
+  rw [mem_blockSumZero, mem_blockSumZero, blockSum_blockMix, smul_eq_zero, map_eq_zero_iff N hN]
+  exact or_iff_right h
+
+/-- **Dimension.** `blockSumZero` has dimension `(t - 1) k`. For `t ≥ 1` it is the kernel of
+the surjective map `blockSumLinear` onto `P → K`, so rank–nullity gives `t k - k`; for `t = 0`
+both sides are `0`. -/
+theorem finrank_blockSumZero [Fintype P] :
+    Module.finrank K (blockSumZero (B := B) (P := P) (K := K)) =
+      (Fintype.card B - 1) * Fintype.card P := by
+  classical
+  have hrn := LinearMap.finrank_range_add_finrank_ker (blockSumLinear (B := B) (P := P) (K := K))
+  rw [Module.finrank_fintype_fun_eq_card, Fintype.card_prod] at hrn
+  rcases isEmpty_or_nonempty B with hB | ⟨⟨i₀⟩⟩
+  · rw [Fintype.card_eq_zero, zero_mul] at hrn
+    rw [Fintype.card_eq_zero, Nat.zero_sub, zero_mul]
+    exact (Nat.eq_zero_of_add_eq_zero hrn).2
+  · have htop : LinearMap.range (blockSumLinear (B := B) (P := P) (K := K)) = ⊤ := by
+      rw [LinearMap.range_eq_top]
+      intro v
+      refine ⟨fun ic => if ic.1 = i₀ then v ic.2 else 0, ?_⟩
+      funext c
+      simp [blockSumLinear_apply, blockSum]
+    rw [htop, finrank_top, Module.finrank_fintype_fun_eq_card] at hrn
+    rw [Nat.sub_mul, one_mul]
+    exact Nat.eq_sub_of_add_eq' hrn
 
 end BlockCirculant

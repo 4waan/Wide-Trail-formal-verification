@@ -11,6 +11,7 @@ import WideTrail.Algebra.PowerSbox
 import WideTrail.Algebra.MDS4
 import WideTrail.Algebra.BlockCirculant
 import WideTrail.Algebra.DiagPlusOnes
+import WideTrail.Algebra.Transpose
 import WideTrail.Algebra.Checks.MDS4
 import WideTrail.Algebra.Checks.BlockCirculant
 import WideTrail.Algebra.Checks.Axioms

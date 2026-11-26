@@ -151,3 +151,68 @@ bound `8` comes from states with nonzero block sum. -/
 example : 4 + 4 < 2 * (4 + 1) ∧ min (4 + 4) (2 * (4 + 1)) = 8 := by decide
 
 end BlockCirculant.Checks
+
+/-! ### States whose block sum is zero
+
+The checks below instantiate the results on `blockSumZero` for the block map `N` above.
+
+* Over `ZMod 7`, the state `zeroSum` has block sum zero, and `blockMix N` sends it to the state
+  with blocks `N xᵢ`, computed by `decide` (`blockMix_zeroSum`); the state `tight`, whose block
+  sum is `(1, 3) ≠ 0`, is not sent to its blockwise image (`tight_not_blockwise`).
+* The scalar in `blockSum_blockMix` is `t + 1 = 5`, not `t = 4` (`blockSum_blockMix_tight`).
+* Over `ZMod 5`, where `t + 1 = 0`, `blockMix N flat = 0` lies in `blockSumZero` but `flat` does
+  not, so the hypothesis `t + 1 ≠ 0` of `blockMix_mem_blockSumZero_iff` cannot be dropped
+  (`flat_not_mem_blockSumZero`).
+* The dimension of `blockSumZero` for four blocks of two is `(4 - 1) * 2 = 6`. -/
+
+namespace BlockCirculant.Checks
+
+/-- Blocks `(1, 2), (3, 4), (5, 6), (5, 2)` over `ZMod 7`; they sum to `(14, 14) = 0`. -/
+def zeroSum : Fin 4 × Fin 2 → ZMod 7 :=
+  fun ic => ![![1, 2], ![3, 4], ![5, 6], ![5, 2]] ic.1 ic.2
+
+theorem zeroSum_mem : zeroSum ∈ blockSumZero := mem_blockSumZero.mpr (by decide)
+
+/-- **The blockwise form on a concrete state.** `blockMix N zeroSum` has blocks
+`N (1, 2) = (3, 5)`, `N (3, 4) = (0, 4)`, `N (5, 6) = (4, 3)`, `N (5, 2) = (0, 2)`, which are the
+blocks `N xᵢ` of `blockMix_of_blockSum_eq_zero`. -/
+theorem blockMix_zeroSum :
+    blockMix (B := Fin 4) (mix (ZMod 7)).toLinearMap zeroSum =
+        (fun ic => ![![3, 5], ![0, 4], ![4, 3], ![0, 2]] ic.1 ic.2) ∧
+      blockMix (B := Fin 4) (mix (ZMod 7)).toLinearMap zeroSum =
+        fun ic => mix (ZMod 7) (block zeroSum ic.1) ic.2 := by
+  decide
+
+/-- Outside `blockSumZero` the blockwise form fails: `tight` has block sum `(1, 3)`. -/
+theorem tight_not_blockwise :
+    blockMix (B := Fin 4) (mix (ZMod 7)).toLinearMap tight ≠
+      fun ic => mix (ZMod 7) (block tight ic.1) ic.2 := by
+  decide
+
+/-- **The scalar is `t + 1`.** For `tight` the output block sum is `5 • N (1, 3) = (6, 0)`, and
+it is not `4 • N (1, 3)`. -/
+theorem blockSum_blockMix_tight :
+    blockSum (blockMix (B := Fin 4) (mix (ZMod 7)).toLinearMap tight) = ![6, 0] ∧
+      blockSum (blockMix (B := Fin 4) (mix (ZMod 7)).toLinearMap tight) =
+        (5 : ZMod 7) • mix (ZMod 7) (blockSum tight) ∧
+      blockSum (blockMix (B := Fin 4) (mix (ZMod 7)).toLinearMap tight) ≠
+        (4 : ZMod 7) • mix (ZMod 7) (blockSum tight) := by
+  decide
+
+/-- **`t + 1 ≠ 0` cannot be dropped from `blockMix_mem_blockSumZero_iff`.** Over `ZMod 5`,
+`blockMix N flat = 0` lies in `blockSumZero`, while `flat` has block sum `(4, 0)`. -/
+theorem flat_not_mem_blockSumZero :
+    blockMix (B := Fin 4) (mix (ZMod 5)).toLinearMap flat ∈ blockSumZero ∧
+      flat ∉ blockSumZero := by
+  refine ⟨?_, ?_⟩
+  · rw [blockMix_flat]
+    exact Submodule.zero_mem _
+  · rw [mem_blockSumZero]
+    decide
+
+/-- Four blocks of two over `ZMod 7`: `blockSumZero` has dimension `(4 - 1) * 2 = 6`. -/
+theorem finrank_blockSumZero_seven :
+    Module.finrank (ZMod 7) (blockSumZero (B := Fin 4) (P := Fin 2) (K := ZMod 7)) = 6 := by
+  rw [finrank_blockSumZero, Fintype.card_fin, Fintype.card_fin]
+
+end BlockCirculant.Checks

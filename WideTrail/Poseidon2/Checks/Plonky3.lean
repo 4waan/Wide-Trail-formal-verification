@@ -671,3 +671,99 @@ end Poseidon2.Plonky3.Checks
 /-- info: 'Poseidon2.Plonky3.Checks.toy_differential_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.Plonky3.Checks.toy_differential_exact
+
+/-! ### States whose four blocks sum to zero
+
+Concrete instances of the results on `blockSumZeroFlat`.
+
+* Over `ZMod 29`, the state with blocks `(1, 2, 3, 4)`, `(5, 6, 7, 8)`, `(9, 10, 11, 12)` and
+  `(14, 11, 8, 5)` has zero position sums. The external layer sends it to `M4` applied to each
+  block, `mat4Blocks`, with the values computed outside Lean (`toy_zeroSum_external`). The input
+  `(0, 1, …, 15)` of `toy_external` has nonzero position sums, and there the external layer is
+  not `mat4Blocks` (`toy_external_ne_mat4Blocks`).
+* Over the KoalaBear modulus `2130706433`, at the level of the ring, the state whose first three
+  blocks are `i ↦ (1000003 i^3 + 7 i) mod p` and whose last block is minus their sum has zero
+  position sums, and the code transcription `mdsLight` returns `mat4Blocks` of it
+  (`koalaBear_zeroSum_mdsLight`). No primality is used.
+* The subspace has dimension `12` over `ZMod 29` (`toy_finrank_blockSumZeroFlat`).
+
+All finite checks are kernel `decide`. -/
+
+namespace Poseidon2.Plonky3.Checks
+
+/-- Blocks `(1, 2, 3, 4)`, `(5, 6, 7, 8)`, `(9, 10, 11, 12)`, `(14, 11, 8, 5)` over `ZMod 29`. -/
+def toyZeroSum : Fin 16 → F := ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 11, 8, 5]
+
+theorem toyZeroSum_mem : toyZeroSum ∈ blockSumZeroFlat := mem_blockSumZeroFlat.mpr (by decide)
+
+/-- **The blockwise form over `ZMod 29`.** The external layer sends `toyZeroSum` to `M4` applied
+to each block, `mat4Blocks toyZeroSum`, whose value is given explicitly. -/
+theorem toy_zeroSum_external :
+    external toy_conditions.thirtyFive toyZeroSum =
+        ![15, 18, 21, 16, 14, 17, 20, 15, 13, 16, 19, 14, 16, 7, 27, 13] ∧
+      external toy_conditions.thirtyFive toyZeroSum = mat4Blocks toyZeroSum := by
+  decide
+
+/-- Outside the subspace the blockwise form fails: on `(0, 1, …, 15)` the external layer is not
+`mat4Blocks`. -/
+theorem toy_external_ne_mat4Blocks :
+    (fun i : Fin 16 => ((i : ℕ) : F)) ∉ blockSumZeroFlat ∧
+      external toy_conditions.thirtyFive (fun i : Fin 16 => ((i : ℕ) : F)) ≠
+        mat4Blocks (fun i : Fin 16 => ((i : ℕ) : F)) := by
+  rw [mem_blockSumZeroFlat]
+  decide
+
+/-- The subspace has dimension `12` over `ZMod 29`. -/
+theorem toy_finrank_blockSumZeroFlat : Module.finrank F (blockSumZeroFlat (K := F)) = 12 :=
+  finrank_blockSumZeroFlat
+
+/-- **The blockwise form over the KoalaBear modulus**, at the level of the ring: a state with zero
+position sums, and `mdsLight` of it equal to `mat4Blocks` of it, with the value given
+explicitly. -/
+theorem koalaBear_zeroSum_mdsLight :
+    positionSums (R := ZMod 2130706433)
+        ![0, 1000010, 8000038, 27000102, 64000220, 125000410, 216000690, 343001078, 512001592,
+          729002250, 1000003070, 1331004070, 1554704621, 1275703763, 906702635, 429701183] = 0 ∧
+      mdsLight (R := ZMod 2130706433)
+        ![0, 1000010, 8000038, 27000102, 64000220, 125000410, 216000690, 343001078, 512001592,
+          729002250, 1000003070, 1331004070, 1554704621, 1275703763, 906702635, 429701183] =
+        ![38000170, 53000236, 98000392, 63000252, 1062003438, 1305004188, 1650005244,
+          1219003916, 1280604208, 2039606506, 841902893, 1665605370, 1880805050, 863801936,
+          1671504337, 1313803328] ∧
+      mdsLight (R := ZMod 2130706433)
+        ![0, 1000010, 8000038, 27000102, 64000220, 125000410, 216000690, 343001078, 512001592,
+          729002250, 1000003070, 1331004070, 1554704621, 1275703763, 906702635, 429701183] =
+        mat4Blocks
+          ![0, 1000010, 8000038, 27000102, 64000220, 125000410, 216000690, 343001078, 512001592,
+            729002250, 1000003070, 1331004070, 1554704621, 1275703763, 906702635, 429701183] := by
+  decide
+
+end Poseidon2.Plonky3.Checks
+
+/-- info: 'Poseidon2.Plonky3.mdsLight_eq_mat4Blocks' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.mdsLight_eq_mat4Blocks
+
+/-- info: 'Poseidon2.Plonky3.positionSums_mdsLight' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.positionSums_mdsLight
+
+/-- info: 'Poseidon2.Plonky3.finrank_blockSumZeroFlat' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.finrank_blockSumZeroFlat
+
+/-- info: 'Poseidon2.Plonky3.blockOf_external_of_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.blockOf_external_of_mem
+
+/-- info: 'Poseidon2.Plonky3.external_mem_blockSumZeroFlat_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.external_mem_blockSumZeroFlat_iff
+
+/-- info: 'Poseidon2.Plonky3.Checks.toy_zeroSum_external' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toy_zeroSum_external
+
+/-- info: 'Poseidon2.Plonky3.Checks.koalaBear_zeroSum_mdsLight' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.koalaBear_zeroSum_mdsLight
