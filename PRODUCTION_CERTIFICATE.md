@@ -426,9 +426,11 @@ proved. Checking a reference vector is narrower than proving universal Rust
 implementation equivalence. The immutable source, constants, model conventions,
 and these boundaries are part of the certificate's meaning.
 
-All new modules are imported by `WideTrail`. The complete declaration audit in
-`scripts/AuditAxioms.lean` covers them and permits only the existing standard
-axioms: `propext`, `Classical.choice`, and `Quot.sound`.
+Every module is imported by `WideTrail` or, for the three memory-heavy check modules
+(`Poseidon2/Checks/Plonky3.lean`, `KoalaBear.lean`, `BabyBear.lean`), by `WideTrailHeavy`.
+The complete declaration audit in `scripts/AuditAxiomsHeavy.lean` covers both libraries,
+`scripts/AuditAxioms.lean` covers the default library, and both permit only the existing
+standard axioms: `propext`, `Classical.choice`, and `Quot.sound`.
 
 ## Independent implementation checks
 

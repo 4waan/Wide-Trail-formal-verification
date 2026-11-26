@@ -1,9 +1,10 @@
-"""Fail if a Lean file under WideTrail/ is not reachable from WideTrail.lean.
+"""Fail if a Lean file under WideTrail/ is not reachable from a library root.
 
-`lake build` builds only the modules that the default target imports, and
-`scripts/AuditAxioms.lean` audits only those modules. A file that nothing
-imports is therefore neither compiled nor audited, and nothing reports it.
-This script lists every such file.
+The roots are `WideTrail.lean` (the default library) and `WideTrailHeavy.lean`
+(the memory-heavy checks). `lake build` builds only the modules a root imports, and
+the axiom audits cover only those modules. A file that nothing imports is
+therefore neither compiled nor audited, and nothing reports it. This script lists
+every such file.
 
 Usage: python3 scripts/check_imports.py   (from the repository root)
 """
@@ -13,7 +14,8 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-IMPORT = re.compile(r"^\s*import\s+(WideTrail(?:\.[A-Za-z0-9_]+)*)\s*$")
+IMPORT = re.compile(r"^\s*import\s+(WideTrail(?:Heavy)?(?:\.[A-Za-z0-9_]+)*)\s*$")
+ROOTS = ["WideTrail", "WideTrailHeavy"]
 
 
 def module_path(module: str) -> pathlib.Path:
@@ -30,12 +32,12 @@ def imports(path: pathlib.Path) -> list[str]:
 
 
 def main() -> int:
-    every = {"WideTrail"} | {
+    every = set(ROOTS) | {
         ".".join(p.relative_to(ROOT).with_suffix("").parts)
         for p in (ROOT / "WideTrail").rglob("*.lean")
     }
     reached = set()
-    pending = ["WideTrail"]
+    pending = list(ROOTS)
     missing_targets = []
     while pending:
         module = pending.pop()
@@ -52,10 +54,10 @@ def main() -> int:
     for module in missing_targets:
         print(f"imported but missing: {module}")
     for module in orphans:
-        print(f"not imported by WideTrail: {module} ({module_path(module).relative_to(ROOT)})")
+        print(f"not imported by any library root: {module} ({module_path(module).relative_to(ROOT)})")
     if orphans or missing_targets:
         return 1
-    print(f"All {len(every)} modules are reachable from WideTrail.lean.")
+    print(f"All {len(every)} modules are reachable from WideTrail.lean or WideTrailHeavy.lean.")
     return 0
 
 
