@@ -12,9 +12,10 @@ name: Docs
 # - A failed documentation build fails the run.
 # - On main, documentation that was built but could not be published, because
 #   Pages is not enabled, also fails the run, with a message saying so.
-# Swap space gives the documentation build the headroom that the runner's 16 GB
-# does not, and only the default library `WideTrail` is documented: it leaves
-# out the memory-heavy check modules of `WideTrailHeavy`.
+# The runner is set to allow forking the large Lake process (the cause of the
+# old "cannot allocate memory" errors) and given swap, and only the default
+# library `WideTrail` is documented: it leaves out the memory-heavy check
+# modules of `WideTrailHeavy`.
 
 on:
   push:
@@ -41,10 +42,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # doc-gen4 runs one process per module in parallel, each holding a Mathlib
-      # environment. Without swap the runner's memory runs out before the end.
-      - name: Add swap space
+      # Near the end of the build, doc-gen4's srcUri jobs fork the Lake process,
+      # which is large by then, to run git. With several forks at once the
+      # kernel's default overcommit check refuses them ("resource exhausted,
+      # cannot allocate memory"). Each child runs git at once and copies almost
+      # nothing, so allow the forks; the swap file covers real peaks.
+      - name: Allow forking a large process, and add swap space
         run: |
+          sudo sysctl -w vm.overcommit_memory=1
           sudo swapoff -a
           sudo fallocate -l 16G /mnt/docs.swap
           sudo chmod 600 /mnt/docs.swap
