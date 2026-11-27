@@ -11,14 +11,18 @@ import WideTrail.Poseidon2.BabyBear
 OpenVM `v2.1.0` (`openvm-org/openvm`, tag `v2.1.0`, commit
 `05f3b73e7294fbb6d38155abafc98f1fe2bcfb73`) hashes with the BabyBear Poseidon2 permutation of
 width sixteen that `p3-baby-bear` `0.4.3` builds in `default_babybear_poseidon2_16()`
-(`src/poseidon2.rs:117-128`). OpenVM pins every `p3-*` crate at `=0.4.3` (`Cargo.toml:227-237`,
-`p3-baby-bear` at `:230`) and `zkhash` to `zkhash-axiom` `0.2.0` (`:239`); `Cargo.lock` resolves
-`p3-baby-bear` `0.4.3` from crates.io with checksum
-`3a1a49f4d9c8b8cbdab61e25d9de1b78b3c8347dd2fb88b11d990b3efa8cdd3a` (`Cargo.lock:5850-5854`),
-which is the SHA-256 of the crate archive read here; its `src/poseidon2.rs` has SHA-256
-`876c96fe1771693e585131518a81dfd51923deb5ba8eec3c9e69e1232e459d97`. Below, "`p3-x` `0.4.3`"
-means that crates.io crate, with paths relative to its root. OpenVM runs the permutation on three
-code paths:
+(`src/poseidon2.rs:117-128`). OpenVM's workspace `Cargo.toml` pins every `p3-*` dependency it
+declares at `=0.4.3` (`:227-237`; `p3-baby-bear` at `:230`, `p3-poseidon2` at `:235`) and `zkhash`
+to `zkhash-axiom` `0.2.0` (`:239`). `Cargo.lock` resolves `p3-baby-bear` `0.4.3` from crates.io
+with checksum `3a1a49f4d9c8b8cbdab61e25d9de1b78b3c8347dd2fb88b11d990b3efa8cdd3a`
+(`Cargo.lock:5850-5854`), which is the SHA-256 of the crate archive read here; its
+`src/poseidon2.rs` has SHA-256 `876c96fe1771693e585131518a81dfd51923deb5ba8eec3c9e69e1232e459d97`.
+`Cargo.lock` also resolves `p3-monty-31` `0.4.3`, which the workspace `Cargo.toml` does not
+declare (`:5990-5994`, checksum `c9fe0be661891af1f703ceaf57334fcbd540804988984dc2b500dd99740e7c81`),
+and `p3-poseidon2` `0.4.3` (`:6013-6017`, checksum
+`2c6fc2368447576283f8b3849a36095017f25addf06eab9e33b0ce7f96b0b99d`) from crates.io, with the
+checksums of the archives read here. Below, "`p3-x` `0.4.3`" means that crates.io crate, with
+paths relative to its root. OpenVM runs the permutation on three code paths:
 
 * **The STARK backend.** `openvm-stark-sdk`, from `openvm-org/stark-backend` at tag `v2.1.0`
   (`Cargo.toml:161`; commit `a6b4761ad9a098f3a166740d22ad60b96400cd65`, `Cargo.lock:5629-5631`),
@@ -146,8 +150,8 @@ constants.
   `finrank_inactive_eq`: exactly `16 - r` dimensions of differences stay inactive through
   `r ≤ 16` consecutive partial rounds.
 * `activity`, `activity_general`: two distinct inputs incur at least `32 + 13 / 16 = 32` charged
-  S-box applications, all in the full rounds; the window `16` of the criterion gives
-  `13 / 16 = 0` for the thirteen partial rounds.
+  S-box applications over the `21` rounds; the bound counts only S-boxes of the full rounds,
+  since the window `16` of the criterion gives `13 / 16 = 0` for the thirteen partial rounds.
 * **The partial rounds contribute nothing to this argument**, as for SP1's BabyBear instance:
   `finrank_partial_inactive` (a space of dimension exactly `3` stays inactive through the thirteen
   consecutive partial rounds), `partial_window_term_eq_zero` (every window `w` for which
@@ -192,7 +196,12 @@ constructions built on the permutation, or about equivalence with the Rust code 
 stated in `WideTrail.Poseidon2.Plonky3` and in this file and the known-answer tests of
 `Checks/OpenVMBabyBear.lean`. The AVX2, AVX-512 and NEON code paths, which have their own
 internal-layer code, and the CUDA backends are not modelled. The model works with field elements,
-not with the Montgomery representatives the code stores.
+not with the Montgomery representatives the code stores. HorizenLabs' own width-sixteen BabyBear
+instance `POSEIDON2_BABYBEAR_16_PARAMS` (`zkhash-axiom` `0.2.0`
+`src/poseidon2/poseidon2_instance_babybear.rs:2023`) uses the same `RC16` with a different
+external matrix (HorizenLabs' `M4`, `src/poseidon2/poseidon2.rs:85-117`) and a different diagonal
+(`MAT_DIAG16_M_1`, `poseidon2_instance_babybear.rs:11-28`); it is a different permutation and
+nothing here concerns it.
 -/
 
 set_option autoImplicit false
@@ -518,9 +527,9 @@ theorem exists_pair_partial_free (table : ℕ → State) :
 /-! ### Activity -/
 
 /-- **Thirty-two charged S-boxes, for every round-constant table.** Two distinct inputs incur at
-least `32 + 13 / 16 = 32` charged S-box applications over the `21` rounds, all in the full
-rounds: the window `16` of `inactive_trivial` gives `13 / 16 = 0` for the partial rounds. A lower
-bound; it is not claimed to be attained. -/
+least `32 + 13 / 16 = 32` charged S-box applications over the `21` rounds; the bound counts only
+S-boxes of the full rounds, since the window `16` of `inactive_trivial` gives `13 / 16 = 0` for
+the partial rounds. A lower bound; it is not claimed to be attained. -/
 theorem activity_general (table : ℕ → State) {x y : State} (hxy : x ≠ y) :
     32 + 13 / 16 ≤ Hades.scheduledWeight (Plonky3.Diag.rounds conditions 13 sbox table)
       (Hades.differenceTrace (Plonky3.Diag.rounds conditions 13 sbox table) (external x)

@@ -15,10 +15,11 @@ permutation `default_babybear_poseidon2_16()` of `p3-baby-bear` `0.4.3`, which O
 uses. The checks below test that instantiation against Plonky3's test vectors, record which
 readings of the code they rule out, and show that the uniformity `6`, the per-S-box exponent
 `28`, the branch number `8`, the window `16` and the exponents used by the bounds cannot be
-improved. Every finite check is kernel `decide`. The whole-permutation checks run on the runner
-`Plonky3.Diag.permutationDense` of `WideTrail.Poseidon2.Plonky3Execution` (diagonal `diagDense`,
-scale `1`), and `Plonky3.Diag.permutation_eq_of_dense` and its companions transfer the computed
-values to the specification.
+improved. Every finite check is kernel `decide`. The whole-permutation checks run on the runners
+of `WideTrail.Poseidon2.Plonky3Execution`: `Plonky3.Diag.permutationDense` with `diagDense` and
+the scale of each statement, and, for the two SP1 controls, `Plonky3.permutationDense`. The
+transfer lemmas `Plonky3.Diag.permutation_eq_of_dense`, `Plonky3.permutation_ne_of_dense` and
+their companions carry the computed values over to the specification.
 
 ## Known-answer tests
 
@@ -71,9 +72,12 @@ On the input of `upstream_kat`, the expected output is not reproduced with the d
 constants and SP1 `5.2.4`'s internal layer `R^{-1} (diag(-2, 1, 2, 4, …, 2^13, 2^15) + J)`
 (`kat_fails_sp1_internal`); with SP1's diagonal and no factor (`kat_fails_sp1Diag`); with
 OpenVM's diagonal and the factor `R^{-1}` (`kat_fails_montyInverse`); without the initial
-external layer (`kat_fails_skip_initial`); or with the literals of the three tables read as
-Montgomery representatives, that is times `R^{-1}` (`kat_fails_monty_constants`). So the vector
-rules out each of these five alternatives to the model.
+external layer (`kat_fails_skip_initial`); with the literals of the three tables read as
+Montgomery representatives, that is times `R^{-1}` (`kat_fails_monty_constants`); or with the
+partial-round constant `internalConstants 6` increased by `1` and every other constant deployed
+(`kat_fails_internal_constant_succ`). So the vector rules out each of these six alternatives to
+the model. The last control alters one constant only; the other constants are not each tested
+in this way.
 
 ## Exactness and cross-checks
 
@@ -85,7 +89,9 @@ rules out each of these five alternatives to the model.
   stays inactive through fifteen consecutive partial rounds (`finrank_inactive_eq` at `r = 15`),
   so the window `16` cannot be shortened.
 * `sharp_exponent_succ_fails`, `differential_sharp_exponent_succ_fails`: `907` and `199` fail, so
-  `906` and `198` are the largest exponents the exact ratios give. `sbox_not_uniform_five` and
+  `906` and `198` are the largest exponents the exact ratios give. `sbox_not_uniform_five`,
+  `twentyNine_too_large` (the second half of `BabyBear.Checks.probability_margin_sharp`),
+  `external_branchWitness`, `external_not_branch_nine` (the same layer, by `external_eq_sp1`) and
   these two repeat checks of `Checks/BabyBear.lean`, which is not imported here because it needs
   about 7 GB of memory to build.
 * `values_eq_rc16`: rows `0` to `20` of `values` are the rows of `RC16` (`zkhash-axiom` `0.2.0`
@@ -240,6 +246,14 @@ theorem kat_fails_monty_constants :
     Plonky3.Diag.permutation conditions 13 sbox
       (Plonky3.roundValues 13 (fun r i => externalConstants r i * BabyBear.montyInverse)
         (fun j => internalConstants j * BabyBear.montyInverse)) input ≠ expected :=
+  Plonky3.Diag.permutation_ne_of_dense (d := diagDense) conditions 13 sbox _ (by decide)
+
+/-- **Negative control: one partial-round constant.** With `internalConstants 6` increased by `1`
+and every other constant deployed, the test fails. -/
+theorem kat_fails_internal_constant_succ :
+    Plonky3.Diag.permutation conditions 13 sbox
+      (Plonky3.roundValues 13 externalConstants
+        (Function.update internalConstants 6 (internalConstants 6 + 1))) input ≠ expected :=
   Plonky3.Diag.permutation_ne_of_dense (d := diagDense) conditions 13 sbox _ (by decide)
 
 /-! ### The bounds `u = 6`, `dd = 28` and `8` are attained -/
@@ -693,6 +707,14 @@ info: 'Poseidon2.OpenVMBabyBear.independent_key_differential_sharp_general' depe
 /-- info: 'Poseidon2.OpenVMBabyBear.Checks.kat_fails_monty_constants' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.OpenVMBabyBear.Checks.kat_fails_monty_constants
+
+/--
+info: 'Poseidon2.OpenVMBabyBear.Checks.kat_fails_internal_constant_succ' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.OpenVMBabyBear.Checks.kat_fails_internal_constant_succ
 
 /-- info: 'Poseidon2.OpenVMBabyBear.Checks.sbox_not_uniform_five' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
