@@ -1,6 +1,6 @@
 # WideTrail
 
-*Kernel-checked wide-trail and HADES activity bounds, concrete AES algebra, and exact differential trail counts in Lean 4.*
+*Kernel-checked wide-trail and HADES activity bounds, concrete AES algebra, exact differential trail counts, and linear trail correlations in Lean 4.*
 
 Based on Daemen and Rijmen's [The Wide Trail Design Strategy](https://doi.org/10.1007/3-540-45325-3_20) (Cryptography and Coding 2001, LNCS 2260, pp. 222–238; see [`paper/`](paper/)).
 
@@ -40,8 +40,11 @@ lake build WideTrailHeavy
 lake env lean scripts/AuditAxiomsHeavy.lean      # the audit with these checks included
 ```
 
-No module of the default library measured above about 3.4 GB. Lake runs one Lean process
-per core, so the peak of the default build grows with the number of cores.
+No module of the default library measured above about 3.5 GB. The largest are
+`Linear/Field.lean`, the only module that imports `Mathlib.Analysis` (about 3.4 GB, almost all
+of it that import), and the aggregator `WideTrail.Linear` and the root `WideTrail`, which import
+it (about 3.5 GB each); the axiom audits load the same and peak at about 3.5 GB. Lake runs one
+Lean process per core, so the peak of the default build grows with the number of cores.
 
 To cite this project, see [`CITATION.cff`](CITATION.cff).
 
@@ -50,11 +53,11 @@ To cite this project, see [`CITATION.cff`](CITATION.cff).
 ## Named proof layers
 
 The directories identify the kind of mathematics they contain: `Propagation`,
-`Algebra`, `Differential`, `Hades`, `Poseidon2`, and `Poseidon`. The original numbered
+`Algebra`, `Differential`, `Hades`, `Poseidon2`, `Poseidon`, and `Linear`. The original numbered
 directories have been renamed; import paths now use these names. Import a complete layer with
 `import WideTrail.Propagation`, `import WideTrail.Algebra`,
 `import WideTrail.Differential`, `import WideTrail.Hades`,
-`import WideTrail.Poseidon2`, or `import WideTrail.Poseidon`.
+`import WideTrail.Poseidon2`, `import WideTrail.Poseidon`, or `import WideTrail.Linear`.
 
 **Propagation layer** (`WideTrail/Propagation/`) is the abstract propagation theory: an S-box layer, a
 shuffle, and a mixing layer, related only by the structural properties a wide-trail cipher
@@ -208,17 +211,54 @@ CryptoExperts, lambdaworks and starknet-types-core, the Cairo corelib). As for P
 probability statements concern one trail, or the differential averaged over an additional
 independent uniform key per round, not the permutation with its fixed constants.
 
+**Linear layer** (`WideTrail/Linear/`) is the correlation side. A correlation is kept as its
+numerator, the Walsh value `walsh ψ P Q F u v = ∑ₓ ψ (⟨v, F x⟩ - ⟨u, x⟩)`, for a pairing
+`⟨u, x⟩` of masks with states and an additive character `ψ`; in the binary case it is an
+integer, as a differential count is a natural number. The pairing is part of every statement:
+AES is treated under the trace pairing `⟨u, x⟩ = ∑ᵢ Tr(uᵢ xᵢ)` of `GF(2⁸)`, under which a field
+matrix moves masks through its field transpose, and not under the bit pairing. Masks are
+propagated forward through the inverse of the adjoint, so a sequence of masks with a nonzero
+correlation is a `WideTrailSpec.IsTrail`, or a `Hades.IsTrail`, of the forward mask map, and the
+activity theorems above apply to it unchanged. A trail's correlation involves no key: for every
+key vector the cipher's Walsh value is a sum over trails with key-dependent phases
+(`walsh_run_eq_sum_trails`), and the key enters each summand only through its phase (a sign `±1`
+in the binary case). A trail bound therefore bounds one summand of the fixed-key correlation,
+the same in magnitude for every key; it is not a bound on the cipher's correlation for a fixed
+key. The hull, the squared correlation averaged over an additional independent uniform key per
+round, is the sum of the squared trail correlations (Nyberg's identity,
+`elpCount_succ_eq_sum_trails`) and is bounded over two rounds from the branch number of the
+backward map (`elpCount_two_round_bound`).
+
+For AES the S-box obligation is discharged: under the trace pairing every Walsh value of the
+S-box at a nonzero input mask is at most `32` in absolute value, so every such correlation is at
+most `2⁻³`, and `32` is attained (`AES.sbox_isLinearityBound`, `AES.sbox_isLinearityBound_iff`).
+The `255 · 256` Walsh values with a nonzero output mask are reduced to one spectrum of 256
+values, which the kernel checks on natural numbers; at the zero output mask and a nonzero input
+mask the value is `0`. With the branch number `5`, every 4-, 10-, 12- and 14-round linear trail
+with a nonzero input mask has a trail correlation of at most `2⁻⁷⁵`, `2⁻¹⁶⁵`, `2⁻²²⁵` and
+`2⁻²⁴⁰` in absolute value (at least 25, 55, 75 and 80 active S-boxes for every such trail with a
+nonzero correlation), and the expected linear probability over two rounds, and over any `R ≥ 2`
+rounds, is at most `2⁻²⁴` for every nonzero input mask in the independent-key model. The bit
+pairing is not treated, so the designers' four-round bound for bit masks is not proved. For the
+Poseidon and Poseidon2 instances, every linear trail with a nonzero input mask and a nonzero
+correlation (for Poseidon2, a trail of the rounds after the initial external layer) charges at
+least the same number of S-boxes as the differential lower bounds (33 and 35, 32, 34 and 43, 34
+and 44, 43 and 57); their trail bounds take the S-box correlation bound as a hypothesis, since no
+bound on a Walsh value of `x ↦ x^d` over a prime field (such as the Weil bound) is proved. See
+[the linear mechanics](MECHANICS_LINEAR.md).
+
 Named theorem footprints are pinned by `#print axioms`. The complete module audit in
-`scripts/AuditAxiomsHeavy.lean` checks every project declaration (8395 at this revision),
-including names in the root namespace (`scripts/AuditAxioms.lean` does the same for the 6251
+`scripts/AuditAxiomsHeavy.lean` checks every project declaration (9254 at this revision),
+including names in the root namespace (`scripts/AuditAxioms.lean` does the same for the 7110
 declarations of the default library). Both allow nothing beyond the standard
 `propext, Classical.choice, Quot.sound` baseline: no `sorry`, no `native_decide`, no
 `bv_decide` fallback axiom, anywhere. See
 [`WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md) for the
 build log of Algebra layer (what was tried, what failed, why),
 [`MECHANICS_ALGEBRA.md`](MECHANICS_ALGEBRA.md) for how the algebra works,
-[`MECHANICS_PROPAGATION.md`](MECHANICS_PROPAGATION.md) for the support argument, and
-[`MECHANICS_DIFFERENTIAL.md`](MECHANICS_DIFFERENTIAL.md) for the same on Differential layer.
+[`MECHANICS_PROPAGATION.md`](MECHANICS_PROPAGATION.md) for the support argument,
+[`MECHANICS_DIFFERENTIAL.md`](MECHANICS_DIFFERENTIAL.md) for the same on Differential layer, and
+[`MECHANICS_LINEAR.md`](MECHANICS_LINEAR.md) for the same on Linear layer.
 
 ---
 
@@ -291,7 +331,7 @@ The Poseidon2 external layer as a block circulant `circ(2N, N, …, N)`: block `
 The Poseidon2 internal layer `c (diag d + J)` as a linear equivalence, with the Sherman–Morrison inverse. It needs `c ≠ 0`, every `dᵢ ≠ 0` and `1 + ∑ 1/dᵢ ≠ 0`. The map is self-adjoint for the dot product, which `Hades/Krylov.lean` uses.
 
 #### [`WideTrail/Algebra/Transpose.lean`](WideTrail/Algebra/Transpose.lean)
-Transposes of the Poseidon2 linear layers. A square matrix is MDS exactly when its transpose is; the transpose of `circ(2, 3, 1, 1)` is `circ(2, 1, 1, 3)`, MDS under the same hypothesis; the transpose of `circ(2A, A, …, A)` is `circ(2Aᵀ, Aᵀ, …, Aᵀ)`, and at width sixteen it has branch number at least `8`; `c (diag d + J)` is symmetric. Taking the linear branch number of a map to be the differential branch number of its transpose, a definition here and not a proved statement about correlations, the differential branch-number bounds carry over. No correlation, linear trail or linear-attack bound is proved.
+Transposes of the Poseidon2 linear layers. A square matrix is MDS exactly when its transpose is; the transpose of `circ(2, 3, 1, 1)` is `circ(2, 1, 1, 3)`, MDS under the same hypothesis; the transpose of `circ(2A, A, …, A)` is `circ(2Aᵀ, Aᵀ, …, Aᵀ)`, and at width sixteen it has branch number at least `8`; `c (diag d + J)` is symmetric. Taking the linear branch number of a map to be the differential branch number of its transpose, a definition here and not a proved statement about correlations, the differential branch-number bounds carry over. This file proves no correlation, linear trail or linear-attack bound. The identification it takes as a definition is proved in `Linear/Masks.lean` for a separating pairing (`Linear.isLinBranchBound_iff`): over `F_p`, with the dot product and a separating character, it holds as stated, and the external layer has linear branch number at least `8` through correlations (`Poseidon2.Plonky3.external_isLinBranchBound`). Under bit masks on `GF(2⁸)` the nonzero correlations of `x ↦ A x` need not be the pairs `(Aᵀ v, v)`, since the bit adjoint of a field matrix need not be its field transpose (for the `MixColumns` matrix it is not). Because the relabelling of masks between the trace and bit pairings acts byte by byte, the branch number would carry over, but that needs the relabelling to be a bijection, which is not proved, so nothing is claimed for bit masks (see [the linear mechanics](MECHANICS_LINEAR.md#2-the-pairing-is-part-of-the-statement)). The file's own docstring, which predates the linear layer, still says that correlations and this identification are not formalised.
 
 #### [`WideTrail/Algebra/Checks/`](WideTrail/Algebra/Checks/)
 `MDS4.lean` shows over `ZMod 11` and `ZMod 7` that `circ(2, 3, 1, 1)` fails to be MDS when `11` or `7` vanishes, and that branch number `5` is attained over `ZMod 13`; the HorizenLabs matrix it records as different is treated in [`Poseidon2/HorizenLabsM4.lean`](WideTrail/Poseidon2/HorizenLabsM4.lean). `BlockCirculant.lean` shows that the characteristic hypothesis of the block-circulant bound cannot be dropped and that the bound is attained. `Axioms.lean` pins the axiom footprints of the layer's results.
@@ -655,6 +695,116 @@ schedule, the runner and the checks.
 
 ---
 
+### Linear layer: correlations, trails and hulls
+
+#### [`Character.lean`](WideTrail/Linear/Character.lean)
+Correlations without division: a pairing `⟨u, x⟩` of masks with states, an additive character
+`ψ`, and the Walsh value `walsh ψ P Q F u v = ∑ₓ ψ (⟨v, F x⟩ - ⟨u, x⟩)`, the numerator of the
+correlation. The exact identities (W1) to (W10): a key before the map and a constant after it
+contribute phases, a map after it moves the output mask through an adjoint, a bricklayer factors
+over its bundles, and inversion under a trace form has one component function up to scaling;
+for a separating pairing into a domain, orthogonality, multiplication of correlation matrices,
+the Walsh values of a map with an adjoint, the zero masks and Parseval.
+
+#### [`Binary.lean`](WideTrail/Linear/Binary.lean)
+The binary case: the sign character `sign₂` of `ZMod 2` into `ℤ`, the bit pairing, integer
+Parseval, the decidable predicate `IsLinearityBound`, and the bound
+`|walsh| ≤ c ^ weight u · |K| ^ (|Idx| - weight u)` for a bricklayer of S-boxes with linearity
+bound `c`, the twin of `diffCount_bricklayer_le`.
+
+#### [`Masks.lean`](WideTrail/Linear/Masks.lean)
+Adjoints compose and invert; under every trace-form pairing the transpose of a matrix is an
+adjoint, and the only one when the pairing is separating. The linear branch number, defined
+through correlations (`IsLinBranchBound`), is the differential branch number of the adjoint
+(`isLinBranchBound_iff`). Masks are propagated forward through the inverse of the adjoint, and the
+backward reading is equivalent (`isTrail_iff_backward`).
+
+#### [`Trail.lean`](WideTrail/Linear/Trail.lean)
+The correlation `trailCorr` of a linear trail through the keyed rounds of `Scheduled.run`, which
+involves no key, and its phase `trailPhase` under a key vector. For every key vector, the
+Walsh value of `r + 1` rounds, times `|X| ^ r`, is the sum of phase times trail correlation over
+all trails (`walsh_run_eq_sum_trails`). A trail with a nonzero correlation through bijective
+S-boxes is a `WideTrailSpec.IsTrail` of the forward mask map (`isTrail_of_trailCorr_ne_zero`), so in the
+binary case `|trailCorr| · 2 ^ (d · A) ≤ |X| ^ r` when `c · 2 ^ d ≤ |K|`
+(`trailCorr_le_of_spec`) and `|trailCorr| · |K| ^ A ≤ c ^ A · |X| ^ r`
+(`trailCorr_ratio_le_of_spec`), for every trail with a nonzero input mask. These bound one
+summand of the fixed-key correlation, not the cipher's correlation for a fixed key.
+
+#### [`Hull.lean`](WideTrail/Linear/Hull.lean)
+The key-averaged squared correlation `elpCount`, a natural number, in the model with an
+additional independent uniform key per round: Markov composition, Nyberg's identity (the expected
+linear probability is the sum of the squared trail correlations, `elpCount_succ_eq_sum_trails`),
+row and column sums, and the two-round bound
+`elpCount 2 u v · |K| ^ (2 (B - 1)) ≤ c ^ (2 (B - 1)) · |Idx → K| ^ 4` for every nonzero input
+mask, when the backward map of the first round has branch number at least `B`
+(`elpCount_two_round_bound`), with its extension to a schedule
+(`elpCount_bound_of_two_rounds`). Nothing is said about a fixed key.
+
+#### [`AESSpectrum.lean`](WideTrail/Linear/AESSpectrum.lean), [`GF256Trace.lean`](WideTrail/Linear/GF256Trace.lean), [`AESSbox.lean`](WideTrail/Linear/AESSbox.lean)
+The AES S-box under the trace pairing `⟨u, x⟩ = Tr(u · x)`. `AESSpectrum.lean`, with no imports,
+checks on natural numbers that the Walsh spectrum of `z ↦ Tr(z⁻¹)` is at most `32` in absolute
+value at all 256 masks, in four chunks. `GF256Trace.lean` identifies the trace (the functional
+with bit mask `0xA0`) with `z + z² + ⋯ + z¹²⁸` and its table on `z⁻¹` with the one checked.
+`AESSbox.lean` reduces every Walsh value of the S-box at a nonzero output mask to that spectrum,
+through a trace adjoint of the affine map and the identities (W2), (W3) and (W10), and proves the
+linearity bound `32` (`AES.sbox_isLinearityBound`), attained at `(0x55, 0x01)`, so it is the
+least (`AES.sbox_isLinearityBound_iff`). The bit-pairing table of the S-box is not computed.
+
+#### [`AES.lean`](WideTrail/Linear/AES.lean)
+AES linear trails and the two-round hull, under the trace pairing and for the keyed rounds of
+`Differential/AESProb.lean`. The trace adjoint of `MixColumns ∘ ShiftRows`, the forward mask
+specification `aesMaskSpec` with column matrix `circ(0e, 09, 0d, 0b) = (M⁻¹)ᵀ`, branch number at
+least `5` for the backward maps and linear branch number at least `5` for `MixColumns`. Every 4-,
+10-, 12- and 14-round linear trail with a nonzero input mask has a trail correlation of at most
+`2⁻⁷⁵`, `2⁻¹⁶⁵`, `2⁻²²⁵` and `2⁻²⁴⁰` in absolute value (`four_round_correlation` to
+`fourteen_round_correlation`; `rounds_correlation` for every round count), and the expected
+linear probability over any `R ≥ 2` rounds is at most `2⁻²⁴` for every nonzero input mask
+(`two_round_elp`, `rounds_elp`). One trail, or the key-averaged hull; not the correlation of AES
+for a fixed key, and not for bit masks.
+
+#### [`Hades.lean`](WideTrail/Linear/Hades.lean)
+Masks through HADES rounds over any field, under `⟨u, x⟩ = ℓ (u ⬝ᵥ x)`: the forward mask map
+`maskLin L = (Lᵀ)⁻¹`, the mask schedule, the Walsh value of a masked S-box layer, the trail
+correlation `linCorr` and its fixed-key expansion, the Walsh value of the permutation with its
+fixed constants as the sum of its trail correlations, and the bridge to `Hades.IsTrail`. Inactive
+spaces and middle bounds of a layer transfer to its inverse with the same counts
+(`inactiveSpace_symm_eq_bot_iff`, `MiddleBound.symm`), so the HADES activity bounds apply to
+masks (`hades_linear_activity`). The trail bounds take the S-box correlation bound as a
+hypothesis, for any character into a domain and any absolute value that is `1` on it.
+
+#### [`Poseidon2.lean`](WideTrail/Linear/Poseidon2.lean), [`Poseidon.lean`](WideTrail/Linear/Poseidon.lean)
+For every pinned instance and every table of round constants, every linear trail with a nonzero
+input mask and a nonzero correlation charges at least the differential counts: 33, and 35 with
+the relation certificate (SP1 and Pico KoalaBear); 32 (SP1 and OpenVM BabyBear); 34, and 43 with
+the automaton certificate (HorizenLabs BN254, width three); 34, and 44 (Aztec and Noir BN254,
+width four); 43, and 57 (Starknet). For Poseidon2 the count is over the rounds after the initial
+external layer, whose linear branch number is at least 8, 4 and 5 (`external_isLinBranchBound`).
+Lower bounds only; the trail bounds take the S-box correlation bound as a hypothesis.
+
+#### [`Field.lean`](WideTrail/Linear/Field.lean)
+For `ZMod p`: the standard character `ZMod.stdAddChar` is separating for the multiplication
+pairing and has values of norm `1`, and the HADES results are restated in norm form. No bound on
+a Walsh value of `x ↦ x^d` (such as the Weil bound) is proved. It is the only module that imports
+`Mathlib.Analysis`, and only the aggregator imports it.
+
+#### [`Checks`](WideTrail/Linear/Checks/)
+`Character.lean` recomputes (W1), (W6) and Parseval on the 3-bit χ map and shows that
+injectivity (for rows) and separation (for (W6)) are needed. `Conventions.lean` shows on
+`GF(2⁸)` that the bit pairing and the trace pairing give different adjoints: every bit adjoint of
+`x ↦ 0x02 · x` maps `0x01` to `0x80`, every adjoint under the separating trace form maps it to
+`0x02`. `ToyOne.lean`, `Toy.lean`, `ToySpec.lean` and `ToyNat.lean` instantiate the expansion,
+Nyberg's identity, the trail bounds and the hull bound on toys of eight and sixty-four states:
+the hull bound `2²⁰` is attained, fails without bijective S-boxes, with a larger branch number,
+with a smaller linearity bound and at the zero masks, and one fixed key gives a squared
+correlation four times the key-averaged bound. `AES.lean` and `AESCipher.lean` recompute the
+S-box witness `-32` from the definition and show where the AES numbers stop: the bound fails at
+`31`, no linearity bound clears `2⁴` per S-box, a non-MDS mix fails the branch hypotheses and the
+branch bound `5` cannot be raised to `6`. `Hades.lean` shows that separation and a nonzero input
+mask are needed. `Axioms.lean`, `TrailAxioms.lean`, `AESAxioms.lean`, `AESCipherAxioms.lean` and
+`HadesAxioms.lean` pin the axiom footprints.
+
+---
+
 ## How this works as a program, and why it's useful
 
 At its core, this project turns a cipher's design into a small set of numbers, and a machine-checked proof that those numbers can't be beaten.
@@ -695,6 +845,10 @@ flowchart TD
     MARKOV["Differential layer: Markov.lean\ncount round-key vectors -> rounds multiply"]
     TPROB["Differential layer: TrailProb.lean\ncount * 2^(d*W) <= |X|^r"]
     AESPROB["Differential layer: AESProb.lean\n2^-150 per 4 rounds, 2^-330 over AES-128"]
+    LTRAIL["Linear layer: Character.lean + Trail.lean\nWalsh values; fixed-key sum over trails"]
+    LHULL["Linear layer: Hull.lean\ntwo-round hull, independent keys"]
+    LSBOX["Linear layer: AESSbox.lean\nS-box |correlation| <= 2^-3 (trace pairing)"]
+    LAES["Linear layer: AES.lean\n4-round trail |correlation| <= 2^-75; ELP <= 2^-24"]
 
     L1 --> T1
     L1 --> T4
@@ -714,14 +868,23 @@ flowchart TD
     SPEC --> TPROB
     TPROB --> AESPROB
     CONCRETE --> AESPROB
+    SPEC --> LTRAIL
+    BRICK --> LTRAIL
+    TPROB --> LTRAIL
+    LTRAIL --> LHULL
+    LHULL --> LAES
+    LSBOX --> LAES
+    AESMIX --> LAES
+    AESPROB --> LAES
 ```
 
-[`WideTrail/Propagation/Checks/`](WideTrail/Propagation/Checks/) and
-[`WideTrail/Differential/Checks/`](WideTrail/Differential/Checks/) sit off to the side of this chain: it doesn't add a new theorem, it stress-tests the ones above by trying to break them with small hand-built examples, measures how tight the bounds are, and audits that everything really is kernel-checked.
+[`WideTrail/Propagation/Checks/`](WideTrail/Propagation/Checks/),
+[`WideTrail/Differential/Checks/`](WideTrail/Differential/Checks/) and
+[`WideTrail/Linear/Checks/`](WideTrail/Linear/Checks/) sit off to the side of this chain: they add no new theorem about the ciphers, they stress-test the ones above by trying to break them with small hand-built examples, measure how tight the bounds are, and audit that everything really is kernel-checked.
 
 ### Why this is useful
 
-Normally, bounding what differential cryptanalysis can do against a cipher means hand-checking (or exhaustively searching) huge numbers of specific trails, one cipher at a time. This project instead proves an activity bound that holds for an entire *family* of cipher designs at once, AES included, as long as the design follows the wide-trail shape: an S-box layer, a well-mixing layer, and a shuffle that spreads columns well. The differential layer turns such counts into trail bounds, and bounds two-round differentials from the branch number directly, in a model with independent round keys. Linear cryptanalysis is not covered: no correlation, linear trail or linear hull is formalised. The only related results are the transpose facts of `Algebra/Transpose.lean`, which carry the differential branch-number bounds of the Poseidon2 linear layers over to linear branch numbers, under a definition of the linear branch number that is taken, not proved.
+Normally, bounding what differential cryptanalysis can do against a cipher means hand-checking (or exhaustively searching) huge numbers of specific trails, one cipher at a time. This project instead proves an activity bound that holds for an entire *family* of cipher designs at once, AES included, as long as the design follows the wide-trail shape: an S-box layer, a well-mixing layer, and a shuffle that spreads columns well. The differential layer turns such counts into trail bounds, and bounds two-round differentials from the branch number directly, in a model with independent round keys. The linear layer does the same for correlations: the same activity counts bound the correlation of one linear trail, the cipher's correlation under a fixed key is shown to be a sum over trails with key-dependent phases (signs in the binary case), and a two-round linear hull is bounded in the independent-key model. Apart from the toy ciphers of the checks, concrete linear trail and hull bounds are proved for AES only, under the trace pairing; for the Poseidon and Poseidon2 instances only the linear activity counts are unconditional (for Poseidon2, over the rounds after the initial external layer), since no S-box correlation bound over a prime field is proved.
 
 Two things make that bound trustworthy:
 
@@ -784,8 +947,8 @@ Wrong guesses scramble the values and match only at random, while the right gues
 the prediction come true about once every 2^30 pairs. The correct k_r stands out in a
 counter array; then that round key is peeled off and the process repeats inwards.
 
-The same idea once more, step by step, since neither a beginner nor ChatGPT gets the
-fundamentals right away.
+The same idea once more, step by step, since the fundamentals are easy to get wrong on a
+first reading.
 
 Two inputs:
 

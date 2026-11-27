@@ -20,6 +20,52 @@ independent round keys, not the real AES key schedule or a differential hull.
 
 Reference: [NIST FIPS 197](https://csrc.nist.gov/pubs/fips/197/final), SubBytes.
 
+## AES linear trails and hull
+
+`Linear/AESSbox.lean` pairs masks with bytes by the trace pairing `⟨u, x⟩ = Tr(u · x)` of
+`GF(2⁸)`, with `Tr` the functional with bit mask `0xA0`, proved equal to `z + z² + ⋯ + z¹²⁸` on
+every byte (`GF256.trace_eq_fieldTrace`). Under it, every Walsh value of the AES S-box at a
+nonzero input mask is at most `32` in absolute value, so every such correlation is at most `2⁻³`
+in absolute value (`AES.sbox_isLinearityBound`; `AES.sbox_walsh_le` for every nonzero output
+mask). The bound is attained, `W(0x55, 0x01) = -32` (`AES.sbox_walsh_attained`), so `32` is the
+least linearity bound under this pairing (`AES.sbox_isLinearityBound_iff`). The `255 · 256` Walsh
+values with a nonzero output mask are reduced, through a trace adjoint of the affine map, to the
+256 values of the Walsh spectrum of `z ↦ Tr(z⁻¹)`, which the kernel checks on natural numbers in
+a module with no imports (`Linear.AESSpectrum.spectrum_bound`).
+
+`Linear/AES.lean` uses it for the keyed rounds of `Differential/AESProb.lean`, with masks
+paired with states by `∑ᵢ Tr(uᵢ xᵢ)`. Under this pairing the field transpose of the `MixColumns`
+matrix `M` is an adjoint of `MixColumns`, and masks are propagated forward through the inverse of
+the adjoint of `MixColumns ∘ ShiftRows`: `ShiftRows`, then `circ(0e, 09, 0d, 0b) = (M⁻¹)ᵀ`
+column by column (`AES.aesMaskSpec`, `AES.aesInvMatrixT_eq`). The backward map has branch
+number at least 5 (`AES.aesLinT_isBranchBound`), and the linear branch numbers of `MixColumns`
+and of `MixColumns ∘ ShiftRows`, defined through correlations, are at least 5
+(`AES.aesMixColumns_isLinBranchBound`, `AES.aesLin_isLinBranchBound`). With no remaining premise:
+
+- Every 4-, 10-, 12- and 14-round linear trail with a nonzero input mask has a trail correlation
+  of at most `2⁻⁷⁵`, `2⁻¹⁶⁵`, `2⁻²²⁵` and `2⁻²⁴⁰` in absolute value
+  (`AES.four_round_correlation`, `AES.ten_round_correlation`, `AES.twelve_round_correlation`,
+  `AES.fourteen_round_correlation`; `AES.rounds_correlation` for every round count). Every such
+  trail with a nonzero correlation has at least 25, 55, 75 and 80 active S-boxes
+  (`AES.isTrail_of_corr_ne_zero`), each at most `2⁻³`. `32 · 2⁴ > 256`, so no linearity bound
+  of the S-box gives `2⁻⁴` per S-box (`Linear.Checks.sbox_clears_iff`).
+- For every nonzero input mask and every output mask, the squared correlation over two rounds,
+  and over any `R ≥ 2` rounds, averaged over an additional independent uniform key per round, is
+  at most `2⁻²⁴` (`AES.two_round_elp`, `AES.rounds_elp`).
+
+A trail bound bounds one trail: one summand of the correlation under a fixed key vector
+(`AES.walsh_run_expansion`), whose magnitude is the same for every key. It is not a bound on the
+correlation of AES for a fixed key, which is a signed sum over all trails. The hull bound concerns
+the additional-independent-key model, not the AES key schedule, and charges two rounds only; the
+exact maximum two-round expected linear probability given by Keliher and Sui (IACR ePrint
+2005/321), `≈ 1.638 · 2⁻²⁸`, is cited as context and not proved. The counts are lower bounds and
+the bounds are not claimed to be attained. Every round includes `MixColumns`, with no final
+whitening key. The bit pairing (the parity of `u ∧ x`) is not treated: the designers' bound of
+`2⁻⁷⁵` for four-round trails with bit masks (Rijndael proposal §8.2.2) is not proved, because the
+relabelling of masks between the two pairings is not proved to be a bijection. Nothing is said
+about the data or time complexity of a linear attack. See
+[the linear mechanics](MECHANICS_LINEAR.md).
+
 ## HADES connection
 
 `Hades/Counting.lean` factors the exact masked differential count, including the
@@ -356,8 +402,9 @@ bounds use, not the counts or the exponents themselves.
 
 ### Structure of the linear layers
 
-These are facts about the two linear layers alone, from `Plonky3.lean` and
-`Algebra/Transpose.lean`, over every field satisfying the stated hypotheses. None is a
+These are facts about the two linear layers alone, from `Plonky3.lean`,
+`Algebra/Transpose.lean` and, for the linear branch numbers, `Linear/Masks.lean` and
+`Linear/Poseidon2.lean`, over every field satisfying the stated hypotheses. None is a
 statement about whole rounds, the S-box or an attack.
 
 - States whose four blocks of four coordinates sum to zero form a subspace of
@@ -378,10 +425,15 @@ statement about whole rounds, the S-box or an attack.
   hypothesis as the layer (`external_transpose_isBranchBound`). `M4ᵀ = circ(2, 1, 1, 3)`
   is MDS under exactly the hypothesis that makes `M4` MDS
   (`Poseidon2.m4_transpose_isMDS_iff`). The internal layer is its own transpose
-  (`internal_dotProduct`). If the linear branch number of a map is taken to be the
-  differential branch number of its transpose, which is a definition here and not a
-  proved statement about correlations, these bounds carry over to linear branch
-  numbers. No correlation, linear trail, linear hull or linear-attack bound is proved.
+  (`internal_dotProduct`). `Algebra/Transpose.lean` takes the linear branch number of a
+  map to be the differential branch number of its transpose, as a definition, so these
+  bounds carry over. `Linear/Masks.lean` proves that identification through correlations
+  for a separating pairing (`Linear.isLinBranchBound_iff`); over these prime fields, with
+  the dot product and any separating character, it holds as stated, and the external layer
+  has linear branch number at least 8 (`external_isLinBranchBound`; see
+  [Linear activity of the HADES instances](#linear-activity-of-the-hades-instances)). No
+  bound on a correlation of the permutation, a linear hull or a linear attack is proved for
+  these instances.
 
 ### Execution checks
 
@@ -925,6 +977,58 @@ What is sharp, and where it is shown:
 The certificate and check modules peak at about 2.1 to 3.2 GB, the largest being
 `Certificates/AztecBN254Automaton.lean`.
 
+## Linear activity of the HADES instances
+
+`Linear/Hades.lean` carries linear masks through HADES rounds over any field. Masks are paired
+with states by `⟨u, x⟩ = ℓ (u ⬝ᵥ x)` for an additive `ℓ`, read through a character `ψ` into a
+domain for which this pairing is separating. Masks move forward through `maskLin L = (Lᵀ)⁻¹`, and
+a linear trail with a nonzero correlation (`Hades.linCorr`) is a `Hades.IsTrail` of the rounds
+with these maps (`Hades.isTrail_of_linCorr_ne_zero`). The transposes of the external layers keep
+their branch-number lower bounds (`isMDS_transpose_iff` for the MDS layers of widths three and
+four and for Starknet's `M`; `Poseidon2.Plonky3.external_transpose_isBranchBound` for the
+width-sixteen layer); the internal layers, the BN254 width-three external layer and Starknet's
+`M` are symmetric, so their forward mask maps are their inverses; and windows and middle bounds
+of a layer hold for its inverse with the same counts (`Hades.inactiveSpace_symm_eq_bot_iff`,
+`Hades.MiddleBound.symm`). The certificates of
+[Counting more partial rounds](#counting-more-partial-rounds) therefore apply to masks.
+`Linear/Poseidon2.lean` and `Linear/Poseidon.lean` prove, for every such `ℓ` and `ψ` and every
+round-constant table, that every linear trail through the rounds that follow the initial
+external layer (Starknet has none), with a nonzero input mask and a nonzero correlation, charges
+at least:
+
+| Instance | Rounds | Window count (`linear_activity_general`) | Certificate count (`linear_activity_middle_general`) | External layer, linear branch number at least (`external_isLinBranchBound`) |
+|---|---|---|---|---|
+| SP1 KoalaBear | 28 | 33 | 35 | 8 |
+| Pico KoalaBear | 28 | 33 | 35 | 8 |
+| SP1 BabyBear | 21 | 32 | — | 8 |
+| OpenVM BabyBear | 21 | 32 | — | 8 |
+| HorizenLabs BN254, width three | 64 | 34 | 43 | 4 |
+| Aztec and Noir BN254, width four | 64 | 34 | 44 | 5 |
+| Starknet | 91 | 43 | 57 | 4, for `M` (`mds_isLinBranchBound`) |
+
+These are the differential counts, now for masks. `linear_activity_middle` (and `linear_activity`
+for the two BabyBear instances) states them for the pinned rounds. They are lower bounds in the
+`IsTrail` model and are not claimed to be attained; no statement is made about trails with a
+zero correlation. The linear branch numbers are defined through correlations
+(`Linear.IsLinBranchBound`) and need, in addition, that the size of the state space is nonzero in
+the ring of `ψ`.
+
+`Linear/Field.lean` shows that the standard character `ZMod.stdAddChar` of `ZMod p`, for a prime
+`p`, is separating for the multiplication pairing (`Linear.mulPairing_separating`) and that its
+values have norm `1`; every instance field is `ZMod p` for a proved prime, so this discharges the
+separation hypothesis of the theorems above, which are not restated for that character.
+
+What is not proved. The trail bounds `abv (linCorr) · p ^ A ≤ C ^ A · |F ^ t| ^ R`
+(`linear_bound_middle_general`; `linear_bound_general` for the BabyBear instances) take the S-box
+correlation bound `C` as a hypothesis: no bound on a Walsh value of `x ↦ x^d` over these fields
+(such as the Weil bound `(d - 1) √p`) is proved, so no linear exponent is stated for any of these
+instances. A trail bound bounds one trail, one summand of the permutation's correlation: with the
+pinned constants and no key, the permutation's Walsh value, times `|F ^ t| ^ (R - 1)`, is the sum
+of the trail correlations `linCorr` over all trails of its `R` rounds (`R` as in the Rounds
+column; `walsh_permutation_eq_sum_linCorr`), so its correlation is the sum of the correlations of
+its trails, which can reinforce or cancel. Nothing is proved about the correlation of the
+permutation itself, about linear hulls over these fields, or about linear attacks. See [the linear mechanics](MECHANICS_LINEAR.md#8-hades-rounds-over-prime-fields).
+
 ## Boundary of the certificate
 
 These boundaries apply to every instance above. The certificate does not prove
@@ -941,20 +1045,36 @@ trail and differential exponents are upper bounds on probabilities averaged over
 additional independent uniform key per round; the differential bounds charge only
 the first two full rounds, and none of these results establishes, for the
 permutation with its fixed constants, the Poseidon designers' criterion that every
-differential has probability at most `p^(-t)`. No linear-cryptanalysis bound is
-proved. Checking a reference vector is narrower than proving universal
-implementation equivalence. The immutable source, constants, model conventions,
-and these boundaries are part of the certificate's meaning.
+differential has probability at most `p^(-t)`. For linear cryptanalysis, the
+instances have activity lower bounds only: every linear trail with a nonzero input
+mask and a nonzero correlation (for Poseidon2, a trail of the rounds after the
+initial external layer) charges at least the differential counts
+([Linear activity of the HADES instances](#linear-activity-of-the-hades-instances)),
+and the external layers have the stated linear branch numbers. Every linear trail
+bound over these prime fields takes the S-box correlation bound as a hypothesis,
+since no bound on a Walsh value of `x ↦ x^d` is proved, and no bound on a
+correlation of a permutation, on a linear hull over a prime field or on a linear
+attack is proved. Apart from the toy ciphers of the checks, unconditional linear
+trail and hull bounds are proved for AES only, under the trace pairing, for one
+trail or for the squared correlation averaged over an additional independent
+uniform key per round ([AES linear trails and hull](#aes-linear-trails-and-hull));
+they are not bounds on the correlation of AES for a fixed key, and they are not
+proved for bit masks.
+Checking a reference vector is narrower than proving universal implementation
+equivalence. The immutable source, constants, model conventions, and these
+boundaries are part of the certificate's meaning.
 
 Every module is imported by `WideTrail` or, for the three memory-heavy check modules
 (`Poseidon2/Checks/Plonky3.lean`, `KoalaBear.lean`, `BabyBear.lean`), by `WideTrailHeavy`.
-`scripts/check_imports.py` finds 117 modules, all reachable from the two roots: the default
-library `WideTrail` builds 113 of them (its root and the 112 modules it imports, the layers
-`Propagation`, `Algebra`, `Differential`, `Hades`, `Poseidon2` and `Poseidon`), and
+`scripts/check_imports.py` finds 145 modules, all reachable from the two roots: the default
+library `WideTrail` builds 141 of them (its root and the 140 modules it imports, the layers
+`Propagation`, `Algebra`, `Differential`, `Hades`, `Poseidon2`, `Poseidon` and `Linear`), and
 `WideTrailHeavy` adds the three memory-heavy check modules and its own root. Every module of the
-default library peaks at about 3.4 GB or less. The complete declaration audit in
-`scripts/AuditAxiomsHeavy.lean` covers both libraries (8395 project declarations at this
-revision), `scripts/AuditAxioms.lean` covers the default library (6251), and both permit only
+default library peaks at about 3.5 GB or less: `Linear/Field.lean`, the only module that imports
+`Mathlib.Analysis`, at about 3.4 GB, and the aggregator `WideTrail.Linear` and the root
+`WideTrail`, which import it, at about 3.5 GB. The complete declaration audit in
+`scripts/AuditAxiomsHeavy.lean` covers both libraries (9254 project declarations at this
+revision), `scripts/AuditAxioms.lean` covers the default library (7110), and both permit only
 the existing standard axioms: `propext`, `Classical.choice`, and `Quot.sound`.
 
 ## Independent implementation checks
