@@ -5,6 +5,8 @@ Authors: Awaan Siddiqui
 -/
 import WideTrail.Poseidon2.BN254
 import WideTrail.Poseidon2.BN254Middle
+import WideTrail.Poseidon2.Certificates.BN254Automaton
+import WideTrail.Poseidon2.BN254MiddleSharp
 import WideTrail.Poseidon2.BN254Execution
 import WideTrail.Poseidon2.BN254Checks
 import WideTrail.Poseidon2.Checks.BN254SP1
@@ -28,6 +30,7 @@ import WideTrail.Poseidon2.Checks.PicoKoalaBear
 import WideTrail.Poseidon2.Checks.OpenVMBabyBear
 import WideTrail.Poseidon2.Checks.MiddleBound
 import WideTrail.Poseidon2.Checks.KoalaBearMiddle
+import WideTrail.Poseidon2.Checks.BN254MiddleSharp
 import WideTrail.Poseidon2.Checks.Axioms
 
 /-! Pinned concrete Poseidon2 parameter certificates.
