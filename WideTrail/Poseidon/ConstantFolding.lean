@@ -17,7 +17,7 @@ function.
 The masked S-box layer acts as the identity off its mask, so adding a vector `e` that is zero on
 the mask commutes with it (`maskedEquiv_add_of_eq_zero`). Hence a round with constant `c' + e`
 is the round with constant `c'` followed by adding `L e`, where `L` is the round's linear layer
-(`RoundSpec.apply_add_of_eq_zero`), and `L e` can be absorbed into the next round's constant.
+(`roundSpec_apply_add_of_eq_zero`), and `L e` can be absorbed into the next round's constant.
 
 ## Results
 
@@ -34,8 +34,11 @@ is the round with constant `c'` followed by adding `L e`, where `L` is the round
 ## What is not claimed
 
 This is a statement about the functions computed. It says nothing about any particular
-compressed table, which must be checked separately, and nothing about the independent-key
-model: adding a key to every coordinate of every round is not preserved by the rewriting.
+compressed table, which must be checked separately. The hypotheses of
+`hadesSchedule_execute_eq_of_fold` involve the two tables only through `table n - table' n`, so
+they still hold when the same vector `k n` is added to both `table n` and `table' n` for every
+`n`; `Poseidon.Starknet.keyed_compressed_eq` is proved this way. Nothing else is said here about
+the independent-key model.
 -/
 
 set_option autoImplicit false
@@ -56,7 +59,7 @@ theorem maskedEquiv_add_of_eq_zero (mask : Finset Idx) (s : Idx → K ≃ K) (y 
 
 /-- **One folding step.** If `e` is zero on the mask of `R`, applying `R` to `y + e` is applying
 it to `y` and then adding `R.lin e`. -/
-theorem RoundSpec.apply_add_of_eq_zero (R : Hades.RoundSpec Idx K) (y e : Idx → K)
+theorem roundSpec_apply_add_of_eq_zero (R : Hades.RoundSpec Idx K) (y e : Idx → K)
     (he : ∀ i ∈ R.mask, e i = 0) : R.apply (y + e) = R.apply y + R.lin e := by
   simp only [Hades.RoundSpec.apply]
   rw [add_right_comm, maskedEquiv_add_of_eq_zero R.mask R.sbox _ e he, map_add]

@@ -25,12 +25,18 @@ rounds:
   differential bounds;
 * `ConstantFolding`: a generic lemma that pushes round constants off the S-box coordinates
   through the linear layers;
-* `StarknetCompressed`: the compressed schedule computes the same permutation;
+* `StarknetCompressed`: the compressed schedule computes the same permutation, also with the
+  same additional key added to both schedules;
 * `StarknetExecution`: a materialised runner, proved equal to the specification;
 * `Checks.Starknet`: known-answer vectors, negative controls and exactness checks;
 * `Checks.Axioms`: pinned axiom footprints.
 
-Every module here is cheap to elaborate (at most about 3.3 GB of memory).
+Every module here is cheap to elaborate (at most about 3.4 GB of memory).
+
+## What is not claimed
+
+This file only imports the modules above and proves nothing itself. The claims, and the
+statements of what is not claimed, are those of the individual modules.
 -/
 
 set_option autoImplicit false

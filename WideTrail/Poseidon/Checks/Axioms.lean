@@ -249,9 +249,9 @@ info: 'Poseidon.Starknet.independent_key_differential_sharp_general' depends on 
 #guard_msgs in
 #print axioms Poseidon.maskedEquiv_add_of_eq_zero
 
-/-- info: 'Poseidon.RoundSpec.apply_add_of_eq_zero' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+/-- info: 'Poseidon.roundSpec_apply_add_of_eq_zero' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
-#print axioms Poseidon.RoundSpec.apply_add_of_eq_zero
+#print axioms Poseidon.roundSpec_apply_add_of_eq_zero
 
 /-- info: 'Poseidon.execute_eq_add_of_fold' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
@@ -283,6 +283,10 @@ info: 'Poseidon.Starknet.independent_key_differential_sharp_general' depends on 
 #guard_msgs in
 #print axioms Poseidon.Starknet.compressedValues_ne_values_87
 
+/-- info: 'Poseidon.Starknet.compressedValues_ne_values_partial' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon.Starknet.compressedValues_ne_values_partial
+
 /-- info: 'Poseidon.Starknet.compressedValues_ne_values_5' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon.Starknet.compressedValues_ne_values_5
@@ -302,6 +306,14 @@ info: 'Poseidon.Starknet.independent_key_differential_sharp_general' depends on 
 /-- info: 'Poseidon.Starknet.compressedPermutation_eq_permutation' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon.Starknet.compressedPermutation_eq_permutation
+
+/-- info: 'Poseidon.Starknet.keyed_compressed_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon.Starknet.keyed_compressed_eq
+
+/-- info: 'Poseidon.Starknet.keyCount_compressed_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon.Starknet.keyCount_compressed_eq
 
 /-! ### `StarknetExecution.lean` -/
 

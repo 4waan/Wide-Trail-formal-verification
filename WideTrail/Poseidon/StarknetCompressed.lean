@@ -41,21 +41,32 @@ coordinate `2` only (`compressedRounds_apply_partial`), as lambdaworks-crypto `0
   The proof is `Poseidon.hadesSchedule_execute_eq_of_fold` with the offsets `foldOffsets`, the
   difference between the two schedules' states at the input of each round, computed outside
   Lean; the conditions of the folding lemma (`foldOffset_zero`, `foldOffset_end`,
-  `fold_mask_zero`, `fold_next`) are checked by `decide`.
+  `fold_mask_zero`, `fold_next`) are checked by `decide` (`decide +kernel` for the last two,
+  which keeps the peak memory of this file lower).
+* `keyed_compressed_eq`: **for every key sequence `k` and every input `x`, the schedules with
+  the tables `compressedValues n + k n` and `values n + k n` compute the same state after `91`
+  rounds.** The folding conditions involve the two tables only through
+  `values n - compressedValues n`, which adding the same `k n` to both leaves unchanged, so the
+  same offsets `foldOffset` work.
+* `keyCount_compressed_eq`: the trail count `Hades.keyCount` of the independent-key model is the
+  same for `compressedRounds` and `rounds`, for every number of rounds, trail and input; by
+  `Hades.keyCount_eq_prod` it involves only the masks, S-boxes and linear layers.
 * `compressed_partial_constants_zero`: rows `4` to `86` of the compressed table are zero off
   coordinate `2`, the analogue of `Poseidon2.BN254.partial_constants_zero`, which is false for
   the unoptimised table (`Checks/Starknet.lean`, `values_partial_ne_zero`).
 * `compressedValues_eq_values_full`: the compressed rows of the full rounds other than round `87`
-  are the rows of `roundConstants`; `compressedValues_ne_values_87` and
-  `compressedValues_ne_values_5`: round `87` and the partial rounds from round `5` on differ.
-  So the two tables cannot be mixed: each must be read with its own schedule.
+  are the rows of `roundConstants`; `compressedValues_ne_values_87`: row `87` differs;
+  `compressedValues_ne_values_partial`: in each partial round from round `5` to round `86`, the
+  constant added at coordinate `2` differs between the two tables (`compressedValues_ne_values_5`
+  is round `5`); `compressedValues_eq_values_4`: in round `4`, the first partial round, it is the
+  same. So the two tables cannot be mixed: each must be read with its own schedule.
 
 ## What is not claimed
 
-This identifies two functions; it says nothing about the code beyond the index stepping cited
-above. The independent-key statements of `WideTrail.Poseidon.Starknet` hold for every table, so
-also for this one, but a key added to every coordinate of the compressed schedule is not the
-same model as a key added to every coordinate of the unoptimised schedule.
+These results identify functions and counts; they say nothing about the code beyond the index
+stepping cited above. The independent-key statements of `WideTrail.Poseidon.Starknet` have
+`_general` forms for every table, so they also hold for this one; beyond those, nothing is
+stated here about the differential count `Hades.diffKeyCount` of the compressed schedule.
 -/
 
 set_option autoImplicit false
@@ -116,10 +127,17 @@ theorem compressedValues_eq_values_full :
 theorem compressedValues_ne_values_87 : compressedValues 87 ≠ values 87 := by
   decide
 
-/-- From round `5` on, the constant a partial round adds at coordinate `2` differs between the
-two tables (round `4` is the first partial round, where they agree). -/
-theorem compressedValues_ne_values_5 : compressedValues 5 2 ≠ values 5 2 := by
+/-- **In every partial round from round `5` to round `86`, the constant added at coordinate `2`
+differs between the two tables.** Round `4`, the first partial round, is the exception
+(`compressedValues_eq_values_4`). -/
+theorem compressedValues_ne_values_partial :
+    ∀ n : Fin 82, compressedValues (5 + n.val) 2 ≠ values (5 + n.val) 2 := by
   decide
+
+/-- In round `5`, the constant added at coordinate `2` differs between the two tables (the case
+`n = 0` of `compressedValues_ne_values_partial`). -/
+theorem compressedValues_ne_values_5 : compressedValues 5 2 ≠ values 5 2 :=
+  compressedValues_ne_values_partial 0
 
 /-- The coordinate-`2` constant of round `4`, the first partial round, is the same in both
 tables. -/
@@ -402,12 +420,12 @@ coordinates in the full rounds, on coordinate `2` in the partial rounds. -/
 theorem fold_mask_zero : ∀ n : Fin 91, ∀ i : Fin 3,
     i ∈ Hades.hadesMask 4 83 4 ({2} : Finset (Fin 3)) n.val →
       (values n.val + foldOffset n.val - compressedValues n.val) i = 0 := by
-  decide
+  decide +kernel
 
 /-- `δ (n + 1) = M (values n + δ n - compressedValues n)` in every round. -/
 theorem fold_next : ∀ n : Fin 91,
     foldOffset (n.val + 1) = mds (values n.val + foldOffset n.val - compressedValues n.val) := by
-  decide
+  decide +kernel
 
 /-- **The compressed schedule computes the specification permutation**: for every input `x`,
 `compressedPermutation x = permutation x`. -/
@@ -419,5 +437,36 @@ theorem compressedPermutation_eq (x : State) : compressedPermutation x = permuta
 /-- The two permutations are equal as functions. -/
 theorem compressedPermutation_eq_permutation : compressedPermutation = permutation :=
   funext compressedPermutation_eq
+
+/-- **The equality survives the same additional key in both schedules.** For every key sequence
+`k` and every input `x`, the HADES schedule with the table `compressedValues n + k n` and the one
+with the table `values n + k n` (the same key `k n` added to every coordinate of round `n` of
+each) compute the same state after `91` rounds. The folding conditions involve the two tables
+only through `values n - compressedValues n`, so the offsets `foldOffset` still apply. -/
+theorem keyed_compressed_eq (k : ℕ → State) (x : State) :
+    Hades.execute (Hades.hadesSchedule 4 83 4 {2} (fun _ _ => sbox) (fun _ => mds)
+      (fun n => compressedValues n + k n)) x 91 =
+    Hades.execute (Hades.hadesSchedule 4 83 4 {2} (fun _ _ => sbox) (fun _ => mds)
+      (fun n => values n + k n)) x 91 := by
+  have key : ∀ n, values n + k n + foldOffset n - (compressedValues n + k n) =
+      values n + foldOffset n - compressedValues n := fun n => by abel
+  refine (Poseidon.hadesSchedule_execute_eq_of_fold 4 83 4 {2} (fun _ _ => sbox) (fun _ => mds)
+    (fun n => values n + k n) (fun n => compressedValues n + k n) foldOffset 91 foldOffset_zero
+    foldOffset_end ?_ ?_ x).symm
+  · intro n hn i hi
+    rw [key]
+    exact fold_mask_zero ⟨n, hn⟩ i hi
+  · intro n hn
+    rw [key]
+    exact fold_next ⟨n, hn⟩
+
+/-- **The trail count is the same for the two schedules.** For every number of rounds `R`,
+trail `T` and input `x`, `Hades.keyCount compressedRounds R T x = Hades.keyCount rounds R T x`:
+by `Hades.keyCount_eq_prod` the count involves only the masks, S-boxes and linear layers, which
+the two schedules share. -/
+theorem keyCount_compressed_eq (R : ℕ) (T : ℕ → State) (x : State) :
+    Hades.keyCount compressedRounds R T x = Hades.keyCount rounds R T x := by
+  rw [Hades.keyCount_eq_prod, Hades.keyCount_eq_prod]
+  rfl
 
 end Poseidon.Starknet
