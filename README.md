@@ -153,7 +153,12 @@ bound charges the first two full rounds. All of these concern one trail, or the
 differential averaged over an additional independent uniform key per round, not the
 permutation with its fixed constants. The models of both width-sixteen instances
 reproduce the known-answer vectors of the upstream `p3-koala-bear` and `p3-baby-bear`
-crates, with those tests' own round constants.
+crates, with those tests' own round constants. The width-sixteen model takes the
+internal diagonal and its scale as parameters, so the same proofs also certify two
+other deployed permutations: Pico v3.2.0's KoalaBear permutation (at least 33 active
+S-boxes, exponents 957 and 989) and OpenVM v2.1.0's BabyBear permutation (at least 32,
+exponents 896 and 906). Each of these reproduces a known-answer vector from Plonky3's
+own tests that uses the deployed round constants.
 See [the concrete certificates and their scope](PRODUCTION_CERTIFICATE.md).
 
 Named theorem footprints are pinned by `#print axioms`. The complete module audit
@@ -388,21 +393,28 @@ SP1's gnark test vector for its BN254 outer permutation, input `(0, 0, 0)`, prov
 for the same Lean permutation.
 
 #### [`Plonky3.lean`](WideTrail/Poseidon2/Plonky3.lean)
-The width-sixteen Plonky3 permutation over any field, as SP1 configures it. The
-external layer is proved equal to a transcription of the code's
-`mds_light_permutation`; the internal layer is `R⁻¹ (diag d + J)` with SP1's diagonal.
-Bijectivity, at least 32 active S-boxes from the full rounds, the partial-round
-term, and the independent-key trail bound hold for every round-constant table, the
-trail bound also as an exact ratio. Also: the diagonal criterion and exact inactive
-dimensions for the internal layer, a key-averaged differential bound over the first two
-full rounds, the states with zero block sum on which the external layer acts block by
-block, and the transposes of both layers.
+The width-sixteen Plonky3 permutation over any field. The external layer is proved
+equal to a transcription of the code's `mds_light_permutation`. The internal layer
+`c (diag d + J)` takes the diagonal `d` and the scale `c` as parameters
+(`Plonky3.Diag`, under `Diag.Conditions d c`: `35 ≠ 0`, every `d i ≠ 0`,
+`1 + ∑ 1/d i ≠ 0` and `c ≠ 0`). SP1's layer `R⁻¹ (diag d + J)` with SP1's diagonal is the
+case `d = sp1Diag`, and its API is unchanged. Bijectivity, at least 32 active S-boxes
+from the full rounds, the partial-round term, and the independent-key trail bound hold
+for every diagonal, scale and round-constant table, the trail bound also as an exact
+ratio. The diagonal criterion holds for every diagonal: no nonzero difference stays
+inactive through sixteen consecutive partial rounds exactly when the entries off
+coordinate 0 are pairwise distinct (`Diag.inactiveSpace_sixteen_eq_bot_iff`), and then
+exactly `16 - r` dimensions stay inactive through `r ≤ 16` rounds
+(`Diag.finrank_inactiveSpace_internal_eq`). Also: a key-averaged differential bound
+over the first two full rounds, the states with zero block sum on which the external
+layer acts block by block, and the transposes of both layers.
 
 #### [`Plonky3Execution.lean`](WideTrail/Poseidon2/Plonky3Execution.lean)
 A materialised runner for the width-sixteen permutation, with every coordinate a named
 field and every layer written out coordinate by coordinate. It is proved equal to the
 specification for every scale, S-box, constant table, number of partial rounds, input and
-round count, so `decide` on the runner proves statements about the model.
+round count, so `decide` on the runner proves statements about the model. The runner
+`Diag.permutationDense` does the same for every diagonal given as sixteen literals.
 
 #### [`KoalaBear.lean`](WideTrail/Poseidon2/KoalaBear.lean), [`BabyBear.lean`](WideTrail/Poseidon2/BabyBear.lean)
 The SP1 instances, with primality, the S-box, the Montgomery factor and the
@@ -414,6 +426,27 @@ inactive through them, and some input pairs cross them without activating an S-b
 Both: the diagonal criterion, exactly `16 - r` inactive dimensions, and key-averaged
 differential exponents 209 (KoalaBear) and 198 (BabyBear).
 
+#### [`PicoKoalaBear.lean`](WideTrail/Poseidon2/PicoKoalaBear.lean), [`Checks/PicoKoalaBear.lean`](WideTrail/Poseidon2/Checks/PicoKoalaBear.lean)
+Pico v3.2.0's permutation, `default_koalabear_poseidon2_16()` of the Brevis Plonky3 fork
+(crate version 0.5.4). It has SP1's field, S-box, external layer and round constants
+(`values_eq_sp1`) but a different internal layer: the fractional diagonal
+`(-2, 1, 2, 1/2, 3, 4, -1/2, -3, -4, 1/2^8, 1/8, 1/2^24, -1/2^8, -1/8, -1/16, -1/2^24)`
+with scale 1. At least 33 active S-boxes; trail exponent 957, or 989 with the exact
+ratio; differential exponent 209. `upstream_kat` reproduces Plonky3's
+`test_default_koalabear_poseidon2_width_16`, which uses the deployed constants. Four
+negative controls fail that vector, among them SP1's permutation (`kat_fails_sp1`).
+
+#### [`OpenVMBabyBear.lean`](WideTrail/Poseidon2/OpenVMBabyBear.lean), [`Checks/OpenVMBabyBear.lean`](WideTrail/Poseidon2/Checks/OpenVMBabyBear.lean)
+OpenVM v2.1.0's permutation, `default_babybear_poseidon2_16()` of upstream `p3-baby-bear`
+0.4.3. It has SP1 5.2.4's field, S-box and external layer, but HorizenLabs' round constants
+`RC16` (`values_eq_rc16`) and Plonky3's fractional BabyBear diagonal with scale 1. At
+least 32 active S-boxes; trail exponent 896, or 906 with the exact ratio; differential
+exponent 198. As for SP1's BabyBear, the thirteen partial rounds add nothing: exactly 3
+dimensions of differences stay inactive through them (`finrank_partial_inactive`).
+`upstream_kat` reproduces Plonky3 v0.8.0's `test_default_babybear_poseidon2_width_16`, whose
+tables equal 0.4.3's, so it tests the deployed constants. Six negative controls fail that
+vector.
+
 #### [`Checks`](WideTrail/Poseidon2/Checks/)
 Why each exponent and margin is what it is, which hypotheses cannot be dropped, and
 end-to-end runs. The uniformity (2 and 6), the external branch number (8) and the window
@@ -423,7 +456,9 @@ instances reproduce the known-answer vectors of the upstream `p3-koala-bear` and
 `p3-baby-bear` crates, with those tests' own constants, and that each vector fails
 without the Montgomery factor, without the initial external layer, or with the raw
 samples read as canonical values. The pinned-constant outputs are regression values from
-an outside model, since no published vector exists for either SP1 instance.
+an outside model, since no published vector exists for either SP1 instance. The Pico
+and OpenVM checks repeat the cheap exactness facts of the SP1 checks (uniformity, branch
+number, window, sharp exponents), so they do not need the memory-heavy SP1 check modules.
 `Axioms.lean` pins the axiom footprints of the certificates.
 
 ---

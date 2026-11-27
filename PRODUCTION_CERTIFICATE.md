@@ -407,6 +407,91 @@ and round count (`Plonky3.executeDense_toState`,
 KoalaBear's diagonal is also checked against the gnark recursion chip
 (`Checks.sp1Diag_eq_gnark`).
 
+## Pico and OpenVM width-sixteen instances
+
+Two more deployed permutations are built by the same Plonky3 code, but with a different
+internal layer from SP1's. `Poseidon2/Plonky3.lean` therefore also states the model with the
+diagonal `d` and the scale `c` as parameters (`Plonky3.Diag`). Its hypotheses are collected in
+`Diag.Conditions d c`: `35 ≠ 0`, every `d i ≠ 0`, `1 + ∑ 1/d i ≠ 0` and `c ≠ 0`. The SP1
+permutations are the case `d = sp1Diag`, `c = R⁻¹`, and their statements are unchanged.
+`Poseidon2/PicoKoalaBear.lean` and `Poseidon2/OpenVMBabyBear.lean` fix every parameter and
+discharge every hypothesis by `decide`.
+
+### Sources
+
+| Pin | Value |
+|---|---|
+| Pico | `brevis-network/pico` tag `v3.2.0`. The tag was not resolved to a commit; the SHA-256 of each file read was recorded outside Lean. |
+| Pico's Plonky3 | the fork `brevis-network/Plonky3` at `da6ca12c71912ec213d3c5af68b14509d2099bc3`, crate version 0.5.4. Each fork file cited is byte-identical to the crates.io 0.5.4 file. `koala-bear/src/poseidon2.rs` has SHA-256 `dd37c0c35e191aac6a4f23149ff8c923d1dfdb4a119d006e1a573fadc2866143`. |
+| OpenVM | `openvm-org/openvm` tag `v2.1.0`, commit `05f3b73e7294fbb6d38155abafc98f1fe2bcfb73`; `openvm-org/stark-backend` tag `v2.1.0`, commit `a6b4761ad9a098f3a166740d22ad60b96400cd65`. |
+| `p3-baby-bear` 0.4.3 | `.crate` SHA-256 `3a1a49f4d9c8b8cbdab61e25d9de1b78b3c8347dd2fb88b11d990b3efa8cdd3a`, equal to OpenVM's `Cargo.lock` checksum. |
+| `p3-monty-31` 0.4.3 | `c9fe0be661891af1f703ceaf57334fcbd540804988984dc2b500dd99740e7c81` (`Cargo.lock`) |
+| `p3-poseidon2` 0.4.3 | `2c6fc2368447576283f8b3849a36095017f25addf06eab9e33b0ce7f96b0b99d` (`Cargo.lock`) |
+| Plonky3 `v0.8.0` (OpenVM's vector) | commit `a21e3ed42905040ad49c519e402f018381c12d0c`; `baby-bear/src/poseidon2.rs` has SHA-256 `94dd94e267e66922104010624f42ba7836805dc2fafe7482d684cd2e042a7327`, the same as the crates.io 0.8.0 file. |
+
+### Parameters
+
+| | Pico KoalaBear (v3.2.0) | OpenVM BabyBear (v2.1.0) |
+|---|---|---|
+| Field, S-box, rounds | those of SP1's KoalaBear: `x^3`, 4 + 20 + 4 | those of SP1's BabyBear: `x^7`, 4 + 13 + 4 |
+| External layer | `circ(2 M4, M4, M4, M4)`, as for SP1 | the same |
+| Internal diagonal | `(-2, 1, 2, 1/2, 3, 4, -1/2, -3, -4, 1/2^8, 1/8, 1/2^24, -1/2^8, -1/8, -1/16, -1/2^24)` | `(-2, 1, 2, 1/2, 3, 4, -1/2, -3, -4, 1/2^8, 1/4, 1/8, 1/2^27, -1/2^8, -1/16, -1/2^27)` |
+| Scale | 1 (no `R⁻¹`) | 1 (no `R⁻¹`) |
+| `1 + ∑ 1/d i` | `-14` | `-2` |
+| Round constants | Plonky3's KoalaBear tables, equal entry by entry to SP1's `RC16` (`Checks.values_eq_sp1`) | HorizenLabs' `RC16` as `p3-baby-bear` 0.4.3 selects it (`Checks.values_eq_rc16`) |
+
+Each internal layer is proved equal to a transcription of the code's
+`internal_layer_mat_mul` (`internalCode_eq`); OpenVM's is also proved equal to its AIR's
+layer (`internalAir_eq`). The transcriptions read `halve` and `div_2exp_u64(k)` as division of
+the field element by `2` and `2^k`, which is the field-level meaning of the Montgomery code.
+The Montgomery representatives themselves are not modelled.
+
+### Certified claims
+
+Each claim has no remaining premise, and the `_general` forms hold for every round-constant
+table.
+
+- Bijectivity; each round equals the code's round with the code's constants.
+- No nonzero difference stays inactive through sixteen consecutive partial rounds, because
+  the diagonal entries off coordinate 0 are pairwise distinct (`diag_injOn`). Exactly `16 - r`
+  dimensions stay inactive through `r ≤ 16` rounds (`finrank_inactive_eq`).
+- Pico: at least 33 charged S-boxes per distinct input pair. The trail exponent is 957, or
+  989 with the exact ratio, and the two-round differential exponent is 209. These are the
+  numbers of SP1's KoalaBear instance, since they depend only on the field, the uniformity,
+  the branch number, the window and the round numbers.
+- OpenVM: at least 32. The trail exponent is 896, or 906 with the exact ratio, and the
+  two-round differential exponent is 198. The thirteen partial rounds add nothing: exactly 3
+  dimensions of differences stay inactive through them (`finrank_partial_inactive`), and the
+  window term is zero for every window the criterion allows (`partial_window_term_eq_zero`).
+
+### Execution checks
+
+Unlike the SP1 instances, both have a known-answer vector with the deployed constants. Both
+are proved by `decide` on the runner `Plonky3.Diag.permutationDense` and transferred to the
+specification.
+
+- Pico (`Checks.upstream_kat`): `test_default_koalabear_poseidon2_width_16` of the fork
+  (`koala-bear/src/poseidon2.rs:524-542`). Pico itself asserts the same pair against its host
+  permutation and its AIR gadget (`vm/src/primitives/poseidon2_kat.rs:98-107`, asserted at
+  `:121` and `:125`).
+- OpenVM (`Checks.upstream_kat`): `test_default_babybear_poseidon2_width_16` of Plonky3
+  `v0.8.0` (`baby-bear/src/poseidon2.rs:598-616`). The test is not in the 0.4.3 that OpenVM
+  pins. Its tables equal 0.4.3's, and the permutation code was compared between the two
+  versions outside Lean.
+- Both: the seeded-random test of the same crate version (`Checks.rng_kat`), with the
+  constants regenerated as for `Checks/Plonky3KAT.lean`, and regression values. For Pico, the
+  input `(0, 1, …, 15)` is a value Pico pinned from its own implementation.
+- Negative controls. Each of the following fails the vector:
+  - Pico: SP1's permutation, the factor `R⁻¹`, skipping the initial layer, and the constants
+    read as Montgomery representatives.
+  - OpenVM: SP1's internal layer, SP1's diagonal without `R⁻¹`, the factor `R⁻¹`, skipping
+    the initial layer, the constants read as Montgomery representatives, and one internal
+    constant increased by one.
+
+The checks repeat the cheap exactness facts of the SP1 checks: the uniformity, the branch
+number 8, the window 16, and that each sharp exponent plus one fails. So these modules stay
+in the default library. Each peaks at about 2.5 to 2.7 GB.
+
 ## Boundary of the certificate
 
 These boundaries apply to every instance above. The certificate does not prove
