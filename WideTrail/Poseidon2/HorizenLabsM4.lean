@@ -17,6 +17,9 @@ solver mix each block of four coordinates with
 row `i` giving output coordinate `i` (`hlMat4_mulVec`). This is not Plonky3's `MDSMat4`
 (`Poseidon2.m4 = circ(2, 3, 1, 1)` of `WideTrail.Algebra.MDS4`). Every entry is the image of an
 integer, so whether `hlMat4` is MDS depends only on the characteristic.
+`WideTrail.Algebra.Checks.MDS4` also declares this integer matrix, as
+`Poseidon2.MDS4Checks.hlMat4`, to show that it differs from `m4`; `Checks/AztecBN254.lean` proves
+that it is `hlMat4 ℤ` (`Poseidon2.AztecBN254.Checks.mds4Checks_hlMat4_eq`).
 
 This file proves, for every field `K`:
 

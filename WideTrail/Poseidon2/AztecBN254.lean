@@ -34,7 +34,7 @@ Noir directory `acvm-repo/bn254_blackbox_solver/src/`.
 * **Noir.** The ACVM black-box solver `poseidon2_permutation` (NR1 `NS/poseidon2.rs:8-13`,
   `:81-122`, configuration `NS/poseidon2_constants.rs:36-449`), reached from
   `std::hash::poseidon2_permutation` (NR1 `noir_stdlib/src/hash/mod.nr:340-349`, state size `4`
-  for BN254 by its documentation `:326-327`). The Aztec protocol circuits hash through it (AZ1
+  for BN254 by its documentation `:325-326`). The Aztec protocol circuits hash through it (AZ1
   `noir-projects/noir-protocol-circuits/crates/types/src/hash.nr:233-235`, `:384`).
 
 The `256` round constants and the `4` diagonal entries are identical in AZ1, AZ6, NR1 and noir
@@ -74,8 +74,10 @@ tag `nightly-2025-06-19`, the Noir that AZ1 vendors (compared outside Lean).
 
 * `external_mds`, `external_branch`: `hlMat4` is MDS over `F`, so the external layer has branch
   number at least `5`. `internalDiag_ne_zero`, `one_add_sum_inv_ne_zero`,
-  `internalDiag_injOn`: every diagonal entry is nonzero, the Sherman–Morrison condition holds,
-  and the entries off coordinate `0` are pairwise distinct, all by `decide`.
+  `internalDiag_injOn`: every entry `d_i` of the stored array `internalDiag` is nonzero, the
+  Sherman–Morrison condition `1 + ∑ i, d_i⁻¹ ≠ 0` holds, and the stored entries `d_i`, `i ≠ 0`,
+  are pairwise distinct, all by `decide`. (That the true diagonal entries `d_i + 1` are nonzero
+  follows from `diagSucc_eq` and `diagSucc_mul_inv` in `Checks/AztecBN254.lean`.)
 * `permutation_bijective`; `permutation_bijective_general` for every round-constant table.
 * `activity`: two distinct inputs incur at least `20` charged S-box applications over the `64`
   rounds, a bound obtained from the eight full rounds alone (`(4 / 2 + 4 / 2) * 5`);
@@ -95,9 +97,10 @@ tag `nightly-2025-06-19`, the Noir that AZ1 vendors (compared outside Lean).
 * Each activity, trail and differential statement also has a `_general` form for every
   round-constant table.
 
-`Checks/AztecBN254.lean` shows that the per-S-box exponent `251` and the exponents `8554` and
-`1006` cannot be raised and that the branch number is exactly `5`, and proves the known-answer
-vectors.
+`Checks/AztecBN254.lean` shows that `251`, `8554` and `1006` are the largest exponents this
+arithmetic gives (the arithmetic step fails at `E + 1`; this does not show that the key-count
+bounds themselves are tight) and that the branch number is exactly `5`, and proves the
+known-answer vectors.
 
 ## What is not claimed
 
@@ -191,7 +194,7 @@ def internalDiagInv : Fin 4 → F :=
 theorem internalDiag_mul_inv : ∀ i, internalDiag i * internalDiagInv i = 1 := by
   decide
 
-/-- Every entry of the diagonal is nonzero in `F`. -/
+/-- Every entry `d_i` of the stored array `internalDiag` is nonzero in `F`. -/
 theorem internalDiag_ne_zero : ∀ i, internalDiag i ≠ 0 := by
   decide
 
@@ -200,7 +203,8 @@ theorem one_add_sum_inv_ne_zero : 1 + ∑ i, (internalDiag i)⁻¹ ≠ 0 := by
   rw [sum_inv_eq_of_mul_eq_one internalDiag_mul_inv, Fin.sum_univ_four]
   decide
 
-/-- **The diagonal entries off coordinate `0` are pairwise distinct in `F`**, by `decide`. -/
+/-- **The stored entries `d_i`, `i ≠ 0`, of `internalDiag` are pairwise distinct in `F`**, by
+`decide`. (Equivalently, so are the diagonal entries `d_i + 1` of `diag(d) + J`.) -/
 theorem internalDiag_injOn : Set.InjOn internalDiag {i | i ≠ 0} := fun i hi j hj h =>
   (by decide : ∀ i j : Fin 4, i ≠ 0 → j ≠ 0 → internalDiag i = internalDiag j → i = j)
     i j hi hj h
@@ -503,7 +507,10 @@ theorem partial_constants_zero :
 `60 ≤ n`, the internal layer in the partial rounds. -/
 def linear (n : ℕ) : State ≃ₗ[F] State := if n < 4 ∨ 60 ≤ n then external else internal
 
-/-- The `64` rounds: four full, `56` partial with the S-box on coordinate `0`, four full. -/
+/-- The `64` rounds: four full, `56` partial with the S-box on coordinate `0`, four full
+(`rounds_f = 8`, `rounds_p = 56`: aztec-packages `v1.0.0` `P2/poseidon2_params.hpp:21-22`, the
+full rounds split `rounds_f / 2` before and after at `P2/poseidon2_permutation.hpp:146`; noir
+`v1.0.0` `NS/poseidon2_constants.rs:41-42`, split at `NS/poseidon2.rs:100`). -/
 def rounds : ℕ → Hades.RoundSpec (Fin 4) F :=
   Hades.hadesSchedule 4 56 4 {0} (fun _ _ => sbox) linear values
 
@@ -596,12 +603,13 @@ theorem activity {x y : State} (hxy : x ≠ y) :
 
 /-! ### The partial rounds: window `4` by the diagonal criterion
 
-The internal layer is `diagPlusOnes 1 internalDiag` (`internal_toLinearMap`), and its diagonal
-entries off coordinate `0` are pairwise distinct (`internalDiag_injOn`). The criterion
-`Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff` then says that no nonzero difference stays
-inactive through `4` consecutive partial rounds, and `Hades.finrank_inactiveSpace_diagPlusOnes`
-gives the dimension `4 - r` for `r ≤ 4`. These are statements about inactive differences of the
-partial rounds only, not a proof of resistance to subspace trails in general. -/
+The internal layer is `diagPlusOnes 1 internalDiag` (`internal_toLinearMap`), and the stored
+entries `d_i`, `i ≠ 0`, of `internalDiag` are pairwise distinct (`internalDiag_injOn`). The
+criterion `Hades.inactiveSpace_diagPlusOnes_card_eq_bot_iff` then says that no nonzero difference
+stays inactive through `4` consecutive partial rounds, and
+`Hades.finrank_inactiveSpace_diagPlusOnes` gives the dimension `4 - r` for `r ≤ 4`. These are
+statements about inactive differences of the partial rounds only, not a proof of resistance to
+subspace trails in general. -/
 
 /-- **No nonzero difference stays inactive through four consecutive partial rounds.** -/
 theorem internal_inactive_trivial :
@@ -771,7 +779,7 @@ theorem independent_key_probability_sharp {T : ℕ → State} (h0 : T 0 ≠ 0) (
 /-! ### The independent-key differential bound
 
 `Hades.hades_differential_bound` charges `B - 1 = 4` S-boxes of the first two full rounds, at the
-ratio `p / 4` each; the other rounds are not charged. Since `4 * log2 (p / 4) ≈ 1006.3`, the
+ratio `p / 4` each; the other rounds are not charged. Since `4 * log2 (p / 4) ≈ 1006.4`, the
 sharp exponent is `1006`. Nothing here concerns the permutation with its fixed constants. -/
 
 /-- **Differential bound as an exact ratio, for every round-constant table**, in the model with

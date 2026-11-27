@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Awaan Siddiqui
 -/
 import WideTrail.Poseidon2.AztecBN254Execution
+import WideTrail.Algebra.Checks.MDS4
 
 /-!
 # Checks for the Aztec and Noir BN254 width-four certificate
@@ -11,7 +12,9 @@ import WideTrail.Poseidon2.AztecBN254Execution
 `WideTrail.Poseidon2.AztecBN254` models the Poseidon2 permutation of barretenberg
 (`Poseidon2Bn254ScalarFieldParams`) and of Noir's ACVM BN254 solver. The checks below test that
 model against the published known-answer vectors, record which readings of the code they rule
-out, and show that the exponents and the branch number of the certificate cannot be improved.
+out, show that the exponents of the certificate are the largest its arithmetic gives (the
+arithmetic step fails at `E + 1`; the key-count bounds themselves are not shown to be tight), and
+show that the branch number of the external layer is exactly `5`.
 Every finite check is kernel `decide`. The whole-permutation checks run on the runner of
 `WideTrail.Poseidon2.AztecBN254Execution`, and its transfer lemmas carry the computed values
 over to the specification `permutation` (or `permutationWith` for a control).
@@ -35,8 +38,8 @@ intermediate states are not.
   the constants. The same input and output are the bb.js test of AZ1
   `yarn-project/foundation/src/crypto/poseidon/index.test.ts:5-13`, the "sequential small values"
   case of NR1 `NS/poseidon2.rs:158-167`, the documentation example of NR1
-  `noir_stdlib/src/hash/mod.nr:333-334` (coordinate `0`) and `TEST_VECTOR_OUTPUT` of AZ6
-  `P2/poseidon2_params.hpp:447-458`.
+  `noir_stdlib/src/hash/mod.nr:333-334` (coordinate `0`) and `TEST_VECTOR_INPUT`,
+  `TEST_VECTOR_OUTPUT` of AZ6 `P2/poseidon2_params.hpp:447-452`, `:453-458`.
 * `consistency_vector`: four copies of the literal
   `9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789`, AZ1
   `P2/poseidon2_permutation.test.cpp:44-61`. The literal is about `3.2 p`; `fr(std::string)`
@@ -78,9 +81,13 @@ alternatives to the model.
   the branch number of the external layer is exactly `5`.
 * `finrank_inactive_three`: one dimension of differences stays inactive through three
   consecutive partial rounds (with `internal_inactive_three_ne_bot`, the window `4` is exact).
-* `declaredInternalMatrix_eq`: the array `internal_matrix` that AZ1 declares but does not read
-  (`P2/poseidon2_params.hpp:31-56`) is `diag(d) + J`, with diagonal entries `d_i + 1`.
-* `internalDiag_injective`: all four diagonal entries are pairwise distinct.
+* `declaredInternalMatrix_eq`: the array `internal_matrix` that AZ1 declares but the permutation
+  does not read (`P2/poseidon2_params.hpp:31-56`) is `diag(d) + J`, with diagonal entries
+  `d_i + 1`.
+* `internalDiag_injective`: all four stored entries `d_i` of `internalDiag` are pairwise distinct
+  (so are the diagonal entries `d_i + 1`).
+* `mds4Checks_hlMat4_eq`: the integer matrix `Poseidon2.MDS4Checks.hlMat4` of
+  `WideTrail.Algebra.Checks.MDS4` is `hlMat4 ℤ`, so the two declarations name the same matrix.
 * `full_constants_ne_zero`, `partial_constants_ne_zero`: the `32` full-round constants and the
   `56` partial-round constants at coordinate `0` are nonzero.
 * `hlMat4_ne_transpose`: the transposed control uses a different matrix.
@@ -169,7 +176,7 @@ theorem noir_vector_bbjs : permutation bbjsNoirInput = bbjsNoirOutput :=
   permutation_eq_of_dense (by decide)
 
 /-- The expected output for the all-zero input (NR1 `NS/poseidon2.rs:149-152`; NRN
-`NS/poseidon2.rs:635-640`). -/
+`NS/poseidon2.rs:636-641`). -/
 def zerosOutput : State :=
   ![0x18dfb8dc9b82229cff974efefc8df78b1ce96d9d844236b496785c698bc6732e,
     0x095c230d1d37a246e8d2d5a63b165fe0fade040d442f61e25f0590e5fb76f839,
@@ -408,7 +415,8 @@ theorem declaredInternalMatrix_eq :
     declaredInternalMatrix = Matrix.diagonal internalDiag + Matrix.of fun _ _ => (1 : F) := by
   decide
 
-/-- All four diagonal entries are pairwise distinct in `F`. -/
+/-- All four stored entries `d_i` of `internalDiag` are pairwise distinct in `F` (equivalently,
+so are the diagonal entries `d_i + 1` of `diag(d) + J`). -/
 theorem internalDiag_injective : Function.Injective internalDiag := by
   intro i j h
   revert i j
@@ -425,6 +433,12 @@ theorem partial_constants_ne_zero : ∀ n : Fin 56, values (4 + n.val) 0 ≠ 0 :
 
 /-- The transposed control uses a different matrix: `hlMat4` is not symmetric. -/
 theorem hlMat4_ne_transpose : hlMat4 F ≠ (hlMat4 F).transpose := by
+  decide
+
+/-- **The two declarations of the HorizenLabs matrix agree**: `Poseidon2.MDS4Checks.hlMat4`, the
+integer matrix that `WideTrail.Algebra.Checks.MDS4` shows differs from Plonky3's `m4`, is
+`hlMat4 ℤ` of `WideTrail.Poseidon2.HorizenLabsM4`. -/
+theorem mds4Checks_hlMat4_eq : MDS4Checks.hlMat4 = hlMat4 ℤ := by
   decide
 
 end Poseidon2.AztecBN254.Checks
@@ -758,6 +772,10 @@ info: 'Poseidon2.AztecBN254.independent_key_differential_sharp_general' depends 
 /-- info: 'Poseidon2.AztecBN254.Checks.hlMat4_ne_transpose' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.AztecBN254.Checks.hlMat4_ne_transpose
+
+/-- info: 'Poseidon2.AztecBN254.Checks.mds4Checks_hlMat4_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.AztecBN254.Checks.mds4Checks_hlMat4_eq
 
 /-- info: 'Poseidon2.AztecBN254.Checks.pSubOneInput_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
