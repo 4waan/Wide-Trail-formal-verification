@@ -40,7 +40,7 @@ lake build WideTrailHeavy
 lake env lean scripts/AuditAxiomsHeavy.lean      # the audit with these checks included
 ```
 
-No module of the default library measured above about 3 GB. Lake runs one Lean process
+No module of the default library measured above about 3.4 GB. Lake runs one Lean process
 per core, so the peak of the default build grows with the number of cores.
 
 To cite this project, see [`CITATION.cff`](CITATION.cff).
@@ -50,11 +50,11 @@ To cite this project, see [`CITATION.cff`](CITATION.cff).
 ## Named proof layers
 
 The directories identify the kind of mathematics they contain: `Propagation`,
-`Algebra`, `Differential`, `Hades`, and `Poseidon2`. The original numbered directories have been
-renamed; import paths now use these names. Import a complete layer with
+`Algebra`, `Differential`, `Hades`, `Poseidon2`, and `Poseidon`. The original numbered
+directories have been renamed; import paths now use these names. Import a complete layer with
 `import WideTrail.Propagation`, `import WideTrail.Algebra`,
-`import WideTrail.Differential`, `import WideTrail.Hades`, or
-`import WideTrail.Poseidon2`.
+`import WideTrail.Differential`, `import WideTrail.Hades`,
+`import WideTrail.Poseidon2`, or `import WideTrail.Poseidon`.
 
 **Propagation layer** (`WideTrail/Propagation/`) is the abstract propagation theory: an S-box layer, a
 shuffle, and a mixing layer, related only by the structural properties a wide-trail cipher
@@ -134,6 +134,18 @@ partial rounds, each round removes exactly one dimension
 coordinate are pairwise distinct (`inactiveSpace_diagPlusOnes_card_eq_bot_iff`).
 `Hull.lean` bounds a key-averaged differential, not only a trail, over two full rounds
 (`hades_differential_bound`).
+`MiddleBound.lean` takes any lower bound on the partial rounds as a hypothesis,
+`MiddleBound A mask m μ` (every trail through `m` consecutive partial rounds with linear map `A`,
+from a nonzero difference, charges at least `μ` S-boxes), and adds it to the outer count and to
+the trail bounds (`outer_middle_bound_of`, `hades_probability_with_middle_bound_exact`); the
+window argument is the case `μ = m / w`. Larger bounds come from finite certificates for a
+concrete matrix: window relations, linear relations between the S-box differences of
+consecutive rounds that refute every activity pattern with too few active rounds
+(`WindowRelation.lean`, `MiddleBound.of_relationCheck`), and forward-space automata with a
+potential (`Automaton.lean`, `MiddleBound.of_automatonCheck`). Boolean checkers on lists of
+natural numbers (`RelationCheck.lean`, `AutomatonCheck.lean`) let the kernel check a certificate
+by `decide +kernel` on light imports. These are lower bounds in the `IsTrail` model, which
+records only supports, masks and linear maps.
 See [the HADES mechanics](MECHANICS_HADES.md) and [the implementation plan](HADES_PLAN.md).
 
 **Poseidon2 layer** (`WideTrail/Poseidon2/`) certifies the pinned reference BN254
@@ -159,14 +171,49 @@ other deployed permutations: Pico v3.2.0's KoalaBear permutation (at least 33 ac
 S-boxes, exponents 957 and 989) and OpenVM v2.1.0's BabyBear permutation (at least 32,
 exponents 896 and 906). Each of these reproduces a known-answer vector from Plonky3's
 own tests that uses the deployed round constants.
+Certificates for the partial rounds raise three of these counts, as lower bounds, with the
+earlier theorems unchanged: every trail through the twenty partial rounds of SP1's and Pico's
+KoalaBear permutations charges at least 3 S-boxes, so every distinct input pair incurs at least
+35 (trail exponents 1015, or 1049 with the exact ratio), and every trail through the 56 partial
+rounds of the BN254 width-three permutation charges at least 27, so every trail in the `IsTrail`
+model through its 64 rounds, and every distinct input pair, incurs at least 43 (exponents 10793
+and 10818), a total that some trail in the `IsTrail` model attains. BabyBear's thirteen partial
+rounds, fewer than its width, still add nothing.
+The layer also certifies the width-four BN254 permutation of Aztec's barretenberg
+(aztec-packages v1.0.0 and v6.1.0) and of Noir v1.0.0: HorizenLabs' `4×4` matrix as the external
+layer, MDS over BN254 with branch number exactly 5, the internal layer `diag(d) + J`, and
+`4 + 56 + 4` rounds. Every distinct input pair incurs at least 34 charged S-boxes by windows of
+four partial rounds, and at least 44 with a certificate for windows of fourteen; with the exact
+ratio the trail exponents are 8554 for 34 and 11070 for 44, and the two-round differential
+exponent is 1006. The model reproduces the published known-answer vectors of barretenberg,
+bb.js and Noir, seven distinct inputs. Like those above, these exponents concern one trail, or
+the differential, with an additional independent uniform key per round.
 See [the concrete certificates and their scope](PRODUCTION_CERTIFICATE.md).
 
-Named theorem footprints are pinned by `#print axioms`. The complete module audit
-in `scripts/AuditAxiomsHeavy.lean` checks every project declaration, including names in
-the root namespace (`scripts/AuditAxioms.lean` does the same for the default library). Both
-allow nothing beyond
-the standard `propext, Classical.choice, Quot.sound` baseline: no `sorry`, no
-`native_decide`, no `bv_decide` fallback axiom, anywhere. See
+**Poseidon layer** (`WideTrail/Poseidon/`) certifies the original Poseidon, the HADES design,
+as Starknet deploys it: the STARK field `p = 2^251 + 17 · 2^192 + 1`, with primality by Lucas
+certificates, width three, `x^3`, `4 + 83 + 4` rounds, one matrix
+`M = [[3, 1, 1], [1, -1, 1], [1, 1, -2]]` in every round, no linear layer before the first
+round, and the partial-round S-box on coordinate 2. With no remaining premise: bijectivity; `M`
+is MDS, with branch number exactly 4, and equals `diag(2, -2, -3) + J`; at least 16 charged
+S-boxes per distinct input pair from the full rounds and 43 with windows of three partial
+rounds; and, from a forward-space automaton certificate for the 83 partial rounds, at least 57,
+a total that some trail in the `IsTrail` model attains. The trail exponents are 4000, 10750 and
+14250; keeping the ratio `p / 2` exact gains nothing, since `p` is barely above `2^251`. The
+two-round differential exponent is 750. The compressed schedule of 107 constants that most
+implementations run is proved to compute the same permutation for every input, and to give the
+same state when the same additional key is added to both schedules. The model reproduces the
+three permutation-level known-answer vectors that the sources publish (pathfinder and
+CryptoExperts, lambdaworks and starknet-types-core, the Cairo corelib). As for Poseidon2, the
+probability statements concern one trail, or the differential averaged over an additional
+independent uniform key per round, not the permutation with its fixed constants.
+
+Named theorem footprints are pinned by `#print axioms`. The complete module audit in
+`scripts/AuditAxiomsHeavy.lean` checks every project declaration (8395 at this revision),
+including names in the root namespace (`scripts/AuditAxioms.lean` does the same for the 6251
+declarations of the default library). Both allow nothing beyond the standard
+`propext, Classical.choice, Quot.sound` baseline: no `sorry`, no `native_decide`, no
+`bv_decide` fallback axiom, anywhere. See
 [`WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md`](WideTrail/Algebra/MDS_HYPOTHESIS_BUILD.md) for the
 build log of Algebra layer (what was tried, what failed, why),
 [`MECHANICS_ALGEBRA.md`](MECHANICS_ALGEBRA.md) for how the algebra works,
@@ -235,7 +282,7 @@ The FIPS 197 byte substitution: inversion in `GF(2⁸)` followed by the binary a
 A power map `x ↦ x^e` as an executable equivalence with inverse `x ↦ x^d`, whenever `e d = (q - 1) k + 1` and every nonzero `x` satisfies `x^(q - 1) = 1` (`Sbox.powerEquivOfFermat`). No enumeration of the field is needed.
 
 #### [`WideTrail/Algebra/MDS4.lean`](WideTrail/Algebra/MDS4.lean)
-Plonky3's `4×4` matrix `circ(2, 3, 1, 1)` over any field. It is MDS exactly when `2, 3, 5, 7, 11` and `17` are nonzero (`m4_isMDS_iff`), so its branch number is then `5`. Its determinant is `-35`, which gives an explicit inverse.
+Plonky3's `4×4` matrix `circ(2, 3, 1, 1)` over any field. It is MDS exactly when `2, 3, 5, 7, 11` and `17` are nonzero (`m4_isMDS_iff`), so its branch number is then at least `5` (`m4_isBranchBound`). Its determinant is `-35`, which gives an explicit inverse.
 
 #### [`WideTrail/Algebra/BlockCirculant.lean`](WideTrail/Algebra/BlockCirculant.lean)
 The Poseidon2 external layer as a block circulant `circ(2N, N, …, N)`: block `i` of the output is `N (xᵢ + ∑ⱼ xⱼ)`. If `N` has branch number `p + 1` on blocks of size `p`, and `1, …, b + 1` are nonzero for `b` blocks, the whole layer has branch number at least `min(b + p, 2(p + 1))`. At width sixteen that is `8`. The checks show the characteristic hypothesis cannot be dropped, and that the bound is attained in a small case over `ZMod 7`. On states whose blocks sum to zero the layer applies `N` to each block with no mixing between blocks (`blockMix_of_blockSum_eq_zero`); these states form a subspace of dimension `(b - 1) p` (`finrank_blockSumZero`), and when `N` is injective and `b + 1 ≠ 0` a state lies in it exactly when its image does (`blockMix_mem_blockSumZero_iff`). These are facts about the linear map alone, not about any attack.
@@ -247,7 +294,7 @@ The Poseidon2 internal layer `c (diag d + J)` as a linear equivalence, with the 
 Transposes of the Poseidon2 linear layers. A square matrix is MDS exactly when its transpose is; the transpose of `circ(2, 3, 1, 1)` is `circ(2, 1, 1, 3)`, MDS under the same hypothesis; the transpose of `circ(2A, A, …, A)` is `circ(2Aᵀ, Aᵀ, …, Aᵀ)`, and at width sixteen it has branch number at least `8`; `c (diag d + J)` is symmetric. Taking the linear branch number of a map to be the differential branch number of its transpose, a definition here and not a proved statement about correlations, the differential branch-number bounds carry over. No correlation, linear trail or linear-attack bound is proved.
 
 #### [`WideTrail/Algebra/Checks/`](WideTrail/Algebra/Checks/)
-`MDS4.lean` shows over `ZMod 11` and `ZMod 7` that `circ(2, 3, 1, 1)` fails to be MDS when `11` or `7` vanishes, and that branch number `5` is attained over `ZMod 13`. `BlockCirculant.lean` shows that the characteristic hypothesis of the block-circulant bound cannot be dropped and that the bound is attained. `Axioms.lean` pins the axiom footprints of the layer's results.
+`MDS4.lean` shows over `ZMod 11` and `ZMod 7` that `circ(2, 3, 1, 1)` fails to be MDS when `11` or `7` vanishes, and that branch number `5` is attained over `ZMod 13`; the HorizenLabs matrix it records as different is treated in [`Poseidon2/HorizenLabsM4.lean`](WideTrail/Poseidon2/HorizenLabsM4.lean). `BlockCirculant.lean` shows that the characteristic hypothesis of the block-circulant bound cannot be dropped and that the bound is attained. `Axioms.lean` pins the axiom footprints of the layer's results.
 
 ### Differential layer: from active S-boxes to a probability
 
@@ -356,6 +403,38 @@ probability at most `(u / |K|)^(B - 1)` (`diffKeyCount_bound_of_two_full_rounds`
 `hades_differential_bound`). Only those two rounds are charged; nothing is said about the
 fixed round constants alone.
 
+#### [`MiddleBound.lean`](WideTrail/Hades/MiddleBound.lean)
+Separates the count for the partial rounds from its proof. `MiddleBound A mask m μ` says that
+every trail through `m` consecutive rounds with linear map `A` and that mask, from a nonzero
+difference, charges at least `μ` S-boxes; it does not depend on the S-boxes or the round
+constants. A bound applies inside a longer trail and bounds of adjacent windows add
+(`MiddleBound.apply`, `MiddleBound.add`); the window argument is
+`MiddleBound.of_inactiveSpace`; a nonzero scalar factor of `A` changes nothing
+(`MiddleBound.smul_iff`, `MiddleBound.diagPlusOnes`). `outer_middle_bound_of` adds `μ` to the
+outer count, and `hades_probability_with_middle_bound_exact` and
+`hades_probability_with_middle_bound` carry it into the independent-key trail bound.
+
+#### [`WindowRelation.lean`](WideTrail/Hades/WindowRelation.lean), [`RelationCheck.lean`](WideTrail/Hades/RelationCheck.lean)
+Window relations. A chain of row vectors for `A` at the S-box coordinate gives one linear
+relation between the S-box input and output differences of `D + 1` consecutive rounds
+(`IsTrail.window_relation`). If no nonzero difference stays inactive through the `m` rounds and
+every nonempty pattern of fewer than `k` active rounds is refuted by a combination of the
+relations, every trail through them charges at least `k` (`MiddleBound.of_relations`).
+`RelationCheck.lean` is the Boolean checker on lists of natural numbers over `ZMod p`, for
+`A = diag d + J`; it imports only `Mathlib.Data.ZMod.Basic`. `MiddleBound.of_relationCheck`
+turns a passing check into the bound `3`, and `MiddleBound.not_of_checkTrail` refutes a bound
+with an explicit trail.
+
+#### [`Automaton.lean`](WideTrail/Hades/Automaton.lean), [`AutomatonCheck.lean`](WideTrail/Hades/AutomatonCheck.lean)
+Forward-space automata. Each state is a set of differences with a potential that drops by at
+least one at every inactive round and grows by at most one at every active round; a valid
+automaton for `m` rounds gives the bound `(m + 1 - pot start) / 2` (`MiddleBound.of_automaton`).
+`AutomatonCheck.lean` is the Boolean checker, for any `t × t` matrix given by rows, with each
+state a list of linear functionals; `MiddleBound.of_automatonCheck` combines the two.
+`isTrail_of_checkHadesTrail` and `scheduledWeight_eq_trailWeight` check an explicit trail
+through a whole schedule and compute its charged weight, which shows that a total is attained in
+the `IsTrail` model.
+
 #### [`Checks`](WideTrail/Hades/Checks/)
 `Toy.lean`: a 25-state cipher over `ZMod 5` checks the count, exhibits a tight witness,
 and shows why identity coordinates must be excluded. Weak mixing and a collapsing middle
@@ -364,7 +443,11 @@ masked and scheduled counts by enumeration. `Krylov.lean` checks the certificate
 four-coordinate internal matrix over `ZMod 13` and shows that self-adjointness cannot be
 dropped. `Dimension.lean` shows over `ZMod 5` that a repeated diagonal entry leaves a
 nonzero difference inactive forever, and that with a mask of two coordinates one round can
-remove two dimensions. `Axioms.lean` pins the axiom footprints.
+remove two dimensions. `MiddleBound.lean` re-derives the window theorems through the
+middle-bound interface and shows on the `ZMod 5` toy layer that the predicate can fail.
+`WindowRelation.lean` and `Automaton.lean` run both certificate kinds on the same toy: each
+recomputes the window bound, a schedule of `2 + 4 + 2` rounds is charged at least 8 S-boxes,
+attained, and changed certificates are rejected. `Axioms.lean` pins the axiom footprints.
 
 ---
 
@@ -391,6 +474,26 @@ trace, and the upstream `[0, 1, 2]` known-answer vector.
 #### [`Checks/BN254SP1.lean`](WideTrail/Poseidon2/Checks/BN254SP1.lean)
 SP1's gnark test vector for its BN254 outer permutation, input `(0, 0, 0)`, proved
 for the same Lean permutation.
+
+#### [`HorizenLabsM4.lean`](WideTrail/Poseidon2/HorizenLabsM4.lean)
+HorizenLabs' `4×4` matrix `[[5, 7, 1, 3], [4, 6, 1, 1], [1, 3, 5, 7], [1, 1, 4, 6]]` over any
+field, the external block of the HorizenLabs reference code, barretenberg and Noir; not
+Plonky3's `circ(2, 3, 1, 1)`. Its determinant is `-64`, it has an explicit inverse when `2 ≠ 0`,
+and it is MDS exactly when `2, 3, 5, 7, 11, 13, 19` and `23` are nonzero (`hlMat4_isMDS_iff`), so
+its branch number is then at least `5` (`hlMat4_isBranchBound`), exactly `5` over BN254
+([`Checks/AztecBN254.lean`](WideTrail/Poseidon2/Checks/AztecBN254.lean)).
+
+#### [`AztecBN254.lean`](WideTrail/Poseidon2/AztecBN254.lean), [`AztecBN254Execution.lean`](WideTrail/Poseidon2/AztecBN254Execution.lean), [`Checks/AztecBN254.lean`](WideTrail/Poseidon2/Checks/AztecBN254.lean)
+The width-four BN254 permutation of barretenberg (aztec-packages v1.0.0 and v6.1.0) and of
+Noir v1.0.0: the BN254 field and `x^5`, `hlMat4` as the external layer, `diag(d) + J` as the
+internal layer with the stored array `d` (the matrix's diagonal entries are `d_i + 1`), and
+`4 + 56 + 4` rounds. Bijectivity; external branch number exactly 5; exactly `4 - r` inactive
+dimensions; at least 20 charged S-boxes from the full rounds and 34 with the partial rounds;
+trail exponents 5020 and 8534, or 8554 with the exact ratio; differential exponent 1006. The
+runner transcribes the code's loop and addition chain and is proved equal to the specification.
+The checks prove the published known-answer vectors of barretenberg, bb.js and Noir, seven
+distinct inputs, and four negative controls: the transposed matrix, `diag(d + 1) + J`,
+`diag(d - 1) + J`, and no initial layer.
 
 #### [`Plonky3.lean`](WideTrail/Poseidon2/Plonky3.lean)
 The width-sixteen Plonky3 permutation over any field. The external layer is proved
@@ -447,6 +550,42 @@ dimensions of differences stay inactive through them (`finrank_partial_inactive`
 tables equal 0.4.3's, so it tests the deployed constants. Six negative controls fail that
 vector.
 
+#### [`Plonky3MiddleBound.lean`](WideTrail/Poseidon2/Plonky3MiddleBound.lean)
+The width-sixteen results with any middle bound `μ` for `diag d + J` in place of the window
+term: at least `32 + μ` charged S-boxes, and the trail bounds in whole-bit, exact and sharp
+form. A bound for `diag d + J` holds for `c (diag d + J)` with `c ≠ 0`
+(`Diag.middleBound_internal`), so it applies to SP1's layer with its factor `R⁻¹`.
+
+#### [`KoalaBearMiddle.lean`](WideTrail/Poseidon2/KoalaBearMiddle.lean), [`PicoKoalaBearMiddle.lean`](WideTrail/Poseidon2/PicoKoalaBearMiddle.lean), [`Certificates/KoalaBearRelations.lean`](WideTrail/Poseidon2/Certificates/KoalaBearRelations.lean), [`Certificates/PicoKoalaBearRelations.lean`](WideTrail/Poseidon2/Certificates/PicoKoalaBearRelations.lean), [`Checks/KoalaBearMiddle.lean`](WideTrail/Poseidon2/Checks/KoalaBearMiddle.lean)
+Every trail through the twenty partial rounds of SP1's and of Pico's KoalaBear permutation
+charges at least 3 S-boxes (`middle_bound`, `internal_middle_bound`), by a window-relation
+certificate: a chain of length 16 gives four relations, which refute each of the 20 single
+rounds and 190 pairs. So every distinct input pair incurs at least 35 charged S-boxes
+(`activity_middle`), superseding 33 as a lower bound; the trail exponents are 1015 (29 bits per
+S-box) and 1049 (exact ratio). The checks exhibit a trail with active partial rounds 0, 2 and 4,
+so 3 is the largest middle bound for these rounds, show that 1050 fails, and reject a certificate
+with one changed multiplier.
+
+#### [`BN254MiddleSharp.lean`](WideTrail/Poseidon2/BN254MiddleSharp.lean), [`Certificates/BN254Automaton.lean`](WideTrail/Poseidon2/Certificates/BN254Automaton.lean), [`Checks/BN254MiddleSharp.lean`](WideTrail/Poseidon2/Checks/BN254MiddleSharp.lean)
+Every trail through the 56 partial rounds of the BN254 width-three permutation charges at least
+27 S-boxes (`middle_bound`), by a 57-state automaton with start potential 2. So every trail in
+the `IsTrail` model through the 64 rounds, and every distinct input pair, incurs at least 43
+charged S-boxes (`isTrail_activity_middle_general`, `activity_middle`), superseding 34 as a
+lower bound; the trail exponents are 10793 and 10818. The checks exhibit a 56-round trail with 27
+active rounds, so 27 is the largest middle bound, and a 64-round trail in the `IsTrail` model
+that charges exactly 43, so 43 is the least over all such trails; 10819 fails, and four changed
+certificates are rejected.
+
+#### [`AztecBN254Middle.lean`](WideTrail/Poseidon2/AztecBN254Middle.lean), [`Certificates/AztecBN254Automaton.lean`](WideTrail/Poseidon2/Certificates/AztecBN254Automaton.lean), [`Checks/AztecBN254Middle.lean`](WideTrail/Poseidon2/Checks/AztecBN254Middle.lean)
+Every trail through fourteen consecutive partial rounds of the Aztec and Noir width-four
+permutation charges at least 6 S-boxes (`middle_bound_window`), by a 255-state automaton with
+start potential 3, so the 56 partial rounds charge at least 24 (`middle_bound`), and every
+distinct input pair incurs at least 44 (`activity_middle`), superseding 34 as a lower bound; the
+trail exponents are 11044 and 11070. The checks show that 6 is the largest bound for a window of
+fourteen, that 28 is not a middle bound for the 56 partial rounds, and that a trail in the
+`IsTrail` model charges 47. A computation outside Lean, not checked in Lean, finds that the least
+count for the 56 partial rounds is 27, which would give 47.
+
 #### [`Checks`](WideTrail/Poseidon2/Checks/)
 Why each exponent and margin is what it is, which hypotheses cannot be dropped, and
 end-to-end runs. The uniformity (2 and 6), the external branch number (8) and the window
@@ -459,7 +598,59 @@ samples read as canonical values. The pinned-constant outputs are regression val
 an outside model, since no published vector exists for either SP1 instance. The Pico
 and OpenVM checks repeat the cheap exactness facts of the SP1 checks (uniformity, branch
 number, window, sharp exponents), so they do not need the memory-heavy SP1 check modules.
+`MiddleBound.lean` re-derives the counts 33 (KoalaBear) and 34 (BN254) and the exponents 989 and
+8554 through the middle-bound interface, with their statements unchanged.
 `Axioms.lean` pins the axiom footprints of the certificates.
+
+---
+
+### Poseidon layer: Starknet's HADES permutation
+
+#### [`StarkPrimality.lean`](WideTrail/Poseidon/StarkPrimality.lean), [`StarknetConstants.lean`](WideTrail/Poseidon/StarknetConstants.lean)
+The STARK prime `p = 2^251 + 17 · 2^192 + 1`, prime by a Lucas certificate with witness 3
+(`p - 1 = 2^192 · 5 · 7 · 98714381 · 166848103`), and the round constants as literals: the
+`91 × 3` table `C[i][j] = sha256("Hades" ++ str(3i + j)) mod p` and the 107 compressed constants.
+That the literals follow the SHA-256 rule and match four pinned tables was checked outside Lean.
+
+#### [`Starknet.lean`](WideTrail/Poseidon/Starknet.lean)
+The permutation: `x^3` (differential uniformity exactly 2), the matrix
+`M = [[3, 1, 1], [1, -1, 1], [1, 1, -2]] = diag(2, -2, -3) + J` in every round, MDS with
+`det M = 8`, no initial linear layer, and the partial-round S-box on coordinate 2. Bijectivity; at
+least 16 charged S-boxes from the full rounds and 43 with the partial rounds (window 3, exactly
+`3 - r` inactive dimensions); trail exponents 4000 and 10750, which the exact ratio does not
+improve; differential exponent 750. Each bijectivity, activity, trail and differential
+statement has a `_general` form for every round-constant table.
+
+#### [`ConstantFolding.lean`](WideTrail/Poseidon/ConstantFolding.lean), [`StarknetCompressed.lean`](WideTrail/Poseidon/StarknetCompressed.lean)
+A generic lemma: constants off the S-box coordinates can be pushed through the linear layer into
+the next round without changing the computed function (`execute_eq_of_fold`,
+`hadesSchedule_execute_eq_of_fold`). With it, the compressed schedule of lambdaworks-crypto,
+starknet-types-core, cairo-vm and pathfinder computes the same permutation for every input
+(`compressedPermutation_eq`), the two schedules give the same state when the same additional key
+is added to both (`keyed_compressed_eq`), and their independent-key trail counts are equal
+(`keyCount_compressed_eq`).
+
+#### [`StarknetExecution.lean`](WideTrail/Poseidon/StarknetExecution.lean), [`Checks/Starknet.lean`](WideTrail/Poseidon/Checks/Starknet.lean)
+A materialised runner written after cairo-lang's loop, proved equal to the specification. The
+checks prove the three permutation-level vectors the sources publish, `(0, 0, 0)` (pathfinder,
+CryptoExperts), `(9, 11, 2)` (starknet-types-core, lambdaworks) and `(1, 2, 3)` (the Cairo
+corelib), for both schedules, and negative controls: the S-box on coordinate 0, the `+2` matrix
+of a code comment, an extra initial layer, the partial rounds with only the coordinate-2
+constant, and a transposed table. They also show that the branch number is exactly 4 and that
+each exponent plus one fails.
+
+#### [`Certificates/StarknetAutomaton.lean`](WideTrail/Poseidon/Certificates/StarknetAutomaton.lean), [`StarknetMiddle.lean`](WideTrail/Poseidon/StarknetMiddle.lean), [`Checks/StarknetMiddle.lean`](WideTrail/Poseidon/Checks/StarknetMiddle.lean)
+Every trail through the 83 partial rounds charges at least 41 S-boxes (`middle_bound`), by an
+84-state automaton with start potential 2. So every trail in the `IsTrail` model through the 91
+rounds, and every distinct input pair, incurs at least 57 charged S-boxes
+(`isTrail_activity_middle_general`, `activity_middle`), superseding 43 as a lower bound; the trail
+exponent is 14250, in whole bits and with the exact ratio. The checks exhibit an 83-round trail
+with 41 active rounds and a 91-round trail in the `IsTrail` model that charges exactly 57, show
+that 14251 fails, and reject two changed certificates.
+
+#### [`Checks/Axioms.lean`](WideTrail/Poseidon/Checks/Axioms.lean)
+Pins the axiom footprints of the Starknet certificate, the folding lemmas, the compressed
+schedule, the runner and the checks.
 
 ---
 
