@@ -21,6 +21,9 @@ import WideTrail.Linear.GF256Trace
 import WideTrail.Linear.AESSbox
 import WideTrail.Linear.Checks.AES
 import WideTrail.Linear.Checks.AESAxioms
+import WideTrail.Linear.AES
+import WideTrail.Linear.Checks.AESCipher
+import WideTrail.Linear.Checks.AESCipherAxioms
 
 /-!
 # Linear cryptanalysis: correlations, masks, trails and hulls
@@ -87,7 +90,25 @@ The correlation side of the wide-trail strategy, built from exact character sums
   `31`, without the hypothesis `b ≠ 0`, and on the spectrum at `28`; `32 · 2³ ≤ 256 < 32 · 2⁴`;
   the affine map not being a trace adjoint of itself; and `GF256.trace` equal to the functional
   `trA0` of `Checks.Conventions`;
-* `Checks.AESAxioms`: pinned axiom footprints for the AES S-box results.
+* `Checks.AESAxioms`: pinned axiom footprints for the AES S-box results;
+* `AES`: AES under the trace pairing. The field transpose `mixColumnsT` of `MixColumns` and
+  `aesLinT = ShiftRows⁻¹ ∘ mixColumnsT` are trace adjoints of `MixColumns` and of
+  `aesLin = MixColumns ∘ ShiftRows`. Masks are propagated forward by the specification
+  `aesMaskSpec` (from `aesSpec`), with the same `ShiftRows` and the column-wise
+  `(M⁻¹)ᵀ = circ(0e, 09, 0d, 0b)`; its linear layer is the inverse of `aesLinT`, and the backward
+  reading is `maskTrail_iff_backward`. The backward maps have branch number at least `5`, and
+  `MixColumns` and `aesLin` have linear branch number at least `5` (`isMDS_transpose_iff`). Every
+  4-, 10-, 12- and 14-round linear trail with a nonzero input mask has a trail correlation of at
+  most `2⁻⁷⁵`, `2⁻¹⁶⁵`, `2⁻²²⁵` and `2⁻²⁴⁰` in absolute value (at least `25`, `55`, `75` and `80`
+  active S-boxes, each at most `2⁻³`; `rounds_correlation` for every round count); the expected
+  linear probability over two rounds, and over any `R ≥ 2` rounds, is at most `2⁻²⁴` in the
+  independent-key model;
+* `Checks.AESCipher`: no linearity bound of the S-box clears `2⁴` per active S-box
+  (`32 · 2⁴ > 256`); a non-MDS mix (`circ(0, 1, 1, 1)`, symmetric and an involution, so also the
+  column layer of its own cipher's backward and forward mask maps) fails the branch hypotheses;
+  the branch bound `5` cannot be raised to `6`; the forward mask map is not the state map; the
+  hypotheses `T 0 ≠ 0` and `u ≠ 0` of the trail and hull bounds are needed;
+* `Checks.AESCipherAxioms`: pinned axiom footprints for the AES trail and hull results.
 
 Every module here stays under about 3.1 GB of memory.
 
@@ -95,18 +116,20 @@ Every module here stays under about 3.1 GB of memory.
 
 This file only imports the modules above and proves nothing itself. Apart from the 3-bit maps of
 the checks (`chi3` and `andNext`, each with linearity bound `4`) and the AES S-box (linearity
-bound `32` under the trace pairing, `AESSbox`), no S-box is shown to have a linearity bound, and
-no bound for a concrete cipher is proved in these modules: the trail and hull bounds take the
-S-box bound and the branch number as hypotheses and are instantiated only on toy ciphers. The AES
-S-box bound is a statement about one S-box; it is not combined here with a trail or hull bound of
-AES, and the bit-pairing linear approximation table of the S-box is not treated. The wide-trail
-specification of the toy (`Checks.ToySpec`) has columns of one bundle and branch number `1`, so
-its instances of the specification-level trail bounds show only that their hypotheses can be met
-together; the first instance with a meaningful activity bound is planned for AES. A trail bound
-bounds one summand of the fixed-key correlation; it is not a bound on the cipher's correlation
-for a fixed key. The hull bounds are averages over an additional independent uniform key per
-round. The claims, and the statements of what is not claimed, are those of the individual
-modules.
+bound `32` under the trace pairing, `AESSbox`), no S-box is shown to have a linearity bound.
+Apart from the toy ciphers of the checks, the only concrete cipher with trail and hull bounds here
+is AES (`AES`), under the trace pairing, with every round including `MixColumns` and no final
+whitening key; the bit-pairing linear approximation table of the S-box is not treated, no
+bit-pairing bound is derived (so the designers' four-round bound for bit masks is not proved), and
+Rijndael with a 256-bit block is not treated. A trail bound bounds one trail: one summand of the
+fixed-key correlation, the same in magnitude for every key; it is not a bound on the cipher's
+correlation for a fixed key. Activity counts are lower bounds and are not claimed to be attained.
+The hull bounds are averages over an additional independent uniform key per round; the AES bound
+`2⁻²⁴` is coarse (the exact maximum two-round expected linear probability given by Keliher and
+Sui, `≈ 1.638 · 2⁻²⁸`, is not proved here). The wide-trail specification of the toy
+(`Checks.ToySpec`) has columns of one bundle and branch number `1`, so its instances of the
+specification-level trail bounds show only that their hypotheses can be met together. The claims,
+and the statements of what is not claimed, are those of the individual modules.
 -/
 
 set_option autoImplicit false
