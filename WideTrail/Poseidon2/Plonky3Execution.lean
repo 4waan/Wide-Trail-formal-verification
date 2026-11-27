@@ -81,11 +81,12 @@ to it. It adds no claim about the Rust code beyond the transcriptions cited: `ma
 additions of `apply_mat4`, while the internal layer is the field-level reading of the Montgomery
 code described in the generic model, not a transcription of that code. The only diagonal
 identified with source code is `sp1DiagDense`. No security statement is made here. The activity
-counts of the generic model are lower bounds on charged S-boxes for actual input pairs, and its
-probability statements concern one trail in the model with an additional independent uniform key
-per round, not the permutation with fixed constants and not a differential. Nothing is said
-about subspace-trail resistance, algebraic attacks, sponge or duplex constructions, or
-equivalence with the Rust code or the AIR.
+counts of the generic model are lower bounds on charged S-boxes for actual input pairs; its
+trail-probability statements concern one trail, and its differential statements the
+key-averaged differential, both in the model with an additional independent uniform key per
+round; none concerns the permutation with its fixed constants. Nothing is said about
+subspace-trail resistance, algebraic attacks, sponge or duplex constructions, or equivalence
+with the Rust code or the AIR.
 -/
 
 set_option autoImplicit false
@@ -497,8 +498,6 @@ theorem roundDense_toState (hK : Conditions c) (rP : ℕ) (sbox : K ≃ K)
     (values : ℕ → Fin 16 → K) (n : ℕ) (x : Dense K) :
     (roundDense c rP sbox values n x).toState = (rounds hK rP sbox values n).apply x.toState :=
   Diag.roundDense_toState hK.toDiagDense rP sbox values n x
-
-/-! ### The runner against the specification -/
 
 /-- **The runner computes the specification state.** For every input, every round-constant
 table and every number `n` of rounds, the runner's state after `n` rounds is

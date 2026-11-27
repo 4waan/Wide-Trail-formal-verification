@@ -22,9 +22,10 @@ that skeleton over an arbitrary field `K` and for an arbitrary internal diagonal
 `d : Fin 16 → K` (the namespace `Diag`), and then specialises it to SP1's diagonal `sp1Diag`.
 Every condition on `K` and `d` is an explicit hypothesis that a concrete prime field and a
 literal diagonal discharge by `decide`; the generic layer fixes no field, diagonal, S-box, scale
-or constant table. A width-sixteen instance that runs this skeleton with another internal
-diagonal is covered by the `Diag` results once its field, diagonal and scale satisfy
-`Diag.Conditions`.
+or constant table. If a width-sixteen instance runs this skeleton with another internal
+diagonal, the `Diag` results apply to it, each under its stated hypotheses: `Diag.Conditions`
+for the schedule, plus the `m4Primes` hypothesis for the activity, trail and differential bounds,
+and an inactive-space hypothesis for the `_with_middle` forms.
 
 ## The model
 
@@ -39,9 +40,9 @@ coordinate `4 b + c` (`blockIndex`, Mathlib's `finProdFinEquiv`; `blockIndex_val
   `out[4 b + c] = (M4 x_b)[c] + ∑_{b'} (M4 x_{b'})[c]`, and `external_eq_mdsLight` identifies the
   layer with `mdsLight`, a transcription of those lines. It does not depend on the diagonal.
 * `Diag.internal d c hc hd hs`: `x_i ↦ c (d_i x_i + ∑_j x_j)` for a diagonal `d` and a scale
-  `c`, the linear equivalence `diagPlusOnesEquiv` of `WideTrail.Algebra.DiagPlusOnes`. It needs
-  `c ≠ 0`, `d i ≠ 0` for every `i`, and the Sherman–Morrison condition `1 + ∑_i 1/d_i ≠ 0`; when
-  `c` and every `d i` are nonzero the last condition is exact
+  `c`, the linear equivalence `diagPlusOnesEquiv` of `WideTrail.Algebra.DiagPlusOnes`. It takes
+  as hypotheses `c ≠ 0`, `d i ≠ 0` for every `i` and the Sherman–Morrison condition
+  `1 + ∑_i 1/d_i ≠ 0`; under the first two, the Sherman–Morrison condition is exact
   (`Poseidon2.diagPlusOnes_injective_iff`).
 * `Diag.Conditions d c` bundles `35 ≠ 0`, `d i ≠ 0`, `1 + ∑ 1/d_i ≠ 0` and `c ≠ 0`, under which
   both layers are invertible. `Diag.Conditions.of_mul_eq_one` derives it from a table `e` with
@@ -389,8 +390,10 @@ theorem roundValues_partialRowsAtZero (rP : ℕ) (ext : Fin 8 → Fin 16 → K)
 namespace Diag
 
 /-- **The internal layer for a diagonal `d`**: `x ↦ c (diag d + J) x`, so coordinate `i` of the
-image is `c (d_i x_i + ∑_j x_j)` (`Diag.internal_apply`). It is `diagPlusOnesEquiv`, invertible
-under `c ≠ 0`, `d i ≠ 0` for every `i` and `1 + ∑ 1/d_i ≠ 0` (`WideTrail.Algebra.DiagPlusOnes`). -/
+image is `c (d_i x_i + ∑_j x_j)` (`Diag.internal_apply`). It is `diagPlusOnesEquiv` of
+`WideTrail.Algebra.DiagPlusOnes`, and takes as hypotheses `c ≠ 0`, `d i ≠ 0` for every `i` and
+`1 + ∑ 1/d_i ≠ 0`; under the first two, the last is exact
+(`Poseidon2.diagPlusOnes_injective_iff`). -/
 def internal (d : Fin 16 → K) (c : K) (hc : c ≠ 0) (hd : ∀ i, d i ≠ 0)
     (hs : 1 + ∑ i, (d i)⁻¹ ≠ 0) : (Fin 16 → K) ≃ₗ[K] (Fin 16 → K) :=
   diagPlusOnesEquiv c d hc hd hs
@@ -820,12 +823,12 @@ theorem finrank_inactiveSpace_internal_eq (d : Fin 16 → K) (c : K) (hc : c ≠
   rw [internal_toLinearMap]
   exact h
 
-/-- **A repeated diagonal entry defeats every window.** If two diagonal entries `d i = d j`,
-`i ≠ j`, both off coordinate `0`, coincide, then `e_i - e_j` is an eigenvector of `diag d + J`
-with coordinate `0` equal to zero, so some nonzero difference stays inactive through `w`
-consecutive partial rounds for every `w`, and `Diag.activity_with_middle` applies with no window.
-This does not show that the conclusion of `Diag.activity_with_middle` fails; it shows only that
-this route charges the partial rounds nothing. -/
+/-- **A repeated diagonal entry defeats every window.** If `d i = d j` for two distinct indices
+`i, j ≠ 0`, then `e_i - e_j` is an eigenvector of `diag d + J` whose coordinate `0` is zero. So
+for every `w` some nonzero difference stays inactive through `w` consecutive partial rounds, and
+the hypothesis of `Diag.activity_with_middle` holds for no window. This does not show that the
+conclusion of `Diag.activity_with_middle` fails; it shows only that this route charges the
+partial rounds nothing. -/
 theorem inactiveSpace_ne_bot_of_not_injOn (h : ¬ Set.InjOn d {i | i ≠ 0}) (w : ℕ) :
     Hades.inactiveSpace (diagPlusOnes (1 : K) d) ({0} : Finset (Fin 16)) w ≠ ⊥ := by
   simp only [Set.InjOn, not_forall] at h
