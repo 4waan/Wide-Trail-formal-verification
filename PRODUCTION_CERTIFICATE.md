@@ -134,21 +134,20 @@ space. The theorem retains the original round-count arithmetic in its type;
 expanding the enormous key space. This statement does not concern the
 probability of a trail under the fixed public constants alone.
 
-With the internal rounds charged, the same independently keyed trail bound becomes
-`2^(-8534)` (`independent_key_probability_with_partial`, with the exponent
-evaluated by `probability_exponent_with_partial`). The sample space and the
-caveats above are unchanged. Both exponents are far past any attack threshold, so
-the larger one completes the accounting rather than changing a security conclusion.
-
-The whole-bit exponents charge 251 bits per S-box, from `4 * 2^251 <= p`. Keeping
-the ratio `p / 4` exact for each of the 34 charged S-boxes gives
+With the internal rounds charged, the independently keyed trail bound becomes
+`2^(-8554)`. Keeping the ratio `p / 4` exact for each of the 34 charged S-boxes gives
 `keyCount * p^34 <= 4^34 * |F^3|^64` for every nonzero trail
 (`independent_key_probability_exact`), and from it the exponent 8554
 (`independent_key_probability_sharp`, with `sharp_exponent_bound`).
 `BN254Checks.lean` shows that `2^8555 * 4^34 <= p^34` fails
 (`Checks.sharp_exponent_succ_fails`), so 8554 is the largest exponent this
-arithmetic gives. It is still an upper bound on the key-averaged probability of one
-trail, in the same sample space, and it is not claimed to be attained. No exact-ratio
+arithmetic gives. Rounding to a whole number of bits per S-box, 251 from
+`4 * 2^251 <= p`, gives the weaker `2^(-8534)`
+(`independent_key_probability_with_partial`, with the exponent evaluated by
+`probability_exponent_with_partial`). Both are upper bounds on the key-averaged
+probability of one trail, in the same sample space as above, and neither is claimed
+to be attained. Both exponents are far past any attack threshold, so the larger one
+completes the accounting rather than changing a security conclusion. No exact-ratio
 form of the 16-S-box bound `independent_key_probability` is stated.
 
 `BN254Middle.lean` also bounds a differential, the sum over all trails from a nonzero
@@ -281,14 +280,15 @@ KoalaBear:
   the full rounds and one from the twenty partial rounds (`activity`). As a lower bound this
   is superseded by 35 (`activity_middle`, in `KoalaBearMiddle.lean`; see
   [Counting more partial rounds](#counting-more-partial-rounds)).
-- The independently keyed trail bound has exponent 957 (`independent_key_probability`,
-  `probability_exponent`): 29 bits per charged S-box, the largest whole number with
-  `2 * 2^29 <= p` (`Checks.thirty_too_large`). Keeping the ratio `p / 2` exact gives
-  `keyCount * p^33 <= 2^33 * |F^16|^28` for every nonzero trail
+- The independently keyed trail bound has exponent 989. Keeping the ratio `p / 2`
+  exact gives `keyCount * p^33 <= 2^33 * |F^16|^28` for every nonzero trail
   (`independent_key_probability_exact`) and the exponent 989
   (`independent_key_probability_sharp`, with `sharp_exponent_bound`);
   `2^990 * 2^33 <= p^33` fails (`Checks.sharp_exponent_succ_fails`), so 989 is the
-  largest exponent this arithmetic gives.
+  largest exponent this arithmetic gives. Rounding to whole bits per S-box gives the
+  weaker exponent 957 (`independent_key_probability`, `probability_exponent`): 29 bits
+  per charged S-box, the largest whole number with `2 * 2^29 <= p`
+  (`Checks.thirty_too_large`).
 - The key-averaged differential over the 28 rounds that follow the initial external
   layer satisfies `diffKeyCount * p^7 <= 2^7 * |F^16|^28` for every nonzero input
   difference (`independent_key_differential_exact`), hence the exponent 209
@@ -307,14 +307,15 @@ BabyBear:
   `Checks.external_not_branch_nine`).
 - Every distinct input pair incurs at least 32 active S-box applications, all
   counted in the full rounds (`activity`). The independently keyed trail bound has
-  exponent 896 (`independent_key_probability`, `probability_exponent`): 28 bits per
-  charged S-box, the largest whole number with `6 * 2^28 <= p`
-  (`Checks.probability_margin_sharp`). Keeping the ratio `p / 6` exact gives
+  exponent 906. Keeping the ratio `p / 6` exact gives
   `keyCount * p^32 <= 6^32 * |F^16|^21` for every nonzero trail
   (`independent_key_probability_exact`) and the exponent 906
   (`independent_key_probability_sharp`, with `sharp_exponent_bound`);
   `2^907 * 6^32 <= p^32` fails (`Checks.sharp_exponent_succ_fails`), so 906 is the
-  largest exponent this arithmetic gives.
+  largest exponent this arithmetic gives. Rounding to whole bits per S-box gives the
+  weaker exponent 896 (`independent_key_probability`, `probability_exponent`): 28 bits
+  per charged S-box, the largest whole number with `6 * 2^28 <= p`
+  (`Checks.probability_margin_sharp`).
 - The key-averaged differential over the 21 rounds that follow the initial external
   layer satisfies `diffKeyCount * p^7 <= 6^7 * |F^16|^21` for every nonzero input
   difference (`independent_key_differential_exact`), hence the exponent 198
@@ -466,12 +467,12 @@ table.
 - No nonzero difference stays inactive through sixteen consecutive partial rounds, because
   the diagonal entries off coordinate 0 are pairwise distinct (`diag_injOn`). Exactly `16 - r`
   dimensions stay inactive through `r ≤ 16` rounds (`finrank_inactive_eq`).
-- Pico: at least 33 charged S-boxes per distinct input pair. The trail exponent is 957, or
-  989 with the exact ratio, and the two-round differential exponent is 209. These are the
+- Pico: at least 33 charged S-boxes per distinct input pair. The trail exponent is 989 with the
+  exact ratio, or 957 with whole bits per S-box, and the two-round differential exponent is 209. These are the
   numbers of SP1's KoalaBear instance, since they depend only on the field, the uniformity,
   the branch number, the window and the round numbers. `PicoKoalaBearMiddle.lean` raises the
   count to 35, as for SP1 (see [Counting more partial rounds](#counting-more-partial-rounds)).
-- OpenVM: at least 32. The trail exponent is 896, or 906 with the exact ratio, and the
+- OpenVM: at least 32. The trail exponent is 906 with the exact ratio, or 896 with whole bits, and the
   two-round differential exponent is 198. The thirteen partial rounds add nothing: exactly 3
   dimensions of differences stay inactive through them (`finrank_partial_inactive`), and the
   window term is zero for every window the criterion allows (`partial_window_term_eq_zero`).

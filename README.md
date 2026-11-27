@@ -168,16 +168,16 @@ reproduce the known-answer vectors of the upstream `p3-koala-bear` and `p3-baby-
 crates, with those tests' own round constants. The width-sixteen model takes the
 internal diagonal and its scale as parameters, so the same proofs also certify two
 other deployed permutations: Pico v3.2.0's KoalaBear permutation (at least 33 active
-S-boxes, exponents 957 and 989) and OpenVM v2.1.0's BabyBear permutation (at least 32,
-exponents 896 and 906). Each of these reproduces a known-answer vector from Plonky3's
+S-boxes, trail exponent 989, or 957 with whole bits per S-box) and OpenVM v2.1.0's BabyBear
+permutation (at least 32, exponent 906, or 896 with whole bits). Each of these reproduces a known-answer vector from Plonky3's
 own tests that uses the deployed round constants.
 Certificates for the partial rounds raise three of these counts, as lower bounds, with the
 earlier theorems unchanged: every trail through the twenty partial rounds of SP1's and Pico's
 KoalaBear permutations charges at least 3 S-boxes, so every distinct input pair incurs at least
-35 (trail exponents 1015, or 1049 with the exact ratio), and every trail through the 56 partial
+35 (trail exponent 1049, or 1015 with whole bits per S-box), and every trail through the 56 partial
 rounds of the BN254 width-three permutation charges at least 27, so every trail in the `IsTrail`
-model through its 64 rounds, and every distinct input pair, incurs at least 43 (exponents 10793
-and 10818), a total that some trail in the `IsTrail` model attains. BabyBear's thirteen partial
+model through its 64 rounds, and every distinct input pair, incurs at least 43 (exponent 10818,
+or 10793 with whole bits), a total that some trail in the `IsTrail` model attains. BabyBear's thirteen partial
 rounds, fewer than its width, still add nothing.
 The layer also certifies the width-four BN254 permutation of Aztec's barretenberg
 (aztec-packages v1.0.0 and v6.1.0) and of Noir v1.0.0: HorizenLabs' `4×4` matrix as the external
@@ -489,7 +489,8 @@ Noir v1.0.0: the BN254 field and `x^5`, `hlMat4` as the external layer, `diag(d)
 internal layer with the stored array `d` (the matrix's diagonal entries are `d_i + 1`), and
 `4 + 56 + 4` rounds. Bijectivity; external branch number exactly 5; exactly `4 - r` inactive
 dimensions; at least 20 charged S-boxes from the full rounds and 34 with the partial rounds;
-trail exponents 5020 and 8534, or 8554 with the exact ratio; differential exponent 1006. The
+trail exponent 8554 with the exact ratio, or 8534 with whole bits per S-box (5020 from the
+full rounds alone); differential exponent 1006. The
 runner transcribes the code's loop and addition chain and is proved equal to the specification.
 The checks prove the published known-answer vectors of barretenberg, bb.js and Noir, seven
 distinct inputs, and four negative controls: the transposed matrix, `diag(d + 1) + J`,
@@ -522,9 +523,9 @@ round count, so `decide` on the runner proves statements about the model. The ru
 #### [`KoalaBear.lean`](WideTrail/Poseidon2/KoalaBear.lean), [`BabyBear.lean`](WideTrail/Poseidon2/BabyBear.lean)
 The SP1 instances, with primality, the S-box, the Montgomery factor and the
 pinned constants. KoalaBear: no nonzero difference stays inactive through sixteen
-consecutive partial rounds, so at least 33 active S-boxes; trail exponent 957, or 989
-with the exact ratio. BabyBear: at least 32, trail exponent 896, or 906 with the exact
-ratio; its thirteen partial rounds add nothing, exactly 3 dimensions of differences stay
+consecutive partial rounds, so at least 33 active S-boxes and a trail exponent of 989
+(957 with whole bits per S-box). BabyBear: at least 32 and a trail exponent of 906 (896
+with whole bits); its thirteen partial rounds add nothing, exactly 3 dimensions of differences stay
 inactive through them, and some input pairs cross them without activating an S-box.
 Both: the diagonal criterion, exactly `16 - r` inactive dimensions, and key-averaged
 differential exponents 209 (KoalaBear) and 198 (BabyBear).
@@ -534,8 +535,8 @@ Pico v3.2.0's permutation, `default_koalabear_poseidon2_16()` of the Brevis Plon
 (crate version 0.5.4). It has SP1's field, S-box, external layer and round constants
 (`values_eq_sp1`) but a different internal layer: the fractional diagonal
 `(-2, 1, 2, 1/2, 3, 4, -1/2, -3, -4, 1/2^8, 1/8, 1/2^24, -1/2^8, -1/8, -1/16, -1/2^24)`
-with scale 1. At least 33 active S-boxes; trail exponent 957, or 989 with the exact
-ratio; differential exponent 209. `upstream_kat` reproduces Plonky3's
+with scale 1. At least 33 active S-boxes; trail exponent 989 with the exact ratio, or 957
+with whole bits per S-box; differential exponent 209. `upstream_kat` reproduces Plonky3's
 `test_default_koalabear_poseidon2_width_16`, which uses the deployed constants. Four
 negative controls fail that vector, among them SP1's permutation (`kat_fails_sp1`).
 
@@ -543,7 +544,7 @@ negative controls fail that vector, among them SP1's permutation (`kat_fails_sp1
 OpenVM v2.1.0's permutation, `default_babybear_poseidon2_16()` of upstream `p3-baby-bear`
 0.4.3. It has SP1 5.2.4's field, S-box and external layer, but HorizenLabs' round constants
 `RC16` (`values_eq_rc16`) and Plonky3's fractional BabyBear diagonal with scale 1. At
-least 32 active S-boxes; trail exponent 896, or 906 with the exact ratio; differential
+least 32 active S-boxes; trail exponent 906 with the exact ratio, or 896 with whole bits; differential
 exponent 198. As for SP1's BabyBear, the thirteen partial rounds add nothing: exactly 3
 dimensions of differences stay inactive through them (`finrank_partial_inactive`).
 `upstream_kat` reproduces Plonky3 v0.8.0's `test_default_babybear_poseidon2_width_16`, whose
@@ -561,8 +562,8 @@ Every trail through the twenty partial rounds of SP1's and of Pico's KoalaBear p
 charges at least 3 S-boxes (`middle_bound`, `internal_middle_bound`), by a window-relation
 certificate: a chain of length 16 gives four relations, which refute each of the 20 single
 rounds and 190 pairs. So every distinct input pair incurs at least 35 charged S-boxes
-(`activity_middle`), superseding 33 as a lower bound; the trail exponents are 1015 (29 bits per
-S-box) and 1049 (exact ratio). The checks exhibit a trail with active partial rounds 0, 2 and 4,
+(`activity_middle`), superseding 33 as a lower bound; the trail exponents are 1049 (exact ratio)
+and 1015 (29 bits per S-box). The checks exhibit a trail with active partial rounds 0, 2 and 4,
 so 3 is the largest middle bound for these rounds, show that 1050 fails, and reject a certificate
 with one changed multiplier.
 
@@ -571,7 +572,7 @@ Every trail through the 56 partial rounds of the BN254 width-three permutation c
 27 S-boxes (`middle_bound`), by a 57-state automaton with start potential 2. So every trail in
 the `IsTrail` model through the 64 rounds, and every distinct input pair, incurs at least 43
 charged S-boxes (`isTrail_activity_middle_general`, `activity_middle`), superseding 34 as a
-lower bound; the trail exponents are 10793 and 10818. The checks exhibit a 56-round trail with 27
+lower bound; the trail exponents are 10818 (exact ratio) and 10793 (whole bits). The checks exhibit a 56-round trail with 27
 active rounds, so 27 is the largest middle bound, and a 64-round trail in the `IsTrail` model
 that charges exactly 43, so 43 is the least over all such trails; 10819 fails, and four changed
 certificates are rejected.
@@ -581,7 +582,7 @@ Every trail through fourteen consecutive partial rounds of the Aztec and Noir wi
 permutation charges at least 6 S-boxes (`middle_bound_window`), by a 255-state automaton with
 start potential 3, so the 56 partial rounds charge at least 24 (`middle_bound`), and every
 distinct input pair incurs at least 44 (`activity_middle`), superseding 34 as a lower bound; the
-trail exponents are 11044 and 11070. The checks show that 6 is the largest bound for a window of
+trail exponents are 11070 (exact ratio) and 11044 (whole bits). The checks show that 6 is the largest bound for a window of
 fourteen, that 28 is not a middle bound for the 56 partial rounds, and that a trail in the
 `IsTrail` model charges 47. A computation outside Lean, not checked in Lean, finds that the least
 count for the 56 partial rounds is 27, which would give 47.
