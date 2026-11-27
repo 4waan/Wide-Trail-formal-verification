@@ -16,6 +16,11 @@ import WideTrail.Linear.Checks.Toy
 import WideTrail.Linear.Checks.ToyNat
 import WideTrail.Linear.Checks.ToySpec
 import WideTrail.Linear.Checks.TrailAxioms
+import WideTrail.Linear.AESSpectrum
+import WideTrail.Linear.GF256Trace
+import WideTrail.Linear.AESSbox
+import WideTrail.Linear.Checks.AES
+import WideTrail.Linear.Checks.AESAxioms
 
 /-!
 # Linear cryptanalysis: correlations, masks, trails and hulls
@@ -65,23 +70,43 @@ The correlation side of the wide-trail strategy, built from exact character sums
   bound instantiated; the bridge failing without bijective S-boxes, as a typed statement about
   `IsTrail`; the two-round bound failing at the zero masks and with a smaller linearity bound;
   and the fixed-key expansion failing under a non-separating pairing;
-* `Checks.TrailAxioms`: pinned axiom footprints for the trail and hull results.
+* `Checks.TrailAxioms`: pinned axiom footprints for the trail and hull results;
+* `AESSpectrum`: on natural numbers, with no imports: for the truth table `gTab` of
+  `z ↦ Tr(z⁻¹)` on `GF(2⁸)`, `|256 - 2 · mism w 256| ≤ 32` for every mask `w < 256`, checked by
+  the kernel in four chunks; the value `32` is attained, and the check fails with `28`;
+* `GF256Trace`: the trace of `GF(2⁸)` as the functional with mask `0xA0`, equal on every byte to
+  the absolute trace `z + z² + ⋯ + z¹²⁸`; the table of `z ↦ trace z⁻¹`; the mask `phi c` of
+  `z ↦ trace (c * z)`;
+* `AESSbox`: the trace pairing of `GF(2⁸)` (separating), a trace adjoint of the linear part of the
+  S-box's affine map, the reduction of every Walsh value of the AES S-box at a nonzero output
+  mask to the spectrum of `AESSpectrum`, and the linearity bound `32` of the S-box under the trace
+  pairing (`AES.sbox_isLinearityBound`, so every such correlation is at most `2⁻³` in absolute
+  value), attained at `(0x55, 0x01)`, so that `32` is the least linearity bound under this
+  pairing;
+* `Checks.AES`: the witness `-32` evaluated directly from the definition; the bound failing at
+  `31`, without the hypothesis `b ≠ 0`, and on the spectrum at `28`; `32 · 2³ ≤ 256 < 32 · 2⁴`;
+  the affine map not being a trace adjoint of itself; and `GF256.trace` equal to the functional
+  `trA0` of `Checks.Conventions`;
+* `Checks.AESAxioms`: pinned axiom footprints for the AES S-box results.
 
 Every module here stays under about 3.1 GB of memory.
 
 ## What is not claimed
 
 This file only imports the modules above and proves nothing itself. Apart from the 3-bit maps of
-the checks (`chi3` and `andNext`, each with linearity bound `4`), no S-box is shown to have a
-linearity bound, and no bound for a concrete cipher is proved in these modules: the trail and hull
-bounds take the S-box bound and the branch number as hypotheses and are instantiated only on toy
-ciphers. The wide-trail specification of the toy (`Checks.ToySpec`) has columns of one bundle and
-branch number `1`, so its instances of the specification-level trail bounds show only that their
-hypotheses can be met together; the first instance with a meaningful activity bound is planned
-for AES. A trail bound bounds one summand of the fixed-key correlation; it is not a bound on the
-cipher's correlation for a fixed key. The hull bounds are averages over an additional independent
-uniform key per round. The claims, and the statements of what is not claimed, are those of the
-individual modules.
+the checks (`chi3` and `andNext`, each with linearity bound `4`) and the AES S-box (linearity
+bound `32` under the trace pairing, `AESSbox`), no S-box is shown to have a linearity bound, and
+no bound for a concrete cipher is proved in these modules: the trail and hull bounds take the
+S-box bound and the branch number as hypotheses and are instantiated only on toy ciphers. The AES
+S-box bound is a statement about one S-box; it is not combined here with a trail or hull bound of
+AES, and the bit-pairing linear approximation table of the S-box is not treated. The wide-trail
+specification of the toy (`Checks.ToySpec`) has columns of one bundle and branch number `1`, so
+its instances of the specification-level trail bounds show only that their hypotheses can be met
+together; the first instance with a meaningful activity bound is planned for AES. A trail bound
+bounds one summand of the fixed-key correlation; it is not a bound on the cipher's correlation
+for a fixed key. The hull bounds are averages over an additional independent uniform key per
+round. The claims, and the statements of what is not claimed, are those of the individual
+modules.
 -/
 
 set_option autoImplicit false
