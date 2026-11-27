@@ -29,7 +29,8 @@ python3 scripts/check_imports.py         # every module is reachable from a libr
 
 The default library leaves out three check modules that evaluate whole width-16 Poseidon2
 permutations in the kernel. Each needs 7 to 12 GB of memory to elaborate, so they live in a
-separate library, `WideTrailHeavy`. Lake builds independent modules in parallel, so build
+separate library, `WideTrailHeavy`. That library also holds `Linear/Field.lean`, the one module
+that imports `Mathlib.Analysis` (about 3.4 GB, almost all of it that import). Lake builds independent modules in parallel, so build
 them one at a time:
 
 ```bash
@@ -40,10 +41,9 @@ lake build WideTrailHeavy
 lake env lean scripts/AuditAxiomsHeavy.lean      # the audit with these checks included
 ```
 
-No module of the default library measured above about 3.5 GB. The largest are
-`Linear/Field.lean`, the only module that imports `Mathlib.Analysis` (about 3.4 GB, almost all
-of it that import), and the aggregator `WideTrail.Linear` and the root `WideTrail`, which import
-it (about 3.5 GB each); the axiom audits load the same and peak at about 3.5 GB. Lake runs one
+No module of the default library measured above about 3.3 GB; the largest are
+`Poseidon/StarknetCompressed.lean` and the Aztec automaton certificate
+(`Poseidon2/Certificates/AztecBN254Automaton.lean`), at about 3.2 GB each. Lake runs one
 Lean process per core, so the peak of the default build grows with the number of cores.
 
 To cite this project, see [`CITATION.cff`](CITATION.cff).
@@ -249,7 +249,7 @@ bound on a Walsh value of `x ↦ x^d` over a prime field (such as the Weil bound
 
 Named theorem footprints are pinned by `#print axioms`. The complete module audit in
 `scripts/AuditAxiomsHeavy.lean` checks every project declaration (9254 at this revision),
-including names in the root namespace (`scripts/AuditAxioms.lean` does the same for the 7110
+including names in the root namespace (`scripts/AuditAxioms.lean` does the same for the 7097
 declarations of the default library). Both allow nothing beyond the standard
 `propext, Classical.choice, Quot.sound` baseline: no `sorry`, no `native_decide`, no
 `bv_decide` fallback axiom, anywhere. See
@@ -785,7 +785,7 @@ Lower bounds only; the trail bounds take the S-box correlation bound as a hypoth
 For `ZMod p`: the standard character `ZMod.stdAddChar` is separating for the multiplication
 pairing and has values of norm `1`, and the HADES results are restated in norm form. No bound on
 a Walsh value of `x ↦ x^d` (such as the Weil bound) is proved. It is the only module that imports
-`Mathlib.Analysis`, and only the aggregator imports it.
+`Mathlib.Analysis`, so it belongs to `WideTrailHeavy`, not to the default library.
 
 #### [`Checks`](WideTrail/Linear/Checks/)
 `Character.lean` recomputes (W1), (W6) and Parseval on the 3-bit χ map and shows that

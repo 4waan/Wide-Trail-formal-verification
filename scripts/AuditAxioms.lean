@@ -13,7 +13,7 @@ The defining module identifies project declarations even when their names live
 in the root namespace. Every axiom is collected transitively through imports.
 
 This audits the default library `WideTrail`. `AuditAxiomsHeavy.lean` audits
-`WideTrailHeavy`, which adds the three memory-heavy check modules.
+`WideTrailHeavy`, which adds the three memory-heavy check modules and `Linear/Field.lean`.
 -/
 
 open Lean Elab Command in

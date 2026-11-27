@@ -478,8 +478,8 @@ the multiplication pairing (`Linear.mulPairing_separating`), its values have nor
 (`Linear.norm_stdAddChar`), and the HADES results are restated for it in norm form
 (`Hades.hades_linear_bound_norm`, `Hades.isLinBranchBound_iff_maskLin_std`). Those facts need
 `Mathlib.Analysis`, about 3.4 GB of memory to load, so `Field.lean` is the only module that
-imports it, and no module with results imports `Field.lean`; only the aggregator
-`WideTrail.Linear` does, so that the library root reaches it. Every instance field is `ZMod p`
+imports it, and it belongs to the library `WideTrailHeavy`: no module of the default library
+imports it. Every instance field is `ZMod p`
 for a proved prime `p`, so `Linear.mulPairing_separating` discharges the separation hypothesis
 of the instance theorems; they are not restated with that character.
 

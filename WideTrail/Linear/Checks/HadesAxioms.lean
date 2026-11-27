@@ -15,10 +15,9 @@ Each `#guard_msgs` below fixes the exact output of `#print axioms` for one resul
 Every footprint is `[propext, Classical.choice, Quot.sound]`, so none of these results uses
 `sorryAx` or `Lean.ofReduceBool`.
 
-`Linear/Field.lean` is not pinned here: it is the only module of this library that imports
-`Mathlib.Analysis`, and no module with results imports it; only the aggregator `WideTrail.Linear`
-does, so that the library root reaches it. The module-based audit `scripts/AuditAxioms.lean`,
-which imports the whole default library, covers its declarations.
+`Linear/Field.lean` is not pinned here: it is the only module that imports `Mathlib.Analysis`,
+and it belongs to the library `WideTrailHeavy`, not to the default library. The module-based
+audit `scripts/AuditAxiomsHeavy.lean` covers its declarations.
 
 These guards record which axioms the proofs use; they say nothing about the statements
 themselves.

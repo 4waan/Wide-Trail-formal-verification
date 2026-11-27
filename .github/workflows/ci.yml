@@ -37,7 +37,8 @@ jobs:
           build: false
 
       # The default library. It leaves out the three memory-heavy check
-      # modules, so this is the build a laptop runs.
+      # modules and Linear/Field.lean (the one module that loads
+      # Mathlib.Analysis), so this is the build a laptop runs.
       - name: Build the default library
         run: lake build
 

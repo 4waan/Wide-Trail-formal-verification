@@ -17,12 +17,12 @@ form of the identity; on states its bundle sum is the dot product), the standard
 discharges the hypotheses of the generic results for these choices and states the HADES results
 in norm form.
 
-This is the only module of this library that imports `Mathlib.Analysis` (for `ZMod.stdAddChar`
-and the norm of `ℂ`; about 3.4 GB of memory to elaborate, almost all of it that import). No module
-with results imports it: only the aggregator `WideTrail.Linear` does, so that the library root
-reaches it, and the aggregator and the root then load `Mathlib.Analysis` as well (about 3.5 GB
-each). `Linear/Hades.lean`, `Linear/Poseidon2.lean` and `Linear/Poseidon.lean` state their
-results for every separating character and absolute value; with the facts below they apply to
+This is the only module of the project that imports `Mathlib.Analysis` (for `ZMod.stdAddChar` and
+the norm of `ℂ`; about 3.4 GB of memory to elaborate, almost all of it that import). No module of
+the default library imports it: the library `WideTrailHeavy` does, so that the default library
+never loads `Mathlib.Analysis`, and `scripts/AuditAxiomsHeavy.lean` audits its declarations.
+`Linear/Hades.lean`, `Linear/Poseidon2.lean` and `Linear/Poseidon.lean` state their results for
+every separating character and absolute value; with the facts below they apply to
 `ZMod.stdAddChar` and the norm.
 
 ## What is proved

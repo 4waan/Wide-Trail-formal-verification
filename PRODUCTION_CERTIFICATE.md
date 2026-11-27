@@ -1065,17 +1065,18 @@ equivalence. The immutable source, constants, model conventions, and these
 boundaries are part of the certificate's meaning.
 
 Every module is imported by `WideTrail` or, for the three memory-heavy check modules
-(`Poseidon2/Checks/Plonky3.lean`, `KoalaBear.lean`, `BabyBear.lean`), by `WideTrailHeavy`.
-`scripts/check_imports.py` finds 145 modules, all reachable from the two roots: the default
-library `WideTrail` builds 141 of them (its root and the 140 modules it imports, the layers
-`Propagation`, `Algebra`, `Differential`, `Hades`, `Poseidon2`, `Poseidon` and `Linear`), and
-`WideTrailHeavy` adds the three memory-heavy check modules and its own root. Every module of the
-default library peaks at about 3.5 GB or less: `Linear/Field.lean`, the only module that imports
-`Mathlib.Analysis`, at about 3.4 GB, and the aggregator `WideTrail.Linear` and the root
-`WideTrail`, which import it, at about 3.5 GB. The complete declaration audit in
-`scripts/AuditAxiomsHeavy.lean` covers both libraries (9254 project declarations at this
-revision), `scripts/AuditAxioms.lean` covers the default library (7110), and both permit only
-the existing standard axioms: `propext`, `Classical.choice`, and `Quot.sound`.
+(`Poseidon2/Checks/Plonky3.lean`, `KoalaBear.lean`, `BabyBear.lean`) and `Linear/Field.lean`,
+by `WideTrailHeavy`. `scripts/check_imports.py` finds 145 modules, all reachable from the two
+roots: the default library `WideTrail` builds 140 of them (its root and the 139 modules it
+imports, the layers `Propagation`, `Algebra`, `Differential`, `Hades`, `Poseidon2`, `Poseidon`
+and `Linear`), and `WideTrailHeavy` adds the three memory-heavy check modules,
+`Linear/Field.lean` and its own root. `Linear/Field.lean` is the only module that imports
+`Mathlib.Analysis` (about 3.4 GB of memory, almost all of it that import); keeping it out of the
+default library keeps every module there at about 3.3 GB or less, and the default root and its
+audit at about 2.5 GB. The complete declaration audit in `scripts/AuditAxiomsHeavy.lean` covers
+both libraries (9254 project declarations at this revision), `scripts/AuditAxioms.lean` covers
+the default library (7097), and both permit only the existing standard axioms: `propext`,
+`Classical.choice`, and `Quot.sound`.
 
 ## Independent implementation checks
 

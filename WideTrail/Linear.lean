@@ -27,7 +27,6 @@ import WideTrail.Linear.Checks.AESCipherAxioms
 import WideTrail.Linear.Hades
 import WideTrail.Linear.Poseidon2
 import WideTrail.Linear.Poseidon
-import WideTrail.Linear.Field
 import WideTrail.Linear.Checks.Hades
 import WideTrail.Linear.Checks.HadesAxioms
 
@@ -141,18 +140,18 @@ The correlation side of the wide-trail strategy, built from exact character sums
   automaton certificate;
 * `Field`: for `ZMod p`, the standard character `ZMod.stdAddChar` is separating for the
   multiplication pairing and has values of norm `1`, so the results above hold with it and with
-  the norm of `ℂ`, stated in norm form for HADES rounds. It is the only module of this library
-  that imports `Mathlib.Analysis`, and no module with results imports it: only this file does,
-  so that the library root reaches it;
+  the norm of `ℂ`, stated in norm form for HADES rounds. It is the only module here that imports
+  `Mathlib.Analysis`, so this file does not import it: the library `WideTrailHeavy` does, and the
+  default library never loads `Mathlib.Analysis`;
 * `Checks.Hades`: `walsh_masked` and the bridge failing under a non-separating character; the
   zero trail, whose correlation is nonzero and which charges no S-box, so the hypothesis
   `T 0 ≠ 0` of the activity bounds is needed; the forward mask map of the BN254 external layer is
   not the layer;
 * `Checks.HadesAxioms`: pinned axiom footprints for the HADES and Poseidon results.
 
-Every module here stays under about 3.1 GB of memory, except `Field` (about 3.4 GB, almost all
-of it the `Mathlib.Analysis` import). Because this file imports `Field`, this aggregator and the
-library root `WideTrail` also load `Mathlib.Analysis` and reach about 3.5 GB.
+Every module this file imports stays under about 3.1 GB of memory. `Field` needs about 3.4 GB,
+almost all of it the `Mathlib.Analysis` import; it belongs to `WideTrailHeavy` and is audited by
+`scripts/AuditAxiomsHeavy.lean`.
 
 ## What is not claimed
 

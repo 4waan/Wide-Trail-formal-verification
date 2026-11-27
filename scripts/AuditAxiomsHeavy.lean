@@ -12,8 +12,8 @@ import Lean.Util.CollectAxioms
 The defining module identifies project declarations even when their names live
 in the root namespace. Every axiom is collected transitively through imports.
 
-This audits `WideTrailHeavy`: all of `WideTrail` and the three memory-heavy check
-modules. Build them first, one at a time (see `WideTrailHeavy.lean`).
+This audits `WideTrailHeavy`: all of `WideTrail`, the three memory-heavy check
+modules and `Linear/Field.lean`. Build them first, one at a time (see `WideTrailHeavy.lean`).
 -/
 
 open Lean Elab Command in
