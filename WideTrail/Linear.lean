@@ -24,6 +24,12 @@ import WideTrail.Linear.Checks.AESAxioms
 import WideTrail.Linear.AES
 import WideTrail.Linear.Checks.AESCipher
 import WideTrail.Linear.Checks.AESCipherAxioms
+import WideTrail.Linear.Hades
+import WideTrail.Linear.Poseidon2
+import WideTrail.Linear.Poseidon
+import WideTrail.Linear.Field
+import WideTrail.Linear.Checks.Hades
+import WideTrail.Linear.Checks.HadesAxioms
 
 /-!
 # Linear cryptanalysis: correlations, masks, trails and hulls
@@ -108,28 +114,68 @@ The correlation side of the wide-trail strategy, built from exact character sums
   column layer of its own cipher's backward and forward mask maps) fails the branch hypotheses;
   the branch bound `5` cannot be raised to `6`; the forward mask map is not the state map; the
   hypotheses `T 0 ≠ 0` and `u ≠ 0` of the trail and hull bounds are needed;
-* `Checks.AESCipherAxioms`: pinned axiom footprints for the AES trail and hull results.
+* `Checks.AESCipherAxioms`: pinned axiom footprints for the AES trail and hull results;
+* `Hades`: HADES rounds `x ↦ L (S_mask (x + c))` over a field `K`, under the pairing
+  `⟨u, x⟩ = ℓ (u ⬝ᵥ x)` for any `ℓ : K →+ G`. Masks move forward through
+  `maskLin L = (Lᵀ)⁻¹` (`maskLin_dotProduct`), and `maskSchedule` replaces every layer by its
+  forward mask map. For a separating character into a domain: the Walsh value of a masked S-box
+  layer (`walsh_masked`); the trail correlation `linCorr` and its fixed-key expansion; the Walsh
+  value of the permutation with its fixed constants as the sum of the trail correlations; the
+  bridge from a nonzero trail correlation to `Hades.IsTrail` of the mask schedule, and the
+  equivalent backward reading through `Lᵀ` (`isTrail_maskSchedule_iff_backward`); inactive spaces
+  and middle bounds of `L` transfer to `L⁻¹` (`inactiveSpace_symm_eq_bot_iff`,
+  `MiddleBound.symm`); the linear activity of a HADES schedule from branch numbers and a middle
+  bound of the forward mask maps; the linear branch number of a layer as the branch number of
+  its forward mask map (when `|Idx → K| ≠ 0` in `R`); and, for an absolute value that is `1` on
+  the character, the trail bound `abv (linCorr) · |K| ^ A ≤ c ^ A · |Idx → K| ^ r` with the S-box
+  correlation bound `c` a hypothesis. It imports no `Mathlib.Analysis` module;
+* `Poseidon2`: for the pinned Poseidon2 instances, every linear trail of the rounds after the
+  initial external layer with a nonzero input mask and a nonzero correlation charges at least the
+  same number of S-boxes as the differential counts: `33` and, with the relation certificates,
+  `35` (SP1 and Pico KoalaBear); `32` (SP1 and OpenVM BabyBear); `34` and, with the automaton
+  certificates, `43` (HorizenLabs BN254, width `3`) and `44` (Aztec BN254, width `4`). The
+  external layers have linear branch number at least `8`, `4` and `5`; the trail bounds take the
+  S-box correlation bound as a hypothesis; the permutation's Walsh value is the sum of its trail
+  correlations;
+* `Poseidon`: the same for Starknet's Poseidon permutation: at least `43`, and `57` with the
+  automaton certificate;
+* `Field`: for `ZMod p`, the standard character `ZMod.stdAddChar` is separating for the
+  multiplication pairing and has values of norm `1`, so the results above hold with it and with
+  the norm of `ℂ`, stated in norm form for HADES rounds. It is the only module of this library
+  that imports `Mathlib.Analysis`, and no module with results imports it: only this file does,
+  so that the library root reaches it;
+* `Checks.Hades`: `walsh_masked` and the bridge failing under a non-separating character; the
+  zero trail, whose correlation is nonzero and which charges no S-box, so the hypothesis
+  `T 0 ≠ 0` of the activity bounds is needed; the forward mask map of the BN254 external layer is
+  not the layer;
+* `Checks.HadesAxioms`: pinned axiom footprints for the HADES and Poseidon results.
 
-Every module here stays under about 3.1 GB of memory.
+Every module here stays under about 3.1 GB of memory, except `Field` (about 3.4 GB, almost all
+of it the `Mathlib.Analysis` import). Because this file imports `Field`, this aggregator and the
+library root `WideTrail` also load `Mathlib.Analysis` and reach about 3.5 GB.
 
 ## What is not claimed
 
-This file only imports the modules above and proves nothing itself. Apart from the 3-bit maps of
-the checks (`chi3` and `andNext`, each with linearity bound `4`) and the AES S-box (linearity
-bound `32` under the trace pairing, `AESSbox`), no S-box is shown to have a linearity bound.
-Apart from the toy ciphers of the checks, the only concrete cipher with trail and hull bounds here
-is AES (`AES`), under the trace pairing, with every round including `MixColumns` and no final
-whitening key; the bit-pairing linear approximation table of the S-box is not treated, no
-bit-pairing bound is derived (so the designers' four-round bound for bit masks is not proved), and
-Rijndael with a 256-bit block is not treated. A trail bound bounds one trail: one summand of the
+This file only imports the modules above and proves nothing itself. Apart from the 3-bit maps of the
+checks (`chi3` and `andNext`, each with linearity bound `4`) and the AES S-box (linearity bound `32`
+under the trace pairing, `AESSbox`), no S-box is shown to have a linearity bound. Apart from the toy
+ciphers of the checks, the only concrete cipher with unconditional trail bounds, and the only one
+with hull bounds, is AES (`AES`), under the trace pairing, with every round including `MixColumns`
+and no final whitening key; the bit-pairing linear approximation table of the S-box is not treated,
+no bit-pairing bound is derived (so the designers' four-round bound for bit masks is not proved),
+and Rijndael with a 256-bit block is not treated. A trail bound bounds one trail: one summand of the
 fixed-key correlation, the same in magnitude for every key; it is not a bound on the cipher's
 correlation for a fixed key. Activity counts are lower bounds and are not claimed to be attained.
 The hull bounds are averages over an additional independent uniform key per round; the AES bound
-`2⁻²⁴` is coarse (the exact maximum two-round expected linear probability given by Keliher and
-Sui, `≈ 1.638 · 2⁻²⁸`, is not proved here). The wide-trail specification of the toy
-(`Checks.ToySpec`) has columns of one bundle and branch number `1`, so its instances of the
-specification-level trail bounds show only that their hypotheses can be met together. The claims,
-and the statements of what is not claimed, are those of the individual modules.
+`2⁻²⁴` is coarse (the exact maximum two-round expected linear probability given by Keliher and Sui,
+`≈ 1.638 · 2⁻²⁸`, is not proved here). The wide-trail specification of the toy (`Checks.ToySpec`)
+has columns of one bundle and branch number `1`, so its instances of the specification-level trail
+bounds show only that their hypotheses can be met together. For the Poseidon and Poseidon2 instances
+(`Poseidon2`, `Poseidon`) only activity counts are proved: their trail bounds take the S-box
+correlation bound as a hypothesis, and no bound on a Walsh value of `x ↦ x ^ d` over a prime field
+(such as the Weil bound) is proved; their activity counts are lower bounds, the same as the
+differential ones, and are not claimed to be attained. The claims, and the statements of what is not
+claimed, are those of the individual modules.
 -/
 
 set_option autoImplicit false
