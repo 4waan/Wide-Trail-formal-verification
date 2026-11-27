@@ -19,10 +19,15 @@ import WideTrail.Poseidon2.PicoKoalaBear
 import WideTrail.Poseidon2.OpenVMBabyBear
 import WideTrail.Poseidon2.Plonky3Execution
 import WideTrail.Poseidon2.Plonky3MiddleBound
+import WideTrail.Poseidon2.Certificates.KoalaBearRelations
+import WideTrail.Poseidon2.Certificates.PicoKoalaBearRelations
+import WideTrail.Poseidon2.KoalaBearMiddle
+import WideTrail.Poseidon2.PicoKoalaBearMiddle
 import WideTrail.Poseidon2.Checks.Plonky3KAT
 import WideTrail.Poseidon2.Checks.PicoKoalaBear
 import WideTrail.Poseidon2.Checks.OpenVMBabyBear
 import WideTrail.Poseidon2.Checks.MiddleBound
+import WideTrail.Poseidon2.Checks.KoalaBearMiddle
 import WideTrail.Poseidon2.Checks.Axioms
 
 /-! Pinned concrete Poseidon2 parameter certificates.
