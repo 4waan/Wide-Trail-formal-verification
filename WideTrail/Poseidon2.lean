@@ -14,6 +14,9 @@ import WideTrail.Poseidon2.HorizenLabsM4
 import WideTrail.Poseidon2.AztecBN254
 import WideTrail.Poseidon2.AztecBN254Execution
 import WideTrail.Poseidon2.Checks.AztecBN254
+import WideTrail.Poseidon2.Certificates.AztecBN254Automaton
+import WideTrail.Poseidon2.AztecBN254Middle
+import WideTrail.Poseidon2.Checks.AztecBN254Middle
 import WideTrail.Poseidon2.Plonky3
 import WideTrail.Poseidon2.KoalaBear
 import WideTrail.Poseidon2.BabyBear

@@ -9,7 +9,10 @@ import WideTrail.Poseidon.Starknet
 import WideTrail.Poseidon.ConstantFolding
 import WideTrail.Poseidon.StarknetCompressed
 import WideTrail.Poseidon.StarknetExecution
+import WideTrail.Poseidon.Certificates.StarknetAutomaton
+import WideTrail.Poseidon.StarknetMiddle
 import WideTrail.Poseidon.Checks.Starknet
+import WideTrail.Poseidon.Checks.StarknetMiddle
 import WideTrail.Poseidon.Checks.Axioms
 
 /-!
@@ -28,7 +31,16 @@ rounds:
 * `StarknetCompressed`: the compressed schedule computes the same permutation, also with the
   same additional key added to both schedules;
 * `StarknetExecution`: a materialised runner, proved equal to the specification;
+* `Certificates.StarknetAutomaton`: a forward-space automaton certificate for the `83` partial
+  rounds and a witness trail through the `91` rounds, checked by `decide +kernel` on light
+  imports;
+* `StarknetMiddle`: every trail through the `83` partial rounds charges at least `41` S-boxes,
+  so two distinct inputs incur at least `57` charged S-box applications, and the independent-key
+  trail bounds with the exponent `14250`;
 * `Checks.Starknet`: known-answer vectors, negative controls and exactness checks;
+* `Checks.StarknetMiddle`: exactness checks for `41` and `57` in the `IsTrail` model and for the
+  exponent `14250`, negative controls of the certificate, and the axiom footprints of the new
+  theorems;
 * `Checks.Axioms`: pinned axiom footprints.
 
 Every module here is cheap to elaborate (at most about 3.4 GB of memory).
