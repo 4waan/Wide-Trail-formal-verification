@@ -19,10 +19,14 @@ and the MLE stack's Merkle hasher, compressor and transcript use the same functi
 `mle-cpu/src/engine.rs:84-86`). All thirteen `p3-*` crates are pinned to the fork
 `brevis-network/Plonky3` at `rev = "da6ca12c"` (`Cargo.toml:45-57`), which `Cargo.lock` resolves
 to the commit `da6ca12c71912ec213d3c5af68b14509d2099bc3`, crate version `0.5.4`
-(`Cargo.lock:3400-3402`, `:3449-3451`, `:3482-3484`). Below, "the fork" means that commit, with
-paths relative to its root; each fork file cited here was compared outside Lean with the same
-file of the crates.io crates `p3-koala-bear`, `p3-poseidon2`, `p3-monty-31` and `p3-field`
-`0.5.4`, and they are byte-identical.
+(`Cargo.lock:3400-3402`, `:3449-3451`, `:3482-3484`). The Pico files were read at the tag
+`v3.2.0`, which was not resolved to a commit; their SHA-256 values were recorded outside Lean and
+are the only pin of their contents. The fork was read at the full commit above; its
+`koala-bear/src/poseidon2.rs` has SHA-256
+`dd37c0c35e191aac6a4f23149ff8c923d1dfdb4a119d006e1a573fadc2866143`. Below, "the fork" means that
+commit, with paths relative to its root; each fork file cited here was compared outside Lean with
+the same file of the crates.io crates `p3-koala-bear`, `p3-poseidon2`, `p3-monty-31` and
+`p3-field` `0.5.4`, and they are byte-identical.
 
 This file instantiates the diagonal-generic model `Plonky3.Diag` of
 `WideTrail.Poseidon2.Plonky3` with that permutation and discharges every hypothesis by `decide`,
@@ -74,7 +78,7 @@ round-constant tables are equal.
   `x / 2` and `div_2exp_u64(k)` as `x / 2^k`, and `internalCode_eq` proves that it is `internal`.
   That reading of the Montgomery code is not derived in Lean: on representatives, `halve` is
   `halve_u32` (`monty-31/src/monty_31.rs:201-204`, `src/utils.rs:92-97`) and `div_2exp_u64(k)`
-  for `k ≤ 32` is `monty_reduce(value << (32 - k))` (`monty_31.rs:219-233`), which are
+  for `k ≤ 32` is `monty_reduce(value << (32 - k))` (`monty_31.rs:219-232`), which are
   multiplications of the field element by `2^{-1}` and `2^{-k}`; every operation of
   `internal_layer_mat_mul` is a field operation, so there is no factor `R^{-1}`. This differs
   from SP1's layer `R^{-1} (diag(-2, 1, 2, 4, …, 2^13, 2^15) + J)`. The trait comment at
@@ -104,8 +108,9 @@ round-constant tables are equal.
   layout in which Pico's CUDA trace generation ships the constants
   (`vm/src/chips/gadgets/poseidon2/constants.rs:28-49`). The literals were re-extracted from the
   fork source outside Lean and compared entry by entry with this file. Upstream `p3-koala-bear`
-  `0.5.0` to `0.8.0` carry the same three tables; `0.4.3`'s `default_koalabear_poseidon2_16` has
-  other internal and final tables (also compared outside Lean). `Checks/PicoKoalaBear.lean` shows
+  `0.5.0`, `0.5.3`, `0.5.4`, `0.6.3`, `0.7.0` and `0.8.0` (the versions compared outside Lean)
+  carry the same three tables; `0.4.3`'s `default_koalabear_poseidon2_16` has other internal and
+  final tables (also compared outside Lean). `Checks/PicoKoalaBear.lean` shows
   that `values` is, entry by entry, SP1 v6.10.0's table `KoalaBear.values` (`values_eq_sp1`), so
   this permutation and SP1's differ only in the internal layer.
 
@@ -430,7 +435,8 @@ theorem activity {x y : State} (hxy : x ≠ y) :
 /-- **Trail bound, for every round-constant table.** In the model with an additional independent
 uniform key per round, the number of keys realising a fixed nonzero trail `T`, times
 `2^(29 * (32 + 20 / 16))`, is at most the number of all key sequences. Here `u = 2`, and `29` is
-the largest `dd` with `2 * 2^dd ≤ p` (`KoalaBear.two_mul_two_pow_le_card`). This concerns one
+the largest `dd` with `2 * 2^dd ≤ p` (`KoalaBear.two_mul_two_pow_le_card` gives `2 * 2^29 ≤ p`;
+`Checks.thirty_too_large` in `Checks/PicoKoalaBear.lean` shows that `30` fails). This concerns one
 trail in that model only: not the permutation with its fixed constants, and not a
 differential. -/
 theorem independent_key_probability_general (table : ℕ → State) {T : ℕ → State}

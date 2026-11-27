@@ -98,7 +98,8 @@ Nothing here is a comparison with a built binary, with the SIMD code paths or wi
 beyond the source's assertion that the AIR gadget reproduces the vector of `upstream_kat`, and
 nothing here strengthens the security claims of `WideTrail.Poseidon2.PicoKoalaBear`.
 
-The axiom footprints of the main results are pinned at the end of the file.
+The axiom footprints of every theorem of this file and of `WideTrail.Poseidon2.PicoKoalaBear`
+are pinned at the end of the file.
 -/
 
 set_option autoImplicit false
@@ -157,6 +158,8 @@ def rngExpected : State :=
   ![652590279, 1200629963, 1013089423, 1840372851, 19101828, 561050015, 1714865585, 994637181,
     498949829, 729884572, 1957973925, 263012103, 535029297, 2121808603, 964663675, 1473622080]
 
+/-- The runner, with the constants `KoalaBear.Plonky3KAT.katValues`, sends the test's input to
+the expected output. -/
 theorem rng_kat_dense :
     Plonky3.Diag.permutationDense diagDense 1 20 sbox KoalaBear.Plonky3KAT.katValues
         (Dense.ofState input) =
@@ -521,9 +524,17 @@ info: 'Poseidon2.PicoKoalaBear.independent_key_differential_sharp_general' depen
 #guard_msgs in
 #print axioms Poseidon2.PicoKoalaBear.Checks.diagDense_toState
 
+/-- info: 'Poseidon2.PicoKoalaBear.Checks.kat_dense' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.PicoKoalaBear.Checks.kat_dense
+
 /-- info: 'Poseidon2.PicoKoalaBear.Checks.upstream_kat' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.PicoKoalaBear.Checks.upstream_kat
+
+/-- info: 'Poseidon2.PicoKoalaBear.Checks.rng_kat_dense' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.PicoKoalaBear.Checks.rng_kat_dense
 
 /-- info: 'Poseidon2.PicoKoalaBear.Checks.rng_kat' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
