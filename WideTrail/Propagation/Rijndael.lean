@@ -63,6 +63,16 @@ behave unlike every other width.
 That is a computed fact about the two offset vectors, recorded because it is the one place
 in reach where they differ. It is not a claim about the designers' reasoning, and nothing
 downstream depends on it.
+
+## The hypotheses on `MixColumns`
+
+The bounds below take the branch number of `MixColumns` (`hmix`) and its invertibility (`hnd`)
+as hypotheses. `Rijndael/MixColumns.lean` discharges both for the real matrix at every block
+width (`Rijndael.mixColumns_isColBranchBound`, `Rijndael.mixColumns_nondegenerate`), states the
+bounds for every differential trail (`Rijndael.rijndael256_fourteen_round_concrete`,
+`Rijndael.rijndael192_twelve_round_concrete`), and recovers the functional-trail statements of
+this file without those hypotheses (`Rijndael.rijndael256_fourteen_round_concrete_trail`,
+`Rijndael.rijndael192_twelve_round_concrete_trail`).
 -/
 
 set_option autoImplicit false
@@ -266,7 +276,9 @@ variable (sbox₆ mix₆ : (GridIdx 4 6 → K) → (GridIdx 4 6 → K))
   (hnd₆ : NonDegenerate mix₆)
 
 /-- **75 active S-boxes in the twelve rounds of Rijndael with a 192-bit block and a
-192-bit key.** `12 = 3 · 4`, so the four-round tiling is exact. -/
+192-bit key.** `12 = 3 · 4`, so the four-round tiling is exact. With the real `MixColumns`
+the hypotheses `hmix₆` and `hnd₆` are discharged in
+`Rijndael.rijndael192_twelve_round_concrete_trail`. -/
 theorem rijndael192_twelve_round {a : GridIdx 4 6 → K} (ha : a ≠ 0) :
     75 ≤ (rijndaelSpec 6 shiftOff192 shiftOff192_injective sbox₆ mix₆ hsbox₆ hmix₆
       hnd₆).trailWeight a 12 := by
@@ -284,7 +296,10 @@ variable (sbox₈ mix₈ : (GridIdx 4 8 → K) → (GridIdx 4 8 → K))
   (hnd₈ : NonDegenerate mix₈)
 
 /-- **80 active S-boxes in the fourteen rounds of Rijndael with a 256-bit block and a
-256-bit key.** Three four-round blocks and a two-round tail. -/
+256-bit key.** Three four-round blocks and a two-round tail. With the real `MixColumns` the
+hypotheses `hmix₈` and `hnd₈` are discharged in
+`Rijndael.rijndael256_fourteen_round_concrete_trail`, and the bound holds for every
+differential trail (`Rijndael.rijndael256_fourteen_round_concrete`). -/
 theorem rijndael256_fourteen_round {a : GridIdx 4 8 → K} (ha : a ≠ 0) :
     80 ≤ (rijndaelSpec 8 shiftOff256 shiftOff256_injective sbox₈ mix₈ hsbox₈ hmix₈
       hnd₈).trailWeight a 14 := by

@@ -5,3 +5,4 @@ import WideTrail.Hades
 import WideTrail.Poseidon2
 import WideTrail.Poseidon
 import WideTrail.Linear
+import WideTrail.Rijndael
