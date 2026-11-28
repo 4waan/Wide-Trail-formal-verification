@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Awaan Siddiqui
 -/
 import WideTrail.Poseidon2.Plonky3
+import WideTrail.Poseidon2.Plonky3Execution
 import WideTrail.Algebra.PowerSbox
 import WideTrail.Differential.PowerMap
 import Mathlib.Tactic.IntervalCases
@@ -11,9 +12,10 @@ import Mathlib.Tactic.IntervalCases
 /-!
 # Checks for the generic Plonky3 width-sixteen model
 
-`WideTrail.Poseidon2.Plonky3` states its results over an arbitrary field under explicit
-hypotheses. The checks below show, on small prime fields, that the hypotheses can all hold at
-once; that the `m4Primes` hypothesis cannot be dropped from `external_isBranchBound`, whose
+`WideTrail.Poseidon2.Plonky3` states its results over an arbitrary field and, in the namespace
+`Diag`, for an arbitrary internal diagonal, under explicit hypotheses. The checks below show, on
+small prime fields, that the hypotheses can all hold at once, for SP1's diagonal and for a second
+diagonal; that the `m4Primes` hypothesis cannot be dropped from `external_isBranchBound`, whose
 conclusion fails over `ZMod 17`; that the inactive-space hypothesis of `activity_with_middle` is
 not implied by the others, since over `ZMod 23` it fails for every window while all the others
 hold (this does not show that the conclusion of `activity_with_middle` fails over `ZMod 23`);
@@ -62,17 +64,41 @@ finite checks are kernel `decide`.
   `MONTY_INVERSE`, the element with Montgomery representative `1` (`p3-koala-bear`
   `src/poseidon2.rs:35`, `p3-baby-bear` `src/poseidon2.rs:27`). Primality of the two moduli is
   not proved here.
+* **A second diagonal over `ZMod 29`, through the `Diag` layer.** `toyDiagDense` holds the
+  residues of `(-2, 1, 2, 1/2, 3, 4, -1/2, -3, -4, 1/4, 1/8, 1/16, -1/4, -1/8, -1/16, 5)`; it is
+  a test diagonal, not the diagonal of any modelled instance. `Diag.Conditions` holds with the
+  scale `20` (`toyDiag_conditions`, from the table of inverses `toyDiagInv` by
+  `Diag.Conditions.of_mul_eq_one`). Its entries off coordinate `0` are pairwise distinct
+  (`toyDiag_injOn`), so the criterion gives the window `16` with no Krylov table
+  (`toyDiag_inactive`) and exactly `16 - r` inactive dimensions for `r ≤ 16`
+  (`toyDiag_finrank_inactive_eq`). With `rP = 20` and the cube S-box the `Diag` theorems give
+  bijectivity, `33` charged S-boxes, the exact-ratio trail bound, the trail bound with `2^127`
+  (`127` is the largest `e` with `2^e * 2^33 ≤ 29^33`), and the differential bound with `29^7`
+  and with `2^27`, for every round-constant table. The generic runner computes the permutation
+  on `(0, 1, …, 15)` with the table `toyValues`, and `Diag.permutation_eq_of_dense` transfers the
+  value (`toyDiag_permutation`); the expected output comes from the same independent model as
+  `toyTrace`, run with this diagonal. It differs from the output of `toy_permutation`
+  (`toyDiag_permutation_ne`), so the check depends on the diagonal.
+* **`ZMod 23`, a diagonal that violates the criterion.** The same rational diagonal read in
+  `ZMod 23` (`twentyThreeDiag`) satisfies `Diag.Conditions` with the scale `1`
+  (`twentyThreeDiag_conditions`), so the permutation is bijective and the outer bound `32`
+  holds. But `1/8 = 3` in `ZMod 23`, so `d 4 = d 10` (`twentyThreeDiag_not_injOn`), and by
+  `Diag.inactiveSpace_ne_bot_of_not_injOn` some nonzero difference stays inactive through any
+  number of consecutive partial rounds (`twentyThreeDiag_inactive_ne_bot`): the inactive-space
+  route charges the partial rounds nothing for this diagonal over this field. This does not show
+  that the conclusion of `Diag.activity_with_middle` fails there.
 
 ## What is not claimed
 
-The execution over `ZMod 29` is compared with a second model computed outside Lean, not with the
-Rust code. The `mdsLight` vectors over the SP1 fields are compared with an outside model that
+The executions over `ZMod 29` are compared with a second model computed outside Lean, not with
+the Rust code. The `mdsLight` vectors over the SP1 fields are compared with an outside model that
 reproduces the test vectors of the `p3-koala-bear` and `p3-baby-bear` crates; they are not
-compared with SP1's AIR, the gnark circuit or a built binary. The counterexamples over `ZMod 17`
-and `ZMod 23` concern those fields only. Nothing here strengthens the security claims of
-`WideTrail.Poseidon2.Plonky3`.
+compared with SP1's AIR, the gnark circuit or a built binary. The second diagonal is a test
+vector for the generic layer; no deployment is claimed to use it. The counterexamples over
+`ZMod 17` and `ZMod 23` concern those fields and diagonals only. Nothing here strengthens the
+security claims of `WideTrail.Poseidon2.Plonky3`.
 
-The axiom footprints of the main results are pinned at the end of the file.
+The axiom footprints of the main results are pinned at the ends of the sections.
 -/
 
 set_option autoImplicit false
@@ -767,3 +793,313 @@ end Poseidon2.Plonky3.Checks
 /-- info: 'Poseidon2.Plonky3.Checks.koalaBear_zeroSum_mdsLight' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Poseidon2.Plonky3.Checks.koalaBear_zeroSum_mdsLight
+
+/-! ### A second diagonal over `ZMod 29`, through the generic layer
+
+Every result below is a `Diag` theorem of `WideTrail.Poseidon2.Plonky3` or
+`WideTrail.Poseidon2.Plonky3Execution` instantiated with a diagonal other than SP1's. -/
+
+namespace Poseidon2.Plonky3.Checks
+
+/-- The residues in `ZMod 29` of `(-2, 1, 2, 1/2, 3, 4, -1/2, -3, -4, 1/4, 1/8, 1/16, -1/4, -1/8,
+-1/16, 5)`, with `1/2 = 15`, `1/4 = 22`, `1/8 = 11` and `1/16 = 20` (`toyDiag_fractions`). A test
+diagonal for the generic layer; it is not the diagonal of any modelled instance. -/
+def toyDiagDense : Dense F := ⟨-2, 1, 2, 15, 3, 4, -15, -3, -4, 22, 11, 20, -22, -11, -20, 5⟩
+
+/-- The test diagonal as a specification diagonal `Fin 16 → F`. -/
+abbrev toyDiag : Fin 16 → F := toyDiagDense.toState
+
+/-- `15 = 1/2`, `22 = 1/4`, `11 = 1/8` and `20 = 1/16` in `ZMod 29`. -/
+theorem toyDiag_fractions :
+    (2 : F) * 15 = 1 ∧ (4 : F) * 22 = 1 ∧ (8 : F) * 11 = 1 ∧ (16 : F) * 20 = 1 := by
+  decide
+
+/-- The inverses of the entries of `toyDiag`: the residues of `(-1/2, 1, 1/2, 2, 1/3, 1/4, -2,
+-1/3, -1/4, 4, 8, 16, -4, -8, -16, 1/5)`. -/
+def toyDiagInv : Fin 16 → F := ![-15, 1, 15, 2, 10, 22, -2, -10, -22, 4, 8, 16, -4, -8, -16, 6]
+
+theorem toyDiag_mul_inv : ∀ i, toyDiag i * toyDiagInv i = 1 := by
+  decide
+
+/-- The Sherman–Morrison quantity of `toyDiag`: `1 + ∑ 1/d_i = 8` in `ZMod 29`. -/
+theorem toyDiag_one_add_sum_inv : 1 + ∑ i, toyDiagInv i = 8 := by
+  decide
+
+/-- **The conditions of the generic layer** for the test diagonal and the scale `20 = 2^{-32}`,
+from the table of inverses. -/
+theorem toyDiag_conditions : Diag.Conditions toyDiag (20 : F) :=
+  Diag.Conditions.of_mul_eq_one (by decide) toyDiag_mul_inv
+    (by rw [toyDiag_one_add_sum_inv]; decide) (by decide)
+
+/-- The entries of `toyDiag` off coordinate `0` are pairwise distinct in `ZMod 29`. -/
+theorem toyDiag_injOn : Set.InjOn toyDiag {i | i ≠ 0} :=
+  Diag.injOn_of_forall (by decide)
+
+/-- **No nonzero difference stays inactive through sixteen consecutive partial rounds** with
+`diag d + J` for the test diagonal, by the criterion, with no Krylov table. -/
+theorem toyDiag_inactive :
+    Hades.inactiveSpace (diagPlusOnes (1 : F) toyDiag) ({0} : Finset (Fin 16)) 16 = ⊥ :=
+  Diag.inactiveSpace_sixteen_eq_bot_iff.mpr toyDiag_injOn
+
+/-- **Exactly `16 - r` dimensions stay inactive through `r ≤ 16` consecutive partial rounds**
+with the scaled internal layer of the test diagonal. -/
+theorem toyDiag_finrank_inactive_eq {r : ℕ} (hr : r ≤ 16) :
+    Module.finrank F (Hades.inactiveSpace
+        (Diag.internal toyDiag 20 toyDiag_conditions.scale toyDiag_conditions.diag
+          toyDiag_conditions.shermanMorrison).toLinearMap ({0} : Finset (Fin 16)) r) =
+      16 - r :=
+  Diag.finrank_inactiveSpace_internal_eq _ _ _ _ _ toyDiag_injOn hr
+
+theorem toyDiag_bijective (values : ℕ → Fin 16 → F) :
+    Function.Bijective (Diag.permutation toyDiag_conditions 20 toySbox values) :=
+  Diag.permutation_bijective toyDiag_conditions 20 toySbox values
+
+/-- **`33` charged S-boxes for the test diagonal** with twenty partial rounds, for every constant
+table: `32` from the full rounds and `20 / 16 = 1` from the partial rounds. -/
+theorem toyDiag_activity (values : ℕ → Fin 16 → F) {x y : Fin 16 → F} (hxy : x ≠ y) :
+    33 ≤ Hades.scheduledWeight (Diag.rounds toyDiag_conditions 20 toySbox values)
+      (Hades.differenceTrace (Diag.rounds toyDiag_conditions 20 toySbox values)
+        (external toyDiag_conditions.thirtyFive x) (external toyDiag_conditions.thirtyFive y)) 0
+      (8 + 20) :=
+  Diag.activity_with_middle toyDiag_conditions toy_primes 20 toySbox values toyDiag_inactive hxy
+
+/-- The exact-ratio trail bound for the test diagonal, for every constant table: `u = 2` and `33`
+charged S-boxes. -/
+theorem toyDiag_probability_exact (values : ℕ → Fin 16 → F) {T : ℕ → Fin 16 → F}
+    (h0 : T 0 ≠ 0) (x : Fin 16 → F) :
+    Hades.keyCount (Diag.rounds toyDiag_conditions 20 toySbox values) (8 + 20) T x
+        * Fintype.card F ^ (32 + 20 / 16)
+      ≤ 2 ^ (32 + 20 / 16) * Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  Diag.independent_key_probability_with_middle_exact toyDiag_conditions toy_primes 20 toySbox
+    values toySbox_uniform toyDiag_inactive h0 x
+
+/-- The trail bound with a power of two for the test diagonal: `2^127 * 2^33 ≤ 29^33`. -/
+theorem toyDiag_probability_sharp (values : ℕ → Fin 16 → F) {T : ℕ → Fin 16 → F}
+    (h0 : T 0 ≠ 0) (x : Fin 16 → F) :
+    Hades.keyCount (Diag.rounds toyDiag_conditions 20 toySbox values) (8 + 20) T x * 2 ^ 127
+      ≤ Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  Diag.independent_key_probability_with_middle_sharp toyDiag_conditions toy_primes 20 toySbox
+    values toySbox_uniform (by decide) toyDiag_inactive (by rw [ZMod.card]; decide) h0 x
+
+/-- `127` is the largest such exponent: `2^128 * 2^33 ≤ 29^33` fails. -/
+theorem toyDiag_probability_sharp_succ_fails :
+    ¬ 2 ^ 128 * 2 ^ (32 + 20 / 16) ≤ 29 ^ (32 + 20 / 16) := by
+  decide
+
+/-- The differential bound for the test diagonal, for every constant table: for `a ≠ 0`,
+`diffKeyCount * 29^7 ≤ 2^7 * |F^16|^28`. -/
+theorem toyDiag_differential_exact (values : ℕ → Fin 16 → F) {a : Fin 16 → F} (ha : a ≠ 0)
+    (b x : Fin 16 → F) :
+    Hades.diffKeyCount (Diag.rounds toyDiag_conditions 20 toySbox values) (8 + 20) a b x
+        * Fintype.card F ^ 7
+      ≤ 2 ^ 7 * Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  Diag.independent_key_differential_exact toyDiag_conditions toy_primes 20 toySbox values
+    toySbox_uniform ha b x
+
+/-- The differential bound with a power of two for the test diagonal: `2^27 * 2^7 ≤ 29^7`. -/
+theorem toyDiag_differential_sharp (values : ℕ → Fin 16 → F) {a : Fin 16 → F} (ha : a ≠ 0)
+    (b x : Fin 16 → F) :
+    Hades.diffKeyCount (Diag.rounds toyDiag_conditions 20 toySbox values) (8 + 20) a b x * 2 ^ 27
+      ≤ Fintype.card (Fin 16 → F) ^ (8 + 20) :=
+  Diag.independent_key_differential_sharp toyDiag_conditions toy_primes 20 toySbox values
+    toySbox_uniform (by decide) (by rw [ZMod.card]; decide) ha b x
+
+set_option maxRecDepth 4000 in
+-- The `decide` below unfolds all rounds of the runner at once; the default depth is too small.
+/-- **The generic runner over `ZMod 29` with the test diagonal.** The permutation sends
+`(0, 1, …, 15)` to the value computed outside Lean by the round-by-round model of `toyTrace`, run
+with `toyDiag` in place of SP1's diagonal; `decide` evaluates `Diag.permutationDense` and
+`Diag.permutation_eq_of_dense` transfers the value. -/
+theorem toyDiag_permutation :
+    Diag.permutation toyDiag_conditions 20 toySbox toyValues (fun i : Fin 16 => ((i : ℕ) : F)) =
+      ![1, 6, 26, 3, 27, 27, 14, 16, 0, 24, 8, 9, 2, 15, 22, 10] :=
+  Diag.permutation_eq_of_dense (d := toyDiagDense) toyDiag_conditions 20 toySbox toyValues
+    (by decide)
+
+/-- The two diagonals give different outputs on the same input and table, so
+`toyDiag_permutation` depends on the diagonal. -/
+theorem toyDiag_permutation_ne :
+    Diag.permutation toyDiag_conditions 20 toySbox toyValues (fun i : Fin 16 => ((i : ℕ) : F)) ≠
+      permutation toy_conditions 20 toySbox toyValues (fun i : Fin 16 => ((i : ℕ) : F)) := by
+  rw [toyDiag_permutation, toy_permutation]
+  decide
+
+/-! ### `ZMod 23`: a diagonal that violates the criterion -/
+
+/-- The rational diagonal of `toyDiagDense` read in `ZMod 23`, where `1/2 = 12`, `1/4 = 6`,
+`1/8 = 3` and `1/16 = 13`. -/
+def twentyThreeDiag : Fin 16 → ZMod 23 :=
+  ![-2, 1, 2, 12, 3, 4, -12, -3, -4, 6, 3, 13, -6, -3, -13, 5]
+
+/-- The inverses of the entries of `twentyThreeDiag`. -/
+def twentyThreeDiagInv : Fin 16 → ZMod 23 :=
+  ![-12, 1, 12, 2, 8, 6, -2, -8, -6, 4, 8, 16, -4, -8, -16, 14]
+
+/-- **The conditions of the generic layer hold** for this diagonal and the scale `1`: every entry
+has an inverse and `1 + ∑ 1/d_i = 16 ≠ 0` in `ZMod 23`. -/
+theorem twentyThreeDiag_conditions : Diag.Conditions twentyThreeDiag (1 : ZMod 23) :=
+  Diag.Conditions.of_mul_eq_one (e := twentyThreeDiagInv) (by decide) (by decide) (by decide)
+    (by decide)
+
+theorem twentyThreeDiag_bijective (rP : ℕ) (sbox : ZMod 23 ≃ ZMod 23)
+    (values : ℕ → Fin 16 → ZMod 23) :
+    Function.Bijective (Diag.permutation twentyThreeDiag_conditions rP sbox values) :=
+  Diag.permutation_bijective twentyThreeDiag_conditions rP sbox values
+
+/-- The outer bound holds for this diagonal, for any S-box, number of partial rounds and
+table. -/
+theorem twentyThreeDiag_activity (rP : ℕ) (sbox : ZMod 23 ≃ ZMod 23)
+    (values : ℕ → Fin 16 → ZMod 23) {x y : Fin 16 → ZMod 23} (hxy : x ≠ y) :
+    32 ≤ Hades.scheduledWeight (Diag.rounds twentyThreeDiag_conditions rP sbox values)
+      (Hades.differenceTrace (Diag.rounds twentyThreeDiag_conditions rP sbox values)
+        (external twentyThreeDiag_conditions.thirtyFive x)
+        (external twentyThreeDiag_conditions.thirtyFive y)) 0 (8 + rP) :=
+  Diag.activity twentyThreeDiag_conditions twentyThree_primes rP sbox values hxy
+
+/-- `1/8 = 3` in `ZMod 23`, so `d 4 = 3 = d 10`: the criterion fails. -/
+theorem twentyThreeDiag_not_injOn : ¬ Set.InjOn twentyThreeDiag {i | i ≠ 0} := by
+  intro h
+  have h410 : (4 : Fin 16) = 10 := h (by decide) (by decide) (by decide)
+  exact absurd h410 (by decide)
+
+/-- **No window length works for this diagonal over `ZMod 23`**
+(`Diag.inactiveSpace_ne_bot_of_not_injOn`): some nonzero difference stays inactive through any
+number of consecutive partial rounds. -/
+theorem twentyThreeDiag_inactive_ne_bot (w : ℕ) :
+    Hades.inactiveSpace (diagPlusOnes (1 : ZMod 23) twentyThreeDiag) ({0} : Finset (Fin 16)) w ≠
+      ⊥ :=
+  Diag.inactiveSpace_ne_bot_of_not_injOn twentyThreeDiag_not_injOn w
+
+end Poseidon2.Plonky3.Checks
+
+/-- info: 'Poseidon2.Plonky3.Diag.Conditions.of_mul_eq_one' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.Conditions.of_mul_eq_one
+
+/-- info: 'Poseidon2.Plonky3.Diag.permutation_bijective' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.permutation_bijective
+
+/-- info: 'Poseidon2.Plonky3.Diag.rounds_apply_middle' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.rounds_apply_middle
+
+/-- info: 'Poseidon2.Plonky3.Diag.activity' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.activity
+
+/-- info: 'Poseidon2.Plonky3.Diag.activity_with_middle' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.activity_with_middle
+
+/-- info: 'Poseidon2.Plonky3.Diag.independent_key_probability' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_probability
+
+/--
+info: 'Poseidon2.Plonky3.Diag.independent_key_probability_with_middle' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_probability_with_middle
+
+/-- info: 'Poseidon2.Plonky3.Diag.independent_key_probability_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_probability_exact
+
+/--
+info: 'Poseidon2.Plonky3.Diag.independent_key_probability_with_middle_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_probability_with_middle_exact
+
+/-- info: 'Poseidon2.Plonky3.Diag.independent_key_probability_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_probability_sharp
+
+/--
+info: 'Poseidon2.Plonky3.Diag.independent_key_probability_with_middle_sharp' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_probability_with_middle_sharp
+
+/-- info: 'Poseidon2.Plonky3.Diag.independent_key_differential_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_differential_exact
+
+/-- info: 'Poseidon2.Plonky3.Diag.independent_key_differential_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.independent_key_differential_sharp
+
+/-- info: 'Poseidon2.Plonky3.Diag.inactiveSpace_internal' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.inactiveSpace_internal
+
+/-- info: 'Poseidon2.Plonky3.Diag.finrank_inactiveSpace_internal' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.finrank_inactiveSpace_internal
+
+/-- info: 'Poseidon2.Plonky3.Diag.middle_term_eq_zero' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.middle_term_eq_zero
+
+/-- info: 'Poseidon2.Plonky3.Diag.inactiveSpace_sixteen_eq_bot_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.inactiveSpace_sixteen_eq_bot_iff
+
+/-- info: 'Poseidon2.Plonky3.Diag.finrank_inactiveSpace_internal_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.finrank_inactiveSpace_internal_eq
+
+/-- info: 'Poseidon2.Plonky3.Diag.inactiveSpace_ne_bot_of_not_injOn' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.inactiveSpace_ne_bot_of_not_injOn
+
+/-- info: 'Poseidon2.Plonky3.Diag.internal_dotProduct' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.internal_dotProduct
+
+/-- info: 'Poseidon2.Plonky3.Conditions.toDiag' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Conditions.toDiag
+
+/-- info: 'Poseidon2.Plonky3.Diag.executeDense_toState' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.executeDense_toState
+
+/-- info: 'Poseidon2.Plonky3.Diag.permutation_eq_of_dense' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Diag.permutation_eq_of_dense
+
+/-- info: 'Poseidon2.Plonky3.Checks.toyDiag_conditions' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toyDiag_conditions
+
+/-- info: 'Poseidon2.Plonky3.Checks.toyDiag_activity' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toyDiag_activity
+
+/-- info: 'Poseidon2.Plonky3.Checks.toyDiag_probability_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toyDiag_probability_sharp
+
+/-- info: 'Poseidon2.Plonky3.Checks.toyDiag_differential_sharp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toyDiag_differential_sharp
+
+/-- info: 'Poseidon2.Plonky3.Checks.toyDiag_finrank_inactive_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toyDiag_finrank_inactive_eq
+
+/-- info: 'Poseidon2.Plonky3.Checks.toyDiag_permutation' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.toyDiag_permutation
+
+/-- info: 'Poseidon2.Plonky3.Checks.twentyThreeDiag_inactive_ne_bot' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Poseidon2.Plonky3.Checks.twentyThreeDiag_inactive_ne_bot

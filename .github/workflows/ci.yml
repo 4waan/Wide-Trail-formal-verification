@@ -36,19 +36,23 @@ jobs:
           use-mathlib-cache: true
           build: false
 
-      # Three check modules evaluate whole 16-wide permutations in the kernel
-      # and each needs 7 to 12 GB of memory to elaborate. Lake builds
-      # independent modules in parallel and has no option to limit that, so
-      # together they exceed the runner's 16 GB and the runner is shut down.
-      # Building them one at a time first keeps the peak to one of them.
-      - name: Build the memory-heavy check modules one at a time
+      # The default library. It leaves out the three memory-heavy check
+      # modules and Linear/Field.lean (the one module that loads
+      # Mathlib.Analysis), so this is the build a laptop runs.
+      - name: Build the default library
+        run: lake build
+
+      # The library WideTrailHeavy adds three check modules that evaluate whole
+      # 16-wide permutations in the kernel; each needs 7 to 12 GB of memory to
+      # elaborate. Lake builds independent modules in parallel and has no option
+      # to limit that, so together they exceed the runner's 16 GB and the runner
+      # is shut down. Building them one at a time keeps the peak to one of them.
+      - name: Build the memory-heavy checks one at a time
         run: |
           lake build WideTrail.Poseidon2.Checks.KoalaBear
           lake build WideTrail.Poseidon2.Checks.BabyBear
           lake build WideTrail.Poseidon2.Checks.Plonky3
-
-      - name: Build everything else
-        run: lake build
+          lake build WideTrailHeavy
 
       - uses: leanprover/lean-action@v1
         with:
@@ -58,8 +62,8 @@ jobs:
           use-github-cache: false
           build: false
 
-          # Retain the action's namespace audit alongside the complete module
-          # audit below. Unexpected transitive axioms include
+          # Retain the action's namespace audit (of the default library) alongside
+          # the complete module audits below. Unexpected transitive axioms include
           # `sorry` and `admit` (which surface as `sorryAx`), `native_decide`
           # (which surfaces as `Lean.ofReduceBool` and moves the evidence out of
           # the kernel), and any home-rolled axiom, including ones arriving
@@ -67,11 +71,14 @@ jobs:
           axiom-audit: true
           axiom-audit-allow: propext,Classical.choice,Quot.sound
 
-      - name: Audit every project declaration by defining module
+      - name: Audit every declaration of the default library by defining module
         run: lake env lean scripts/AuditAxioms.lean
 
-      # The build and the audit above cover only modules that WideTrail.lean
-      # imports. A file that nothing imports would be neither compiled nor
-      # audited, and no step would notice.
+      - name: Audit every declaration, heavy checks included, by defining module
+        run: lake env lean scripts/AuditAxiomsHeavy.lean
+
+      # The builds and the audits above cover only modules that WideTrail.lean
+      # or WideTrailHeavy.lean imports. A file that nothing imports would be
+      # neither compiled nor audited, and no step would notice.
       - name: Check that every module is imported
         run: python3 scripts/check_imports.py

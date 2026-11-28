@@ -1,11 +1,21 @@
 name: Docs
 
-# Builds the API documentation and publishes it to GitHub Pages.
+# Builds the API documentation with doc-gen4 and publishes it to GitHub Pages.
 #
-# This used to be the last two steps of the build job, which meant a Pages
-# misconfiguration marked the whole run red after the proofs had already checked
-# out fine. It is a separate workflow now, and it degrades to a dry run rather
-# than failing when Pages is switched off.
+# This used to call leanprover-community/docgen-action and mark it
+# continue-on-error whenever Pages was off. Two things went wrong at once: the
+# documentation build ran out of memory near the end (its jobs could not fork:
+# "resource exhausted, cannot allocate memory"), and the masked step still showed
+# the run green. Pages was never enabled either, so nothing was ever published.
+#
+# The steps are now written out here, so that each failure is reported as one:
+# - A failed documentation build fails the run.
+# - On main, documentation that was built but could not be published, because
+#   Pages is not enabled, also fails the run, with a message saying so.
+# The runner is set to allow forking the large Lake process (the cause of the
+# old "cannot allocate memory" errors) and given swap, and only the default
+# library `WideTrail` is documented: it leaves out the memory-heavy check
+# modules of `WideTrailHeavy`.
 
 on:
   push:
@@ -32,9 +42,63 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Near the end of the build, doc-gen4's srcUri jobs fork the Lake process,
+      # which is large by then, to run git. With several forks at once the
+      # kernel's default overcommit check refuses them ("resource exhausted,
+      # cannot allocate memory"). Each child runs git at once and copies almost
+      # nothing, so allow the forks; the swap file covers real peaks.
+      - name: Allow forking a large process, and add swap space
+        run: |
+          sudo sysctl -w vm.overcommit_memory=1
+          sudo swapoff -a
+          sudo fallocate -l 16G /mnt/docs.swap
+          sudo chmod 600 /mnt/docs.swap
+          sudo mkswap /mnt/docs.swap
+          sudo swapon /mnt/docs.swap
+          free -h
+
+      # Installs the toolchain, fetches the Mathlib cache, and builds the default
+      # library, which the documentation is generated from.
+      - uses: leanprover/lean-action@v1
+        with:
+          use-mathlib-cache: true
+
+      # Documentation of Mathlib and the other dependencies only changes when the
+      # toolchain or the manifest does.
+      - name: Restore the documentation of the dependencies
+        uses: actions/cache@v4
+        with:
+          path: docbuild/.lake
+          key: docs-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+
+      # A separate package that requires this one and doc-gen4, as the doc-gen4
+      # README describes, so doc-gen4 never becomes a dependency of the library.
+      - name: Build the API documentation
+        run: |
+          mkdir -p docbuild
+          cat > docbuild/lakefile.toml <<EOF
+          name = "docbuild"
+          reservoir = false
+          version = "0.1.0"
+          packagesDir = "../.lake/packages"
+
+          [[require]]
+          name = "WideTrail"
+          path = "../"
+
+          [[require]]
+          scope = "leanprover"
+          name = "doc-gen4"
+          rev = "$(cut -f 2 -d: < lean-toolchain)"
+          EOF
+          cd docbuild
+          MATHLIB_NO_CACHE_ON_UPDATE=1 lake update WideTrail
+          lake build WideTrail:docs
+          test -f .lake/build/doc/index.html
+
       # actions/deploy-pages POSTs to the Pages API, which answers 404 when the
-      # repository has no Pages site configured. That 404 is indistinguishable
-      # from a real error once it reaches the action, so ask first.
+      # repository has no Pages site configured. Ask first, so that the result
+      # can be reported plainly.
       - name: Detect whether GitHub Pages is enabled
         id: pages
         env:
@@ -42,38 +106,27 @@ jobs:
         run: |
           if gh api "repos/${GITHUB_REPOSITORY}/pages" >/dev/null 2>&1; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "GitHub Pages is enabled. Documentation will be published." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Pages is not enabled::Documentation was built but not published."
-            {
-              echo "### Documentation built, not published"
-              echo ""
-              echo "This repository has no GitHub Pages site, so the deploy step was skipped."
-              echo "To publish: Settings, then Pages, then set Source to GitHub Actions."
-            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      # docgen-action expects the toolchain to already be installed and the
-      # project already built. It does not run lean-action itself.
-      - uses: leanprover/lean-action@v1
+      - name: Upload the documentation
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
-          use-mathlib-cache: true
+          path: docbuild/.lake/build/doc
 
-      # The `v1` ref is a maintained branch, not a tag, and it declares exactly
-      # five inputs: api_docs, blueprint, homepage, build_args and
-      # lake_package_directory. There is no `deploy` input on this line, so its
-      # final step reads `if: github.event_name == 'push'` and publishes to Pages
-      # unconditionally. A `deploy:` here would be an undeclared input, silently
-      # dropped, gating nothing. (`main` does have `deploy`, which is what makes
-      # this easy to get wrong.)
-      #
-      # So the guard lives here instead. When Pages is off the deploy 404s, and
-      # continue-on-error lets the docs still build and the run still pass. The
-      # step is marked failed either way, which is the honest report.
-      - uses: leanprover-community/docgen-action@v1
-        continue-on-error: ${{ steps.pages.outputs.enabled != 'true' }}
-      # Note: actions/deploy-pages runs inside docgen-action and exposes no
-      # outputs here, so this job declares no `environment:`. The deploy works
-      # without one. Add `environment: github-pages` if you want the deployment
-      # to appear under the repository's Environments tab.
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' && steps.pages.outputs.enabled == 'true'
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+      - name: Report that the documentation was not published
+        if: github.ref == 'refs/heads/main' && steps.pages.outputs.enabled != 'true'
+        run: |
+          echo "::error title=GitHub Pages is not enabled::The documentation was built but not published."
+          {
+            echo "### Documentation built, not published"
+            echo ""
+            echo "This repository has no GitHub Pages site."
+            echo "To publish: Settings, then Pages, then set Source to GitHub Actions."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

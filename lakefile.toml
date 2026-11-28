@@ -16,3 +16,8 @@ rev = "v4.33.1"
 
 [[lean_lib]]
 name = "WideTrail"
+
+# The checks that need 7 to 12 GB of memory to elaborate. Not a default target, so a
+# plain `lake build` fits on a laptop; CI builds it, one heavy module at a time.
+[[lean_lib]]
+name = "WideTrailHeavy"

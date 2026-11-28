@@ -36,7 +36,10 @@ The HorizenLabs reference implementation of Poseidon2 uses a different `4 × 4` 
 `[[5, 7, 1, 3], [4, 6, 1, 1], [1, 3, 5, 7], [1, 1, 4, 6]]` (`apply_hl_mat4`). It is not the
 matrix of Plonky3's `MDSMat4`, which is the one `Poseidon2ExternalMatrixGeneral` uses and
 the one formalised in `MDS4.lean`; `hlMat4_ne_m4` records that the two differ. Nothing
-here is about the HorizenLabs matrix.
+here is about the HorizenLabs matrix beyond `hlMat4_ne_m4`. That matrix is treated over
+every field in `WideTrail.Poseidon2.HorizenLabsM4`, and
+`Poseidon2.AztecBN254.Checks.mds4Checks_hlMat4_eq` proves that the integer matrix
+`MDS4Checks.hlMat4` below is `Poseidon2.hlMat4 ℤ`.
 
 All finite checks are kernel `decide`.
 -/

@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "WideTrail: kernel-checked wide-trail and Poseidon2 bounds in Lean 4"
+abstract: >-
+  A Lean 4 formalisation of the wide trail design strategy. It proves active S-box
+  bounds for AES-like designs and Rijndael, concrete AES algebra, exact differential
+  trail counts in an independent-key model, partial-round activity bounds for HADES
+  and Poseidon2, and certificates for deployed Poseidon2 permutations. Every theorem
+  is checked by Lean's kernel, with no axioms beyond propext, Classical.choice and
+  Quot.sound.
+authors:
+  - family-names: Siddiqui
+    given-names: Awaan
+version: 0.1.0
+license: Apache-2.0
+repository-code: "https://github.com/4waan/Wide-Trail-formal-verification"
+keywords:
+  - Lean 4
+  - formal verification
+  - wide trail strategy
+  - differential cryptanalysis
+  - AES
+  - Rijndael
+  - Poseidon2
+references:
+  - type: conference-paper
+    title: "The Wide Trail Design Strategy"
+    authors:
+      - family-names: Daemen
+        given-names: Joan
+      - family-names: Rijmen
+        given-names: Vincent
+    collection-title: "Cryptography and Coding, 8th IMA International Conference"
+    collection-type: proceedings
+    notes: "Lecture Notes in Computer Science, volume 2260"
+    volume: 2260
+    start: 222
+    end: 238
+    publisher:
+      name: Springer
+    year: 2001
+    doi: "10.1007/3-540-45325-3_20"

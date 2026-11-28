@@ -5,17 +5,40 @@ Authors: Awaan Siddiqui
 -/
 import WideTrail.Poseidon2.BN254
 import WideTrail.Poseidon2.BN254Middle
+import WideTrail.Poseidon2.Certificates.BN254Automaton
+import WideTrail.Poseidon2.BN254MiddleSharp
 import WideTrail.Poseidon2.BN254Execution
 import WideTrail.Poseidon2.BN254Checks
 import WideTrail.Poseidon2.Checks.BN254SP1
+import WideTrail.Poseidon2.HorizenLabsM4
+import WideTrail.Poseidon2.AztecBN254
+import WideTrail.Poseidon2.AztecBN254Execution
+import WideTrail.Poseidon2.Checks.AztecBN254
+import WideTrail.Poseidon2.Certificates.AztecBN254Automaton
+import WideTrail.Poseidon2.AztecBN254Middle
+import WideTrail.Poseidon2.Checks.AztecBN254Middle
 import WideTrail.Poseidon2.Plonky3
-import WideTrail.Poseidon2.Checks.Plonky3
 import WideTrail.Poseidon2.KoalaBear
-import WideTrail.Poseidon2.Checks.KoalaBear
 import WideTrail.Poseidon2.BabyBear
-import WideTrail.Poseidon2.Checks.BabyBear
+import WideTrail.Poseidon2.PicoKoalaBear
+import WideTrail.Poseidon2.OpenVMBabyBear
 import WideTrail.Poseidon2.Plonky3Execution
+import WideTrail.Poseidon2.Plonky3MiddleBound
+import WideTrail.Poseidon2.Certificates.KoalaBearRelations
+import WideTrail.Poseidon2.Certificates.PicoKoalaBearRelations
+import WideTrail.Poseidon2.KoalaBearMiddle
+import WideTrail.Poseidon2.PicoKoalaBearMiddle
 import WideTrail.Poseidon2.Checks.Plonky3KAT
+import WideTrail.Poseidon2.Checks.PicoKoalaBear
+import WideTrail.Poseidon2.Checks.OpenVMBabyBear
+import WideTrail.Poseidon2.Checks.MiddleBound
+import WideTrail.Poseidon2.Checks.KoalaBearMiddle
+import WideTrail.Poseidon2.Checks.BN254MiddleSharp
 import WideTrail.Poseidon2.Checks.Axioms
 
-/-! Pinned concrete Poseidon2 parameter certificates. -/
+/-! Pinned concrete Poseidon2 parameter certificates.
+
+The checks `Checks.Plonky3`, `Checks.KoalaBear` and `Checks.BabyBear` evaluate whole
+width-16 permutations in the kernel and need about 7 to 12 GB of memory each. They are
+not imported here, so that the default `lake build` fits on a laptop; the separate
+library `WideTrailHeavy` imports them. -/
